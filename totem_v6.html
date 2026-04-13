@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cercatore di Totem</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#1a1208; --green:#2c5f2e; --green-mid:#3d7a40; --green-light:#e8f4e8;
+    --green-pale:#f4faf4; --red:#b91c1c; --red-mid:#ef4444;
+    --amber:#c17f24; --amber-light:#fef3e2;
+    --bg:#faf8f4; --surface:#fff; --surface2:#f6f3ee;
+    --border:#ddd5c8; --muted:#7a6e60;
+    --tag-bg:#ecf4ec; --tag-border:#b8d4b9; --r:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;min-height:100vh;}
+
+  header{background:var(--green);padding:1.2rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+  .h-title{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:#fff;}
+  .h-sub{font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.1rem;}
+  .h-badge{font-size:.7rem;background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);padding:.28rem .7rem;border-radius:20px;border:1px solid rgba(255,255,255,.2);white-space:nowrap;}
+
+  .layout{display:grid;grid-template-columns:330px 1fr;min-height:calc(100vh - 62px);}
+  @media(max-width:760px){.layout{grid-template-columns:1fr;}}
+
+  .sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:calc(100vh - 62px);overflow:hidden;}
+  .sb-scroll{flex:1;overflow-y:auto;padding:1.1rem;display:flex;flex-direction:column;gap:1rem;}
+
+  .lbl{font-size:.66rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;display:block;}
+  input[type=search]{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:.87rem;color:var(--ink);background:var(--surface2);outline:none;transition:border-color .15s,background .15s;}
+  input:focus{border-color:var(--green-mid);background:#fff;}
+
+  .mode-tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2);border-radius:8px;padding:3px;gap:3px;margin-bottom:.4rem;}
+  .mode-tab{padding:.42rem;text-align:center;font-size:.78rem;font-weight:500;border-radius:6px;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .15s;}
+  .mode-tab.active{background:#fff;color:var(--green);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .mode-hint{font-size:.73rem;color:var(--muted);line-height:1.4;}
+
+  .tsec-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;}
+  .tsec-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .tsec-title{font-size:.66rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .tsec-count{margin-left:auto;font-size:.65rem;background:var(--surface2);padding:.1rem .45rem;border-radius:10px;color:var(--muted);font-weight:500;}
+
+  .tcloud{display:flex;flex-wrap:wrap;gap:.28rem;max-height:185px;overflow-y:auto;padding-right:2px;}
+  .tt{font-size:.72rem;padding:.2rem .55rem;border-radius:20px;cursor:pointer;user-select:none;transition:all .12s;white-space:nowrap;border:1px solid transparent;}
+  .tt-inc{background:var(--tag-bg);color:var(--green);border-color:var(--tag-border);}
+  .tt-inc:hover{background:#daeeda;border-color:var(--green-mid);}
+  .tt-inc.on{background:var(--green);color:#fff;border-color:var(--green);}
+  .tt-exc{background:#fef2f2;color:var(--red);border-color:#fecaca;}
+  .tt-exc:hover{background:#fee2e2;border-color:var(--red-mid);}
+  .tt-exc.on{background:var(--red);color:#fff;border-color:var(--red);}
+  .tt.hide{display:none;}
+
+  .pills{display:flex;flex-wrap:wrap;gap:.28rem;min-height:1.4rem;}
+  .pill{font-size:.7rem;padding:.18rem .45rem .18rem .55rem;border-radius:20px;display:flex;align-items:center;gap:.25rem;}
+  .p-inc{background:var(--green);color:#fff;}
+  .p-exc{background:var(--red);color:#fff;}
+  .pill button{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:.85rem;line-height:1;padding:0;}
+  .pill button:hover{color:#fff;}
+  .no-p{font-size:.78rem;color:var(--muted);font-style:italic;}
+
+  .sb-foot{padding:.75rem 1.1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .sb-foot span{font-size:.73rem;color:var(--muted);}
+  .btn-clr{font-size:.73rem;padding:.32rem .7rem;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .12s;}
+  .btn-clr:hover{color:var(--ink);border-color:var(--muted);}
+
+  .main{padding:1.2rem;}
+  .res-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+  .res-count{font-size:.7rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .sim-leg{display:none;align-items:center;gap:.6rem;font-size:.7rem;color:var(--muted);}
+  .sim-leg.show{display:flex;}
+  .ld{width:8px;height:8px;border-radius:50%;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:.8rem;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.95rem 1.05rem;cursor:pointer;transition:all .15s;position:relative;display:flex;flex-direction:column;gap:.45rem;}
+  .card:hover{border-color:var(--green-mid);box-shadow:0 4px 18px rgba(44,95,46,.1);transform:translateY(-2px);}
+  .sbar{position:absolute;top:0;left:0;height:3px;border-radius:var(--r) var(--r) 0 0;}
+  .spct{position:absolute;top:.55rem;right:.65rem;font-size:.68rem;font-weight:600;padding:.08rem .38rem;border-radius:10px;}
+  .spct.hi{background:#d4edda;color:#1a6b2e;}
+  .spct.md{background:#fff3cd;color:#856404;}
+  .spct.lo{background:#fde8e8;color:#9b1c1c;}
+  .cname{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--ink);padding-right:2.8rem;}
+  .calt{font-size:.7rem;color:var(--muted);font-style:italic;}
+  .ctraits{display:flex;flex-wrap:wrap;gap:.22rem;}
+  .ct{font-size:.66rem;padding:.15rem .42rem;border-radius:12px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
+  .ct.inc{background:var(--green);color:#fff;border-color:var(--green);}
+  .empty{grid-column:1/-1;text-align:center;padding:4rem 2rem;color:var(--muted);font-style:italic;}
+  .empty strong{display:block;font-family:'Playfair Display',serif;font-size:1.15rem;margin-bottom:.4rem;color:var(--ink);font-style:normal;}
+
+  .overlay{display:none;position:fixed;inset:0;background:rgba(26,18,8,.5);z-index:300;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px);}
+  .overlay.open{display:flex;}
+  .modal{background:var(--surface);border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow-y:auto;position:relative;animation:up .2s ease;box-shadow:0 20px 60px rgba(0,0,0,.22);}
+  @keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .mhead{padding:1.5rem 1.7rem 1rem;border-bottom:1px solid var(--border);background:var(--green-pale);border-radius:14px 14px 0 0;}
+  .mclose{position:absolute;top:.9rem;right:.9rem;background:rgba(0,0,0,.06);border:none;border-radius:50%;width:1.9rem;height:1.9rem;font-size:1.1rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .12s;}
+  .mclose:hover{background:rgba(0,0,0,.12);color:var(--ink);}
+  .m-it{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--green);line-height:1.1;margin-bottom:.18rem;}
+  .m-nl{font-size:.78rem;color:var(--muted);margin-bottom:.1rem;}
+  .m-alt{font-size:.73rem;color:var(--muted);font-style:italic;}
+  .mbody{padding:1.2rem 1.7rem 1.7rem;display:flex;flex-direction:column;gap:1rem;}
+
+  .sim-card{display:none;align-items:center;gap:.75rem;background:var(--green-pale);border:1px solid var(--tag-border);border-radius:8px;padding:.65rem .9rem;}
+  .sim-card.show{display:flex;}
+  .scircle{width:50px;height:50px;border-radius:50%;border:3px solid var(--green);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;color:var(--green);background:#fff;flex-shrink:0;}
+  .sdetail{font-size:.8rem;color:var(--muted);line-height:1.55;}
+  .sdetail strong{color:var(--ink);}
+
+  .slabel{font-size:.65rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;}
+  .mtraits{display:flex;flex-wrap:wrap;gap:.28rem;}
+  .mt{font-size:.76rem;padding:.25rem .62rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
+  .mt.inc{background:var(--green);color:#fff;border-color:var(--green);}
+
+  /* Description area */
+  .desc-area{font-size:.92rem;line-height:1.78;color:var(--ink);opacity:.88;}
+  .desc-loading{display:flex;align-items:center;gap:.6rem;color:var(--muted);font-style:italic;font-size:.88rem;}
+  .desc-original{font-size:.8rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.6rem .8rem;border-radius:0 6px 6px 0;line-height:1.6;font-style:italic;margin-top:.4rem;}
+  .desc-original .orig-label{font-size:.65rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .spinner{width:15px;height:15px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .msrc{font-size:.7rem;color:var(--muted);padding-top:.75rem;border-top:1px solid var(--border);}
+  .msrc a{color:var(--green);}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-title">🐾 Cercatore di Totem</div>
+    <div class="h-sub">Scouts en Gidsen Vlaanderen · Totemzoeker</div>
+  </div>
+  <div class="h-badge" id="hbadge">160 animali</div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+<div class="sb-scroll">
+
+  <div>
+    <span class="lbl">Modalità</span>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-f" onclick="setMode('filter')">🔍 Esatto</button>
+      <button class="mode-tab" id="tab-s" onclick="setMode('similar')">✨ Similarità</button>
+    </div>
+    <div class="mode-hint" id="mhint">Gli animali devono avere <em>tutte</em> le caratteristiche incluse e <em>nessuna</em> di quelle escluse.</div>
+  </div>
+
+  <div>
+    <span class="lbl">Nome animale</span>
+    <input type="search" id="nq" placeholder="es. lupo, aquila…" oninput="render()">
+  </div>
+
+  <div>
+    <span class="lbl">Cerca caratteristica</span>
+    <input type="search" id="tq" placeholder="Filtra caratteristiche…" oninput="filterCloud()">
+  </div>
+
+  <div>
+    <div class="tsec-head">
+      <div class="tsec-dot" style="background:var(--green)"></div>
+      <span class="tsec-title">✓ Incluse</span>
+      <span class="tsec-count" id="ic">0</span>
+    </div>
+    <div class="tcloud" id="cinc"></div>
+  </div>
+  <div>
+    <span class="lbl">Selezionate (incluse)</span>
+    <div class="pills" id="pinc"><span class="no-p">Nessuna</span></div>
+  </div>
+
+  <div>
+    <div class="tsec-head">
+      <div class="tsec-dot" style="background:var(--red)"></div>
+      <span class="tsec-title">✗ Escluse</span>
+      <span class="tsec-count" id="ec">0</span>
+    </div>
+    <div class="tcloud" id="cexc"></div>
+  </div>
+  <div>
+    <span class="lbl">Selezionate (escluse)</span>
+    <div class="pills" id="pexc"><span class="no-p">Nessuna</span></div>
+  </div>
+
+</div>
+<div class="sb-foot">
+  <span id="fcount">160 animali</span>
+  <button class="btn-clr" onclick="clearAll()">✕ Cancella tutto</button>
+</div>
+</aside>
+
+<main class="main">
+  <div class="res-top">
+    <div class="res-count" id="rcount">Tutti i totem</div>
+    <div class="sim-leg" id="sleg">
+      <div class="ld" style="background:var(--green)"></div><span>Alta</span>
+      <div class="ld" style="background:var(--amber)"></div><span>Media</span>
+      <div class="ld" style="background:#dc3545"></div><span>Bassa</span>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+</div>
+
+<div class="overlay" id="ov" onclick="maybeClose(event)">
+<div class="modal">
+  <button class="mclose" onclick="closeModal()">×</button>
+  <div class="mhead">
+    <div class="m-it" id="m-it"></div>
+    <div class="m-nl" id="m-nl"></div>
+    <div class="m-alt" id="m-alt"></div>
+  </div>
+  <div class="mbody">
+    <div class="sim-card" id="msc">
+      <div class="scircle" id="mcircle">—</div>
+      <div class="sdetail" id="mdetail"></div>
+    </div>
+    <div>
+      <div class="slabel">Caratteristiche</div>
+      <div class="mtraits" id="mtraits"></div>
+    </div>
+    <div>
+      <div class="slabel">Descrizione</div>
+      <div id="mdesc"></div>
+    </div>
+    <div class="msrc">
+      Fonte: <a href="https://www.scoutsengidsenvlaanderen.be/totemzoeker" target="_blank">Scouts en Gidsen Vlaanderen – Totemzoeker</a>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const ANIMALS = [{"nl":"Aalscholver","it":"Cormorano","alt":"Comorant","traits_nl":["behendig","efficiënt","genieter","groepsdier","samenwerkend","sociaal","stil"],"traits_it":["abile","efficiente","epicureo","animale di gruppo","cooperativo","socievole","silenzioso"],"slug":"aalscholver","desc_nl":"Deze zeevogel duikt al zwemmend. Op die manier voorziet die zich behendig van vis. De aalscholver is sociaal en nestelt in kolonies op kliffen of in hoge bomen in het binnenland. Deze vogel werkt goed en efficiënt samen met soortgenoten. Na het vissen lijkt die in alle rust van de zon te genieten. Aalscholvers zijn stil van aard, maar laten wel van zich horen als ze in groep zijn."},{"nl":"Aap","it":"Scimmia","alt":"Simia","traits_nl":["beweeglijk","levendig","moedig","naïef","potsierlijk","verstandig","vrolijk","zorgzaam"],"traits_it":["agile","vivace","coraggioso","ingenuo","comico","saggio","allegro","premuroso"],"slug":"aap","desc_nl":"De aap is verstandig, maar laat zich toch dikwijls beetnemen. Ze zijn heel levendig en enorm beweeglijk. Een aap is potsierlijk, vrolijk en moedig. Een vrouwelijke aap zorgt goed voor haar jong."},{"nl":"Aardeekhoorn","it":"Tamia","alt":"Boeroendoek","traits_nl":["bedrijvig","behendig","bouwlustig","kieskeurig","vooruitziend"],"traits_it":["indaffarato","abile","costruttivo","esigente","lungimirante"],"slug":"aardeekhoorn","desc_nl":"Aardeekhoorns zijn overdag actief. Het zijn goede klimmers, maar blijven liever op de grond. Aardeekhoorns maken een ingewikkeld ondergronds gangenstelsel. Ze zijn populair, kieskeurig en zeer bedreven hamsteraars."},{"nl":"Adder","it":"Vipera","alt":"Aspisadder, Pofadder","traits_nl":["doelgericht","gehard","honkvast","imponerend","inventief","solitair","verdedigend"],"traits_it":["determinato","temprato","casalingo","imponente","inventivo","solitario","difensivo"],"slug":"adder","desc_nl":"De adder is een dikke slang met harde schubben die bestand is tegen leven in koude streken. Ze hebben een vast woongebied en leven solitair. Adders zijn inventieve jagers en erg doelmatig. Ze zijn niet agressief, maar bij gevaar kunnen ze dreigend overkomen."},{"nl":"Agame","it":"Agama","alt":"Bergduivel, Hardoen, Kraaghagedis","traits_nl":["aanpassend","genieter","grappig","gulzig","imiterend","merkwaardig","nieuwsgierig","ondeugend","snel","uitdagend"],"traits_it":["adattabile","epicureo","buffo","vorace","imitatore","peculiare","curioso","birichino","veloce","provocatorio"],"slug":"agame","desc_nl":"Deze hagedis is een schrokop. Ze zijn grappig, ondeugend, nieuwsgierig en uitdagend. De agame past zich vlot aan. Ze zijn erg snel, soms merkwaardig, maar ongevaarlijk. De agame is verzot op zon en warmte en intimideert hun vijanden door grootdoenerij."},{"nl":"Agoeti","it":"Aguti","alt":"Boskonijn, Goudhaas","traits_nl":["bedrijvig","brutaal","grappig","onbevreesd","onvermoeibaar"],"traits_it":["indaffarato","sfacciato","buffo","impavido","instancabile"],"slug":"agoeti","desc_nl":""},{"nl":"Albatros","it":"Albatro","alt":"Grootmalmok","traits_nl":["doorzettend","groepsdier (grote groep)","krachtig","onvermoeibaar","prachtig","sierlijk","slim","statig","trouw","uithoudend"],"traits_it":["tenace","animale di grande branco","potente","instancabile","magnifico","aggraziato","furbo","solenne","fedele","resistente"],"slug":"albatros","desc_nl":""},{"nl":"Alk","it":"Alca","alt":"Kittlitz' alk, Xantus","traits_nl":["groepsdier","onhandig","zorgzaam"],"traits_it":["animale di gruppo","goffo","premuroso"],"slug":"alk","desc_nl":""},{"nl":"Alpaca","it":"Alpaca","alt":"Paco","traits_nl":["hardnekkig","kieskeurig","koppig","sociaal","trots","verdraagzaam","volhardend"],"traits_it":["ostinato","esigente","cocciuto","socievole","fiero","tollerante","perseverante"],"slug":"alpaca","desc_nl":""},{"nl":"Alpenhond","it":"Cane selvatico asiatico","alt":"Adjak, Aziatische wilde hond, Dhole, Rode hond","traits_nl":["aanpassend","scherpzinnig","snel","sociaal","uithoudend","verdedigend"],"traits_it":["adattabile","perspicace","veloce","socievole","resistente","difensivo"],"slug":"alpenhond","desc_nl":""},{"nl":"Amerikaanse zeearend","it":"Aquila di mare americana","alt":"Witkopzeearend","traits_nl":["aanpassend","flexibel","geduldig","gehecht","opmerkzaam","trouw"],"traits_it":["adattabile","flessibile","paziente","affezionato","perspicace","fedele"],"slug":"amerikaanse-zeearend","desc_nl":""},{"nl":"Anaconda","it":"Anaconda","alt":"Waterboa","traits_nl":["behoedzaam","genieter","listig","scherpzinnig","snel","uniek"],"traits_it":["cauto","epicureo","astuto","perspicace","veloce","unico"],"slug":"anaconda","desc_nl":""},{"nl":"Anemoonvis","it":"Pesce pagliaccio","alt":"Clownvis, Harlekijnvis, Nemo","traits_nl":["vrolijk","charmant","groepsdier","zorgzaam","intelligent","energiek","veelzijdig","gemeenschapsgevoel","listig"],"traits_it":["allegro","affascinante","animale di gruppo","premuroso","intelligente","energico","versatile","spirito comunitario","astuto"],"slug":"anemoonvis","desc_nl":""},{"nl":"Ani","it":"Ani","alt":"Koeroeba, Melkobo","traits_nl":["familiaal","meelevend","ongewoon","sociaal","zorgzaam"],"traits_it":["familiare","empatico","insolito","socievole","premuroso"],"slug":"ani","desc_nl":""},{"nl":"Antilope","it":"Antilope","alt":"Addax, Bongo, Nyala, Oryx, Tiang","traits_nl":["begaafd","behendig","elegant","ervaringsgericht","geduldig","groepsdier","leergierig","levendig","scherpzinnig","snel","vreedzaam"],"traits_it":["talentuoso","abile","elegante","empirico","paziente","animale di gruppo","desideroso di imparare","vivace","perspicace","veloce","pacifico"],"slug":"antilope","desc_nl":""},{"nl":"Ara","it":"Ara","alt":"Ara arakanga, Ara macao, Bokraaf, Geelvleugelara","traits_nl":["aanpassend","ernstig","flexibel","intelligent","nieuwsgierig","rustig","sociaal","trouw","volgzaam","wantrouwig"],"traits_it":["adattabile","serio","flessibile","intelligente","curioso","tranquillo","socievole","fedele","docile","diffidente"],"slug":"ara","desc_nl":""},{"nl":"Arapaima","it":"Arapaima","alt":"Paiche, Pirarucu","traits_nl":["fier","strijdlustig","temperamentvol","vrolijk","onstuimig","actief","behulpzaam","groepsdier","intelligent","vertrouwend","vriendelijk"],"traits_it":["fiero","combattivo","focoso","allegro","impetuoso","attivo","disponibile","animale di gruppo","intelligente","fiducioso","gentile"],"slug":"arapaima","desc_nl":""},{"nl":"Arassari","it":"Araçari","alt":"Halsbandarassari","traits_nl":["beschermend","brutaal","dapper","druk","groepsdier","monter","opgewekt","plagerig","speels"],"traits_it":["protettivo","sfacciato","coraggioso","frenetico","animale di gruppo","vivace","allegro","dispettoso","giocoso"],"slug":"arassari","desc_nl":""},{"nl":"Arend","it":"Aquila","alt":"Adelaar","traits_nl":["fier","geduldig","gevoelig","hardnekkig","imponerend","kalm","leergierig","moedig","sluw","trots","volhardend","waardig"],"traits_it":["fiero","paziente","sensibile","ostinato","imponente","calmo","desideroso di imparare","coraggioso","scaltro","fiero","perseverante","dignitoso"],"slug":"arend","desc_nl":""},{"nl":"Axolotl","it":"Axolotl","alt":"Wandelvis, Waterdraak","traits_nl":["teruggetrokken","zachtaardig","weerbaar","waakzaam","schuw","vindingrijk","observerend","aanpassend","gemoedelijk","speels","energiek"],"traits_it":["riservato","mite","resistente","vigile","schivo","ingegnoso","osservatore","adattabile","bonario","giocoso","energico"],"slug":"axolotl","desc_nl":""},{"nl":"Baardkoekoek","it":"Cuculo barbuto","alt":"Coua","traits_nl":["behendig","geduldig","honkvast","opmerkzaam","roekeloos","snel"],"traits_it":["abile","paziente","casalingo","perspicace","spericolato","veloce"],"slug":"baardkoekoek","desc_nl":""},{"nl":"Banteng","it":"Banteng","alt":"","traits_nl":["behoedzaam","gehard","groepsdier","nuttig","sterk","taai","uithoudend","veelzijdig","zelfzeker"],"traits_it":["cauto","temprato","animale di gruppo","utile","forte","resistente","resistente","versatile","sicuro di sé"],"slug":"banteng","desc_nl":""},{"nl":"Barracuda","it":"Barracuda","alt":"Becuna, Cuda, Rondsnoek, Zeesnoek, Zeetijger","traits_nl":["actief","geducht","groepsdier (grote groep)","moedig","opportunistisch","samenwerkend","sterk","weerbaar","tactisch","zelfredzaam"],"traits_it":["attivo","temibile","animale di grande branco","coraggioso","opportunista","cooperativo","forte","resistente","tattico","autonomo"],"slug":"barracuda","desc_nl":""},{"nl":"Baviaan","it":"Babbuino","alt":"Anubis, Hamadryas","traits_nl":["aanpassend","bezorgd","groepsdier","hiërarchisch","imiterend","moedig","opvliegend","vooruitziend"],"traits_it":["adattabile","premuroso","animale di gruppo","gerarchico","imitatore","coraggioso","irascibile","lungimirante"],"slug":"baviaan","desc_nl":""},{"nl":"Beensnoek","it":"Luccio armato","alt":"Kaaimansnoek","traits_nl":["genieter","groepsdier (kleine groep)","opmerkzaam","opportunistisch","rustig","snel","vreedzaam"],"traits_it":["epicureo","animale di piccolo branco","perspicace","opportunista","tranquillo","veloce","pacifico"],"slug":"beensnoek","desc_nl":""},{"nl":"Beer","it":"Orso","alt":"Baloe, Bruine beer, Geestbeer","traits_nl":["aanpassend","gemoedelijk","gezellig","intelligent","inventief","onberekenbaar","sterk","uithoudend"],"traits_it":["adattabile","bonario","socievole","intelligente","inventivo","imprevedibile","forte","resistente"],"slug":"beer","desc_nl":""},{"nl":"Beerdiertje","it":"Tardigrado","alt":"Mosbeer, Tardigraad, Waterbeer","traits_nl":["volhardend","sterk","dapper","levenslustig","vindingrijk","zwervend","verrassend","moedig","groepsdier","zelfstandig"],"traits_it":["perseverante","forte","coraggioso","esuberante","ingegnoso","nomade","sorprendente","coraggioso","animale di gruppo","indipendente"],"slug":"beerdiertje","desc_nl":""},{"nl":"Beermarter","it":"Binturong","alt":"Beerkat, Bintoerong","traits_nl":["zachtaardig","volgzaam","verdedigend","uniek","trouw","speels","sociaal","kalm","gezapig","gespierd"],"traits_it":["mite","docile","difensivo","unico","fedele","giocoso","socievole","calmo","tranquillo","muscoloso"],"slug":"beermarter","desc_nl":""},{"nl":"Beloega","it":"Beluga","alt":"Witte dolfijn, Witte walvis","traits_nl":["communicatief","groepsdier","krachtig","luidruchtig","snel","speels","uithoudend","zwervend"],"traits_it":["comunicativo","animale di gruppo","potente","rumoroso","veloce","giocoso","resistente","nomade"],"slug":"beloega","desc_nl":""},{"nl":"Beo","it":"Myna","alt":"Mina","traits_nl":["aanhalig","actief","geïnteresseerd","groepsdier","imiterend","koddig","luidruchtig","nieuwsgierig","schuw","vriendelijk"],"traits_it":["affettuoso","attivo","curioso","animale di gruppo","imitatore","buffo","rumoroso","curioso","schivo","gentile"],"slug":"beo","desc_nl":""},{"nl":"Bergbever","it":"Scoiattolo di montagna","alt":"Stompstaarteekhoorn","traits_nl":["actief","honkvast","inventief","ordelijk","rustig","standvastig","verdraagzaam","vlijtig","volhardend"],"traits_it":["attivo","casalingo","inventivo","ordinato","tranquillo","tenace","tollerante","diligente","perseverante"],"slug":"bergbever","desc_nl":""},{"nl":"Berglemming","it":"Lemming di montagna","alt":"Lemmus, Lemo","traits_nl":["aanpassend","actief","avontuurlijk","beschermend","gehard","roekeloos","sociaal"],"traits_it":["adattabile","attivo","avventuroso","protettivo","temprato","spericolato","socievole"],"slug":"berglemming","desc_nl":""},{"nl":"Berner sennenhond","it":"Bovaro del Bernese","alt":"","traits_nl":["aanhankelijk","aanpassend","eigenwijs","gehoorzaam","krachtig","leergierig","opmerkzaam","verdraagzaam","vrijgevochten","waakzaam","zachtmoedig","zelfstandig"],"traits_it":["attaccato","adattabile","testardo","obbediente","potente","desideroso di imparare","perspicace","tollerante","libero","vigile","mite","indipendente"],"slug":"berner-sennenhond","desc_nl":""},{"nl":"Bever","it":"Castoro","alt":"Castor","traits_nl":["bouwlustig","familiaal","hardwerkend","ijverig","ingenieus","trouw","vooruitziend","voorzichtig","vrijgevochten","zelfstandig","zwijgzaam"],"traits_it":["costruttivo","familiare","laborioso","diligente","ingegnoso","fedele","lungimirante","prudente","libero","indipendente","taciturno"],"slug":"bever","desc_nl":""},{"nl":"Bij","it":"Ape","alt":"Dar","traits_nl":["altruïstisch","bedrijvig","behulpzaam","doelgericht","ervaringsgericht","hardwerkend","leergierig","sociaal","toekomstgericht"],"traits_it":["altruista","indaffarato","disponibile","determinato","empirico","laborioso","desideroso di imparare","socievole","lungimirante"],"slug":"bij","desc_nl":"De Bij is een sociaal insect. Hij werkt hard en is altijd bezig. Bijen hebben hierbij een duidelijke taakverdeling. De Bij pikt snel zaken op door ouderen te observeren en leert al doende. Hij is altruïstisch. Wat hij ook doet, het is steeds gericht op het welzijn van anderen. Een Bij is toekomstgericht."},{"nl":"Bizon","it":"Bisonte","alt":"Wisent","traits_nl":["beschermend","goedaardig","groepsdier","hiërarchisch","leergierig","onrustig","onvoorzichtig","vreesachtig","vriendschappelijk"],"traits_it":["protettivo","bonaccione","animale di gruppo","gerarchico","desideroso di imparare","agitato","imprudente","pauroso","amichevole"],"slug":"bizon","desc_nl":""},{"nl":"Bladschaap","it":"Lumaca di mare","alt":"Costasiella, Zeeschaap","traits_nl":["zelfstandig","voorzichtig","zelfredzaam","stil","genieter","fascinerend","gezapig","ingenieus","tactisch","uithoudend"],"traits_it":["indipendente","prudente","autonomo","silenzioso","epicureo","affascinante","tranquillo","ingegnoso","tattico","resistente"],"slug":"bladschaap","desc_nl":""},{"nl":"Blauwe reiger","it":"Airone cenerino","alt":"Garza, Hoko","traits_nl":["bedaard","bedachtzaam","behoedzaam","geduldig","niet kieskeurig","schuw","sierlijk","voorzichtig"],"traits_it":["posato","riflessivo","cauto","paziente","non esigente","schivo","aggraziato","prudente"],"slug":"blauwe-reiger","desc_nl":"Deze vogel heeft een lange sterke snavel en een zwarte band door het oog die doorloopt in de kuif. Ze zijn voorzichtig en eerder schuw. De blauwe reiger is heel geduldig en niet kieskeurig. Hun beweging is sierlijk, bedaard, langzaam en bedachtzaam. De blauwe reiger leeft in kolonies gedurende het broedseizoen, maar meestal in kleine groepen of alleen tijdens de rest van het jaar."},{"nl":"Blauwe vinvis","it":"Balenottera azzurra","alt":"","traits_nl":["communicatief","elegant","volhardend","vreedzaam","zanglustig"],"traits_it":["comunicativo","elegante","perseverante","pacifico","melodioso"],"slug":"blauwe-vinvis","desc_nl":""},{"nl":"Blauwe zeeslak","it":"Drago blu","alt":"Blauwe-Draak, Blauwe-Engel, Zee-Zwaluw","traits_nl":["doelgericht","ervaringsgericht","kieskeurig","nieuwsgierig","rustig","uniek","veelzijdig","volgzaam"],"traits_it":["determinato","empirico","esigente","curioso","tranquillo","unico","versatile","docile"],"slug":"blauwe-zeeslak","desc_nl":""},{"nl":"Boomkikker","it":"Raganella","alt":"Hyla, Roodoogmakikikker","traits_nl":["huiselijk","levensgenieter","luisterbereid","geïnteresseerd","koddig","lachend","communicatief","expressief"],"traits_it":["domestico","gaudente","disponibile all'ascolto","curioso","buffo","sorridente","comunicativo","espressivo"],"slug":"boomkikker","desc_nl":""},{"nl":"Boomklever","it":"Picchio muratore","alt":"Sitta","traits_nl":["actief","afhankelijk","gezellig","groepsdier (kleine groep)","koppig","luidruchtig","vreedzaam"],"traits_it":["attivo","dipendente","socievole","animale di piccolo branco","cocciuto","rumoroso","pacifico"],"slug":"boomklever","desc_nl":""},{"nl":"Bosbok","it":"Antilope boschiva","alt":"Kulungu, Pongo","traits_nl":["aanpassend","actief","dapper","opmerkzaam","scherpzinnig","schuw","solitair","verdedigend","verdraagzaam","volhardend"],"traits_it":["adattabile","attivo","coraggioso","perspicace","perspicace","schivo","solitario","difensivo","tollerante","perseverante"],"slug":"bosbok","desc_nl":""},{"nl":"Bosduiker","it":"Duiker","alt":"Phuti, Tuba","traits_nl":["behendig","delend","gehecht","honkvast","schuw","snel","solitair","trouw","vreesachtig","zelfredzaam"],"traits_it":["abile","generoso","affezionato","casalingo","schivo","veloce","solitario","fedele","pauroso","autonomo"],"slug":"bosduiker","desc_nl":""},{"nl":"Boxer","it":"Boxer","alt":"","traits_nl":["aangenaam","beweeglijk","blijmoedig","dapper","goedaardig","speels","territoriaal","trouw","vrijmoedig"],"traits_it":["piacevole","agile","allegro","coraggioso","bonaccione","giocoso","territoriale","fedele","diretto"],"slug":"boxer","desc_nl":""},{"nl":"Bruinvis","it":"Focena","alt":"Phocoena, Zeevarken","traits_nl":["goed geheugen","goed oriëntatiegevoel","intelligent","beweeglijk","onbevreesd"],"traits_it":["buona memoria","buon senso dell'orientamento","intelligente","agile","impavido"],"slug":"bruinvis","desc_nl":""},{"nl":"Brulaap","it":"Scimmia urlatrice","alt":"Aloeatta, Caraya","traits_nl":["bedaard","groepsdier","langzaam","lichtgeraakt","liefdevol","luidruchtig","opgewonden","speels","territoriaal"],"traits_it":["posato","animale di gruppo","lento","suscettibile","amorevole","rumoroso","eccitato","giocoso","territoriale"],"slug":"brulaap","desc_nl":""},{"nl":"Buffel","it":"Bufalo","alt":"Anoa, Arni, Karbauw","traits_nl":["gezellig","groepsdier","samenwerkend","verdedigend","zorgzaam","zwijgzaam"],"traits_it":["socievole","animale di gruppo","cooperativo","difensivo","premuroso","taciturno"],"slug":"buffel","desc_nl":""},{"nl":"Bunzing","it":"Puzzola","alt":"Grison, Zorilla","traits_nl":["aanpassend","behendig","behoedzaam","doorzettend","listig","moedig","nachtelijk","scherpzinnig","vlug","vooruitziend"],"traits_it":["adattabile","abile","cauto","tenace","astuto","coraggioso","notturno","perspicace","svelto","lungimirante"],"slug":"bunzing","desc_nl":""},{"nl":"Chimpansee","it":"Scimpanzé","alt":"","traits_nl":["aanpassend","communicatief","creatief","empathisch","familiaal","groepsdier","hiërarchisch","intelligent","inventief","nieuwsgierig","sociaal"],"traits_it":["adattabile","comunicativo","creativo","empatico","familiare","animale di gruppo","gerarchico","intelligente","inventivo","curioso","socievole"],"slug":"chimpansee","desc_nl":""},{"nl":"Collie","it":"Collie","alt":"Lassie","traits_nl":["bedachtzaam","dankbaar","goed geheugen","jaloers","joviaal","sympathiek","toegewijd","trouw","verstandig"],"traits_it":["riflessivo","grato","buona memoria","geloso","gioviale","simpatico","devoto","fedele","saggio"],"slug":"collie","desc_nl":"De collie is een herdershond die afstamt van de Britse en Schotse schapen. Ze zijn trouw, verstandig en sympathiek. Collies zijn handig als werkhond, maar ook als huisdier. Ze zijn joviaal maar kunnen ook jaloers zijn. Ze leren snel en hebben een goed geheugen."},{"nl":"Condor","it":"Condor","alt":"","traits_nl":["doorzettend","fier","geduldig","imponerend","krachtig","majestueus","onafhankelijk","uithoudend","vrijheidslievend"],"traits_it":["tenace","fiero","paziente","imponente","potente","maestoso","indipendente","resistente","amante della libertà"],"slug":"condor","desc_nl":""},{"nl":"Coypu","it":"Nutria","alt":"Beverrat, Nutria","traits_nl":["aanpassend","bedrijvig","sociaal","vindingrijk"],"traits_it":["adattabile","indaffarato","socievole","ingegnoso"],"slug":"coypu","desc_nl":""},{"nl":"Dingo","it":"Dingo","alt":"","traits_nl":["aanpassend","alert","groepsdier (kleine groep)","hiërarchisch","onafhankelijk","slim","sterk"],"traits_it":["adattabile","vigile","animale di piccolo branco","gerarchico","indipendente","furbo","forte"],"slug":"dingo","desc_nl":""},{"nl":"Dolfijn","it":"Delfino","alt":"Tuimelaar","traits_nl":["communicatief","enthousiast","gezellig","intelligent","levendig","opgewekt","sociaal","speels","vrolijk"],"traits_it":["comunicativo","entusiasta","socievole","intelligente","vivace","allegro","socievole","giocoso","allegro"],"slug":"dolfijn","desc_nl":""},{"nl":"Dromedaris","it":"Dromedario","alt":"Kameel","traits_nl":["aanpassend","doorzettend","geduldig","gehard","koppig","nuttig","taai","uithoudend"],"traits_it":["adattabile","tenace","paziente","temprato","cocciuto","utile","resistente","resistente"],"slug":"dromedaris","desc_nl":""},{"nl":"Duif","it":"Colomba","alt":"Postduif, Tortelduif","traits_nl":["familiaal","goed oriëntatiegevoel","liefdevol","trouw","vreedzaam","vriendelijk","zorgzaam"],"traits_it":["familiare","buon senso dell'orientamento","amorevole","fedele","pacifico","gentile","premuroso"],"slug":"duif","desc_nl":""},{"nl":"Dwergneushoorn","it":"Rinoceronte di Sumatra","alt":"Sumatra-neushoorn","traits_nl":["aanpassend","behoedzaam","solitair","sterk","taai","territoriaal"],"traits_it":["adattabile","cauto","solitario","forte","resistente","territoriale"],"slug":"dwergneushoorn","desc_nl":""},{"nl":"Eekhoorn","it":"Scoiattolo","alt":"","traits_nl":["actief","alert","beweeglijk","energiek","levendig","nieuwsgierig","snel","speels","vooruitziend"],"traits_it":["attivo","vigile","agile","energico","vivace","curioso","veloce","giocoso","lungimirante"],"slug":"eekhoorn","desc_nl":""},{"nl":"Egel","it":"Riccio","alt":"","traits_nl":["aanpassend","nieuwsgierig","nachtelijk","onafhankelijk","rustig","schuw","solitair","vindingrijk"],"traits_it":["adattabile","curioso","notturno","indipendente","tranquillo","schivo","solitario","ingegnoso"],"slug":"egel","desc_nl":""},{"nl":"Ekster","it":"Gazza","alt":"","traits_nl":["communicatief","intelligent","nieuwsgierig","onbevreesd","opvallend","sociaal","vindingrijk"],"traits_it":["comunicativo","intelligente","curioso","impavido","appariscente","socievole","ingegnoso"],"slug":"ekster","desc_nl":""},{"nl":"Emoe","it":"Emù","alt":"","traits_nl":["aanpassend","avontuurlijk","doorzettend","groepsdier","onbevreesd","snel","uithoudend"],"traits_it":["adattabile","avventuroso","tenace","animale di gruppo","impavido","veloce","resistente"],"slug":"emoe","desc_nl":""},{"nl":"Ezel","it":"Asino","alt":"","traits_nl":["eigenwijs","geduldig","hardnekkig","intelligent","koppig","sociaal","taai","werklust"],"traits_it":["testardo","paziente","ostinato","intelligente","cocciuto","socievole","resistente","laborioso"],"slug":"ezel","desc_nl":""},{"nl":"Fennek","it":"Fennec","alt":"Woestijnvos","traits_nl":["alert","behendig","nachtelijk","nieuwsgierig","schuw","slim","snel"],"traits_it":["vigile","abile","notturno","curioso","schivo","furbo","veloce"],"slug":"fennek","desc_nl":""},{"nl":"Flamingo","it":"Fenicottero","alt":"Phoenicopterus","traits_nl":["elegant","gezellig","groepsdier (grote groep)","kleurrijk","opvallend","sierlijk","sociaal"],"traits_it":["elegante","socievole","animale di grande branco","colorato","appariscente","aggraziato","socievole"],"slug":"flamingo","desc_nl":""},{"nl":"Fossé","it":"Fossa","alt":"Cryptoprocta","traits_nl":["behendig","nachtelijk","onafhankelijk","solitair","sterk","territoriaal"],"traits_it":["abile","notturno","indipendente","solitario","forte","territoriale"],"slug":"fosse","desc_nl":""},{"nl":"Galapagosschildpad","it":"Tartaruga delle Galápagos","alt":"","traits_nl":["bedaard","geduldig","langzaam","onverstoorbaar","rustig","taai","uithoudend"],"traits_it":["posato","paziente","lento","imperturbabile","tranquillo","resistente","resistente"],"slug":"galapagosschildpad","desc_nl":""},{"nl":"Gazelle","it":"Gazzella","alt":"","traits_nl":["alert","behendig","elegant","gevoelig","groepsdier","sierlijk","snel","vreedzaam"],"traits_it":["vigile","abile","elegante","sensibile","animale di gruppo","aggraziato","veloce","pacifico"],"slug":"gazelle","desc_nl":""},{"nl":"Gecko","it":"Geco","alt":"","traits_nl":["aanpassend","alert","lenig","nachtelijk","nieuwsgierig","snel","vindingrijk"],"traits_it":["adattabile","vigile","flessuoso","notturno","curioso","veloce","ingegnoso"],"slug":"gecko","desc_nl":""},{"nl":"Gemsbok","it":"Orice","alt":"","traits_nl":["behendig","dapper","doorzettend","scherpzinnig","solitair","sterk","taai","territoriaal"],"traits_it":["abile","coraggioso","tenace","perspicace","solitario","forte","resistente","territoriale"],"slug":"gemsbok","desc_nl":""},{"nl":"Gier","it":"Avvoltoio","alt":"Aasgier, Lammergier","traits_nl":["efficiënt","geduldig","genieter","nuttig","observerend","onverstoorbaar","sociaal"],"traits_it":["efficiente","paziente","epicureo","utile","osservatore","imperturbabile","socievole"],"slug":"gier","desc_nl":""},{"nl":"Giraf","it":"Giraffa","alt":"","traits_nl":["elegant","fier","goedaardig","groepsdier","majestueus","opvallend","rustig","sierlijk","vreedzaam"],"traits_it":["elegante","fiero","bonaccione","animale di gruppo","maestoso","appariscente","tranquillo","aggraziato","pacifico"],"slug":"giraf","desc_nl":""},{"nl":"Gnoe","it":"Gnu","alt":"Wildebeest","traits_nl":["avontuurlijk","doorzettend","groepsdier (grote groep)","onrustig","roekeloos","sterk","uithoudend"],"traits_it":["avventuroso","tenace","animale di grande branco","agitato","spericolato","forte","resistente"],"slug":"gnoe","desc_nl":""},{"nl":"Gordeldier","it":"Armadillo","alt":"Armadillo","traits_nl":["aanpassend","behoedzaam","nachtelijk","rustig","schuw","solitair"],"traits_it":["adattabile","cauto","notturno","tranquillo","schivo","solitario"],"slug":"gordeldier","desc_nl":""},{"nl":"Gorilla","it":"Gorilla","alt":"","traits_nl":["beschermend","familiaal","hiërarchisch","intelligent","krachtig","majestueus","sociaal","sterk","zorgzaam"],"traits_it":["protettivo","familiare","gerarchico","intelligente","potente","maestoso","socievole","forte","premuroso"],"slug":"gorilla","desc_nl":""},{"nl":"Grizzlybeer","it":"Orso grizzly","alt":"","traits_nl":["dapper","fier","krachtig","moedig","onafhankelijk","sterk","territoriaal","trots"],"traits_it":["coraggioso","fiero","potente","coraggioso","indipendente","forte","territoriale","fiero"],"slug":"grizzlybeer","desc_nl":""},{"nl":"Groene schildpad","it":"Tartaruga verde","alt":"","traits_nl":["doorzettend","geduldig","rustig","taai","uithoudend","voorzichtig"],"traits_it":["tenace","paziente","tranquillo","resistente","resistente","prudente"],"slug":"groene-schildpad","desc_nl":""},{"nl":"Grote gehoornde uil","it":"Gufo della Virginia","alt":"","traits_nl":["alert","intelligent","nachtelijk","observerend","onafhankelijk","scherpzinnig","solitair","stil","waakzaam"],"traits_it":["vigile","intelligente","notturno","osservatore","indipendente","perspicace","solitario","silenzioso","vigile"],"slug":"grote-gehoornde-uil","desc_nl":""},{"nl":"Haai","it":"Squalo","alt":"","traits_nl":["alert","doelgericht","doortastend","doorzettend","efficiënt","geducht","instinctief","krachtig","snel"],"traits_it":["vigile","determinato","deciso","tenace","efficiente","temibile","istintivo","potente","veloce"],"slug":"haai","desc_nl":""},{"nl":"Hamster","it":"Criceto","alt":"","traits_nl":["actief","bedrijvig","eigenzinnig","huiselijk","inventief","nieuwsgierig","solitair","vooruitziend"],"traits_it":["attivo","indaffarato","caparbio","domestico","inventivo","curioso","solitario","lungimirante"],"slug":"hamster","desc_nl":""},{"nl":"Havik","it":"Astore","alt":"","traits_nl":["alert","doelgericht","doortastend","onafhankelijk","scherpzinnig","snel","waakzaam"],"traits_it":["vigile","determinato","deciso","indipendente","perspicace","veloce","vigile"],"slug":"havik","desc_nl":""},{"nl":"Hedendaagse wolf","it":"Lupo","alt":"Grijze wolf","traits_nl":["dapper","familiaal","groepsdier (kleine groep)","hiërarchisch","instinctief","intelligent","territoriaal","trouw"],"traits_it":["coraggioso","familiare","animale di piccolo branco","gerarchico","istintivo","intelligente","territoriale","fedele"],"slug":"hedendaagse-wolf","desc_nl":""},{"nl":"Hermelijn","it":"Ermellino","alt":"","traits_nl":["alert","behendig","doorzettend","dapper","moedig","nachtelijk","snel"],"traits_it":["vigile","abile","tenace","coraggioso","coraggioso","notturno","veloce"],"slug":"hermelijn","desc_nl":""},{"nl":"Honingdas","it":"Ratel","alt":"Ratel","traits_nl":["dapper","doorzettend","eigenwijze","moedig","onbevreesd","ontembaar","slim","sterk","taai"],"traits_it":["coraggioso","tenace","eigenwijze","coraggioso","impavido","indomito","furbo","forte","resistente"],"slug":"honingdas","desc_nl":""},{"nl":"Hyena","it":"Iena","alt":"Gevlekte hyena","traits_nl":["aanpassend","doorzettend","groepsdier","intelligent","opportunistisch","sociaal","sterk","taai"],"traits_it":["adattabile","tenace","animale di gruppo","intelligente","opportunista","socievole","forte","resistente"],"slug":"hyena","desc_nl":""},{"nl":"IJsbeer","it":"Orso polare","alt":"Poolbeer","traits_nl":["aanpassend","dapper","doorzettend","geduldig","gehard","onafhankelijk","slim","sterk","taai"],"traits_it":["adattabile","coraggioso","tenace","paziente","temprato","indipendente","furbo","forte","resistente"],"slug":"ijsbeer","desc_nl":""},{"nl":"Impala","it":"Impala","alt":"","traits_nl":["alert","elegant","groepsdier","levendig","scherpzinnig","sierlijk","snel","waakzaam"],"traits_it":["vigile","elegante","animale di gruppo","vivace","perspicace","aggraziato","veloce","vigile"],"slug":"impala","desc_nl":""},{"nl":"Jaguar","it":"Giaguaro","alt":"","traits_nl":["aanpassend","flexibel","geduldig","niet kieskeurig","scherpzinnig","sterk","vooruitziend","voorzichtig"],"traits_it":["adattabile","flessibile","paziente","non esigente","perspicace","forte","lungimirante","prudente"],"slug":"jaguar","desc_nl":"Dit roofdier is de sterkste van de katachtigen. Niets houdt een jaguar tegen. Wanneer die jaagt, is die uiterst voorzichtig en geduldig. Ze zijn sterk en hebben goed ontwikkelde zintuigen. De jaguar is niet kieskeurig en is flexibel: als die geen prooi vindt, verhuist die. Ze zijn vooruitziend: soms verbergen ze hun prooi voor later. De jaguar houdt van water en is een goede zwemmer."},{"nl":"Jakhals","it":"Sciacallo","alt":"","traits_nl":["aanpassend","alert","listig","nachtelijk","opportunistisch","scherpzinnig","slim","sluw"],"traits_it":["adattabile","vigile","astuto","notturno","opportunista","perspicace","furbo","scaltro"],"slug":"jakhals","desc_nl":""},{"nl":"Kakapo","it":"Kakapo","alt":"","traits_nl":["avontuurlijk","huiselijk","koddig","merkwaardig","nachtelijk","onbevreesd","solitair","uniek"],"traits_it":["avventuroso","domestico","buffo","peculiare","notturno","impavido","solitario","unico"],"slug":"kakapo","desc_nl":""},{"nl":"Kameleon","it":"Camaleonte","alt":"Calumma, Furcifer","traits_nl":["aanpassend","bedachtzaam","expressief","gemoedelijk","onopvallend","rustig","traag","verrassend"],"traits_it":["adattabile","riflessivo","espressivo","bonario","discreto","tranquillo","lento","sorprendente"],"slug":"kameleon","desc_nl":""},{"nl":"Kangoeroe","it":"Canguro","alt":"Känguru","traits_nl":["actief","alert","beschermend","familiaal","krachtig","moedig","snel","sterk"],"traits_it":["attivo","vigile","protettivo","familiare","potente","coraggioso","veloce","forte"],"slug":"kangoeroe","desc_nl":""},{"nl":"Karper","it":"Carpa","alt":"","traits_nl":["aanpassend","doorzettend","geduldig","slim","taai","uithoudend"],"traits_it":["adattabile","tenace","paziente","furbo","resistente","resistente"],"slug":"karper","desc_nl":""},{"nl":"Kat","it":"Gatto","alt":"Huiskat","traits_nl":["elegant","individualistisch","nieuwsgierig","onafhankelijk","sierlijk","slim","solitair"],"traits_it":["elegante","individualista","curioso","indipendente","aggraziato","furbo","solitario"],"slug":"kat","desc_nl":""},{"nl":"Kerkuil","it":"Barbagianni","alt":"","traits_nl":["alert","elegant","geruisloos","nachtelijk","nauwkeurig","observerend","solitair","stil","waakzaam"],"traits_it":["vigile","elegante","silenzioso","notturno","preciso","osservatore","solitario","silenzioso","vigile"],"slug":"kerkuil","desc_nl":""},{"nl":"Kiwi","it":"Kiwi","alt":"","traits_nl":["huiselijk","merkwaardig","nachtelijk","schuw","solitair","taai","uniek"],"traits_it":["domestico","peculiare","notturno","schivo","solitario","resistente","unico"],"slug":"kiwi","desc_nl":""},{"nl":"Koala","it":"Koala","alt":"Buidelbeer","traits_nl":["bedaard","genieter","gezapig","rustig","schuw","slaapgraag","solitair","voorzichtig"],"traits_it":["posato","epicureo","tranquillo","tranquillo","schivo","pigro","solitario","prudente"],"slug":"koala","desc_nl":""},{"nl":"Komodovaran","it":"Varano di Komodo","alt":"Komododrake","traits_nl":["alert","doelgericht","doorzettend","geduldig","instinctief","sterk","territoriaal","waakzaam"],"traits_it":["vigile","determinato","tenace","paziente","istintivo","forte","territoriale","vigile"],"slug":"komodovaran","desc_nl":""},{"nl":"Kraanvogel","it":"Gru","alt":"Sarus","traits_nl":["actief","behoedzaam","gezellig","genegen","kieskeurig","rustig","schrander","sierlijk","slim","voorzichtig","vriendelijk"],"traits_it":["attivo","cauto","socievole","affettuoso","esigente","tranquillo","sagace","aggraziato","furbo","prudente","gentile"],"slug":"kraanvogel","desc_nl":""},{"nl":"Krokodil","it":"Coccodrillo","alt":"Alligator","traits_nl":["alert","behoedzaam","doorzettend","geduldig","geducht","instinctief","krachtig","nachtelijk","sterk","territoriaal","waakzaam"],"traits_it":["vigile","cauto","tenace","paziente","temibile","istintivo","potente","notturno","forte","territoriale","vigile"],"slug":"krokodil","desc_nl":""},{"nl":"Kwal","it":"Medusa","alt":"Medusa","traits_nl":["aanpassend","mysterieus","rustig","traag","uniek","verrassend"],"traits_it":["adattabile","misterioso","tranquillo","lento","unico","sorprendente"],"slug":"kwal","desc_nl":""},{"nl":"Leeuw","it":"Leone","alt":"","traits_nl":["beschermend","dapper","familiaal","fier","groepsdier (kleine groep)","hiërarchisch","imponerend","krachtig","majestueus","sterk","trots"],"traits_it":["protettivo","coraggioso","familiare","fiero","animale di piccolo branco","gerarchico","imponente","potente","maestoso","forte","fiero"],"slug":"leeuw","desc_nl":""},{"nl":"Lemur","it":"Lemure","alt":"","traits_nl":["aanpassend","communicatief","familiaal","groepsdier","leergierig","nieuwsgierig","sociaal","speels"],"traits_it":["adattabile","comunicativo","familiare","animale di gruppo","desideroso di imparare","curioso","socievole","giocoso"],"slug":"lemur","desc_nl":""},{"nl":"Luiaard","it":"Bradipo","alt":"Luiaap","traits_nl":["bedaard","genieter","gemakzuchtig","rustig","slaapgraag","traag","uithoudend"],"traits_it":["posato","epicureo","pigro","tranquillo","pigro","lento","resistente"],"slug":"luiaard","desc_nl":""},{"nl":"Luipaard","it":"Leopardo","alt":"","traits_nl":["aanpassend","behendig","behoedzaam","doelgericht","doorzettend","geduldig","geruisloos","instinctief","lenig","nachtelijk","onafhankelijk","scherpzinnig","solitair","sterk"],"traits_it":["adattabile","abile","cauto","determinato","tenace","paziente","silenzioso","istintivo","flessuoso","notturno","indipendente","perspicace","solitario","forte"],"slug":"luipaard","desc_nl":""},{"nl":"Lynx","it":"Lince","alt":"","traits_nl":["alert","behendig","geduldig","geruisloos","nauwkeurig","nachtelijk","onafhankelijk","scherpzinnig","schuw","solitair","waakzaam"],"traits_it":["vigile","abile","paziente","silenzioso","preciso","notturno","indipendente","perspicace","schivo","solitario","vigile"],"slug":"lynx","desc_nl":""},{"nl":"Maki","it":"Lemure dalla coda ad anelli","alt":"Ringstaartmaki","traits_nl":["communicatief","familiaal","groepsdier","nieuwsgierig","sociaal","speels","territoriaal"],"traits_it":["comunicativo","familiare","animale di gruppo","curioso","socievole","giocoso","territoriale"],"slug":"maki","desc_nl":""},{"nl":"Mantiskreeft","it":"Canocchia","alt":"Bidsprinkhaan-garnaal","traits_nl":["alert","doelgericht","doortastend","krachtig","nauwkeurig","onbevreesd","sterk","territoriaal"],"traits_it":["vigile","determinato","deciso","potente","preciso","impavido","forte","territoriale"],"slug":"mantiskreeft","desc_nl":""},{"nl":"Miereneter","it":"Formichiere","alt":"Grote miereneter","traits_nl":["behoedzaam","nachtelijk","onafhankelijk","rustig","solitair","vindingrijk","zelfstandig"],"traits_it":["cauto","notturno","indipendente","tranquillo","solitario","ingegnoso","indipendente"],"slug":"miereneter","desc_nl":""},{"nl":"Mink","it":"Visone","alt":"","traits_nl":["alert","behendig","doorzettend","nachtelijk","onafhankelijk","scherpzinnig","slim","solitair"],"traits_it":["vigile","abile","tenace","notturno","indipendente","perspicace","furbo","solitario"],"slug":"mink","desc_nl":""},{"nl":"Moeflon","it":"Muflone","alt":"","traits_nl":["alert","behoedzaam","dapper","fier","groepsdier","sterk","territoriaal","trots","waakzaam"],"traits_it":["vigile","cauto","coraggioso","fiero","animale di gruppo","forte","territoriale","fiero","vigile"],"slug":"moeflon","desc_nl":""},{"nl":"Mol","it":"Talpa","alt":"","traits_nl":["behendig","bedrijvig","ingenieus","nachtelijk","onafhankelijk","rustig","solitair","vindingrijk"],"traits_it":["abile","indaffarato","ingegnoso","notturno","indipendente","tranquillo","solitario","ingegnoso"],"slug":"mol","desc_nl":""},{"nl":"Neushoorn","it":"Rinoceronte","alt":"Rinoceros","traits_nl":["dapper","doorzettend","fier","krachtig","onafhankelijk","ontembaar","sterk","taai","territoriaal"],"traits_it":["coraggioso","tenace","fiero","potente","indipendente","indomito","forte","resistente","territoriale"],"slug":"neushoorn","desc_nl":""},{"nl":"Nijlpaard","it":"Ippopotamo","alt":"","traits_nl":["beschermend","dominant","familiaal","goedaardig","groepsdier","krachtig","sterk","territoriaal"],"traits_it":["protettivo","dominante","familiare","bonaccione","animale di gruppo","potente","forte","territoriale"],"slug":"nijlpaard","desc_nl":""},{"nl":"Octopus","it":"Polpo","alt":"Inktvissen","traits_nl":["creatief","intelligent","inventief","mysterieus","onafhankelijk","scherpzinnig","slim","vindingrijk"],"traits_it":["creativo","intelligente","inventivo","misterioso","indipendente","perspicace","furbo","ingegnoso"],"slug":"octopus","desc_nl":""},{"nl":"Oehoe","it":"Gufo reale","alt":"","traits_nl":["alert","intelligent","majestueus","mysterieus","nachtelijk","observerend","onafhankelijk","scherpzinnig","solitair","stil","waakzaam"],"traits_it":["vigile","intelligente","maestoso","misterioso","notturno","osservatore","indipendente","perspicace","solitario","silenzioso","vigile"],"slug":"oehoe","desc_nl":""},{"nl":"Okapi","it":"Okapi","alt":"","traits_nl":["behoedzaam","merkwaardig","onafhankelijk","rustig","schuw","solitair","uniek"],"traits_it":["cauto","peculiare","indipendente","tranquillo","schivo","solitario","unico"],"slug":"okapi","desc_nl":""},{"nl":"Olifant","it":"Elefante","alt":"","traits_nl":["beschermend","empathisch","familiaal","goed geheugen","groepsdier","intelligent","majestueus","sterk","trouw","zorgzaam"],"traits_it":["protettivo","empatico","familiare","buona memoria","animale di gruppo","intelligente","maestoso","forte","fedele","premuroso"],"slug":"olifant","desc_nl":""},{"nl":"Ooievaar","it":"Cicogna","alt":"Ciconia","traits_nl":["doorzettend","familiaal","goed oriëntatiegevoel","trouw","uithoudend","zorgzaam","zwervend"],"traits_it":["tenace","familiare","buon senso dell'orientamento","fedele","resistente","premuroso","nomade"],"slug":"ooievaar","desc_nl":""},{"nl":"Orang-oetan","it":"Orango","alt":"Mensaap","traits_nl":["creatief","intelligent","inventief","nauwkeurig","nieuwsgierig","observerend","onafhankelijk","solitair","vindingrijk"],"traits_it":["creativo","intelligente","inventivo","preciso","curioso","osservatore","indipendente","solitario","ingegnoso"],"slug":"orang-oetan","desc_nl":""},{"nl":"Orca","it":"Orca","alt":"Zwaardwalvis","traits_nl":["communicatief","familiaal","groepsdier (kleine groep)","hiërarchisch","intelligent","krachtig","sociaal","sterk"],"traits_it":["comunicativo","familiare","animale di piccolo branco","gerarchico","intelligente","potente","socievole","forte"],"slug":"orca","desc_nl":""},{"nl":"Otter","it":"Lontra","alt":"Zeeotter","traits_nl":["behendig","creatief","enthousiast","gezellig","intelligent","levendig","sociaal","speels","vindingrijk"],"traits_it":["abile","creativo","entusiasta","socievole","intelligente","vivace","socievole","giocoso","ingegnoso"],"slug":"otter","desc_nl":""},{"nl":"Panda","it":"Panda gigante","alt":"","traits_nl":["bedaard","genieter","goedaardig","onverstoorbaar","rustig","solitair","speels"],"traits_it":["posato","epicureo","bonaccione","imperturbabile","tranquillo","solitario","giocoso"],"slug":"panda","desc_nl":""},{"nl":"Panter","it":"Pantera","alt":"Zwarte panter","traits_nl":["behendig","doelgericht","elegante","geruisloos","lenig","mysterieus","nachtelijk","onafhankelijk","scherpzinnig","solitair","sterk"],"traits_it":["abile","determinato","elegante","silenzioso","flessuoso","misterioso","notturno","indipendente","perspicace","solitario","forte"],"slug":"panter","desc_nl":""},{"nl":"Pauw","it":"Pavone","alt":"Pavo","traits_nl":["elegant","fier","kleurrijk","majestueus","opvallend","pronkerig","sierlijk","trots"],"traits_it":["elegante","fiero","colorato","maestoso","appariscente","vanitoso","aggraziato","fiero"],"slug":"pauw","desc_nl":""},{"nl":"Pinguïn","it":"Pinguino","alt":"Penguin","traits_nl":["beschermend","doorzettend","familiaal","groepsdier (grote groep)","sociaal","taai","trouw","uithoudend","zorgzaam"],"traits_it":["protettivo","tenace","familiare","animale di grande branco","socievole","resistente","fedele","resistente","premuroso"],"slug":"pinguïn","desc_nl":""},{"nl":"Poema","it":"Puma","alt":"Bergleeuw, Cougar","traits_nl":["aanpassend","behendig","doelgericht","doorzettend","geduldig","lenig","onafhankelijk","solitair","sterk"],"traits_it":["adattabile","abile","determinato","tenace","paziente","flessuoso","indipendente","solitario","forte"],"slug":"poema","desc_nl":""},{"nl":"Python","it":"Pitone","alt":"","traits_nl":["bedaard","doorzettend","geduldig","geruisloos","instinctief","onverstoorbaar","rustig","sterk"],"traits_it":["posato","tenace","paziente","silenzioso","istintivo","imperturbabile","tranquillo","forte"],"slug":"python","desc_nl":""},{"nl":"Raaf","it":"Corvo","alt":"Kraai","traits_nl":["communicatief","creatief","intelligent","inventief","mysterieus","nieuwsgierig","observerend","slim","sluw"],"traits_it":["comunicativo","creativo","intelligente","inventivo","misterioso","curioso","osservatore","furbo","scaltro"],"slug":"raaf","desc_nl":""},{"nl":"Rat","it":"Ratto","alt":"","traits_nl":["aanpassend","bedrijvig","creatief","intelligent","inventief","nieuwsgierig","sociaal","slim","vindingrijk"],"traits_it":["adattabile","indaffarato","creativo","intelligente","inventivo","curioso","socievole","furbo","ingegnoso"],"slug":"rat","desc_nl":""},{"nl":"Rendier","it":"Renna","alt":"Karibu","traits_nl":["aanpassend","doorzettend","familiaal","groepsdier (grote groep)","krachtig","taai","uithoudend","zwervend"],"traits_it":["adattabile","tenace","familiare","animale di grande branco","potente","resistente","resistente","nomade"],"slug":"rendier","desc_nl":""},{"nl":"Roofvogel algemeen","it":"Rapace","alt":"","traits_nl":["alert","doelgericht","fier","geduldig","krachtig","nauwkeurig","onafhankelijk","scherpzinnig","waakzaam"],"traits_it":["vigile","determinato","fiero","paziente","potente","preciso","indipendente","perspicace","vigile"],"slug":"roofvogel-algemeen","desc_nl":""},{"nl":"Schildpad","it":"Tartaruga","alt":"Landschildpad","traits_nl":["doorzettend","geduldig","langzaam","rustig","taai","uithoudend","voorzichtig"],"traits_it":["tenace","paziente","lento","tranquillo","resistente","resistente","prudente"],"slug":"schildpad","desc_nl":""},{"nl":"Schoenbekooievaar","it":"Becco a scarpa","alt":"Markoeb, Schoensnavel","traits_nl":["aanpassend","behoedzaam","doorzettend","solitair","stil","trouw","uithoudend","verstandig","voorzichtig"],"traits_it":["adattabile","cauto","tenace","solitario","silenzioso","fedele","resistente","saggio","prudente"],"slug":"schoenbekooievaar","desc_nl":""},{"nl":"Sifaka","it":"Sifaka","alt":"Kroonsifaka, Zijdesifaka","traits_nl":["bedachtzaam","behulpzaam","beschermend","enthousiast","familiaal","gevoelig","ondeugend","scherpzinnig","slim","vreedzaam","vriendelijk","zorgzaam"],"traits_it":["riflessivo","disponibile","protettivo","entusiasta","familiare","sensibile","birichino","perspicace","furbo","pacifico","gentile","premuroso"],"slug":"sifaka","desc_nl":"De sifaka is een grote halfaap die leeft op Madagaskar. Ze leven in familiegroepen en zijn erg beschermend naar soortgenoten. Ze zijn vriendelijk, vreedzaam en gevoelig. Ze zijn ook ondeugend en enthousiast. Ze zijn slim en bedachtzaam."},{"nl":"Slang algemeen","it":"Serpente","alt":"","traits_nl":["aanpassend","bedaard","behoedzaam","geduldig","geruisloos","instinctief","onopvallend","scherpzinnig"],"traits_it":["adattabile","posato","cauto","paziente","silenzioso","istintivo","discreto","perspicace"],"slug":"slang-algemeen","desc_nl":""},{"nl":"Sneeuwluipaard","it":"Leopardo delle nevi","alt":"Irbis","traits_nl":["behendig","behoedzaam","doorzettend","elegant","geduldig","geruisloos","lenig","mysterieus","onafhankelijk","scherpzinnig","schuw","solitair","sterk"],"traits_it":["abile","cauto","tenace","elegante","paziente","silenzioso","flessuoso","misterioso","indipendente","perspicace","schivo","solitario","forte"],"slug":"sneeuwluipaard","desc_nl":""},{"nl":"Sperwer","it":"Sparviero","alt":"","traits_nl":["alert","behendig","doelgericht","geduldig","nauwkeurig","scherpzinnig","snel","waakzaam"],"traits_it":["vigile","abile","determinato","paziente","preciso","perspicace","veloce","vigile"],"slug":"sperwer","desc_nl":""},{"nl":"Springbok","it":"Springbok","alt":"","traits_nl":["alert","elegant","levendig","sierlijk","snel","trots","vreedzaam"],"traits_it":["vigile","elegante","vivace","aggraziato","veloce","fiero","pacifico"],"slug":"springbok","desc_nl":""},{"nl":"Stekelvarken","it":"Istrice","alt":"Porcupijn","traits_nl":["alert","behoedzaam","schuw","solitair","verdedigend","voorzichtig"],"traits_it":["vigile","cauto","schivo","solitario","difensivo","prudente"],"slug":"stekelvarken","desc_nl":""},{"nl":"Stekelstaarteekhoorn","it":"Scoiattolo spinoso","alt":"Anomalure","traits_nl":["bedachtzaam","gevoelig","guitig","lenig","levendig","nerveus","scherpzinnig","schuw","snel","vreedzaam"],"traits_it":["riflessivo","sensibile","birichino","flessuoso","vivace","nervoso","perspicace","schivo","veloce","pacifico"],"slug":"stekelstaarteekhoorn","desc_nl":""},{"nl":"Stinkdier","it":"Moffetta","alt":"Skunk","traits_nl":["alert","behoedzaam","nachtelijk","rustig","schuw","solitair","verdedigend"],"traits_it":["vigile","cauto","notturno","tranquillo","schivo","solitario","difensivo"],"slug":"stinkdier","desc_nl":""},{"nl":"Stokstaartje","it":"Suricato","alt":"Meerkat, Suricate","traits_nl":["alert","beschermend","communicatief","familiaal","groepsdier","observerend","sociaal","waakzaam","zorgzaam"],"traits_it":["vigile","protettivo","comunicativo","familiare","animale di gruppo","osservatore","socievole","vigile","premuroso"],"slug":"stokstaartje","desc_nl":""},{"nl":"Struisvogel","it":"Struzzo","alt":"","traits_nl":["alert","dapper","energiek","fier","groepsdier","krachtig","moedig","snel","sterk"],"traits_it":["vigile","coraggioso","energico","fiero","animale di gruppo","potente","coraggioso","veloce","forte"],"slug":"struisvogel","desc_nl":""},{"nl":"Tapir","it":"Tapiro","alt":"Anta, Danta","traits_nl":["alert","bedachtzaam","gevoelig","gewoontedier","goedaardig","honkvast","nieuwsgierig","vreedzaam"],"traits_it":["vigile","riflessivo","sensibile","abitudinario","bonaccione","casalingo","curioso","pacifico"],"slug":"tapir","desc_nl":"De tapir is een goedaardig dier dat leeft in tropische wouden en graslanden. Ze zijn alert maar ook rustig van aard. Ze zijn echte gewoontedieren die steeds dezelfde paden bewandelen. Ze zijn nieuwsgierig maar ook eerder schuw. Ze zijn vreedzaam en houden van hun vaste woonplaats."},{"nl":"Tasmaanse duivel","it":"Diavolo della Tasmania","alt":"Sarcophilus","traits_nl":["dapper","doorzettend","luidruchtig","moedig","onbevreesd","sterk","taai","temperamentvol"],"traits_it":["coraggioso","tenace","rumoroso","coraggioso","impavido","forte","resistente","focoso"],"slug":"tasmaanse-duivel","desc_nl":""},{"nl":"Tijger","it":"Tigre","alt":"","traits_nl":["behendig","doelgericht","doortastend","elegant","geduldig","geruisloos","instinctief","krachtig","lenig","nachtelijk","onafhankelijk","scherpzinnig","solitair","sterk"],"traits_it":["abile","determinato","deciso","elegante","paziente","silenzioso","istintivo","potente","flessuoso","notturno","indipendente","perspicace","solitario","forte"],"slug":"tijger","desc_nl":""},{"nl":"Uil","it":"Gufo","alt":"Steenuil, Ransuil","traits_nl":["alert","intelligent","mysterieus","nachtelijk","nauwkeurig","observerend","onafhankelijk","scherpzinnig","schuw","solitair","stil","waakzaam"],"traits_it":["vigile","intelligente","misterioso","notturno","preciso","osservatore","indipendente","perspicace","schivo","solitario","silenzioso","vigile"],"slug":"uil","desc_nl":""},{"nl":"Vleermuis","it":"Pipistrello","alt":"Chiroptera","traits_nl":["alert","behendig","communicatief","nachtelijk","scherpzinnig","sociaal","waakzaam","wendbaar"],"traits_it":["vigile","abile","comunicativo","notturno","perspicace","socievole","vigile","agile"],"slug":"vleermuis","desc_nl":""},{"nl":"Vos","it":"Volpe","alt":"Rode vos","traits_nl":["aanpassend","alert","behendig","inventief","listig","nachtelijk","nieuwsgierig","onafhankelijk","scherpzinnig","slim","sluw","vindingrijk"],"traits_it":["adattabile","vigile","abile","inventivo","astuto","notturno","curioso","indipendente","perspicace","furbo","scaltro","ingegnoso"],"slug":"vos","desc_nl":""},{"nl":"Walrus","it":"Tricheco","alt":"","traits_nl":["familiaal","groepsdier","krachtig","sociaal","sterk","territoriaal"],"traits_it":["familiare","animale di gruppo","potente","socievole","forte","territoriale"],"slug":"walrus","desc_nl":""},{"nl":"Wezel","it":"Donnola","alt":"","traits_nl":["alert","behendig","doorzettend","lenig","moedig","nachtelijk","onbevreesd","snel"],"traits_it":["vigile","abile","tenace","flessuoso","coraggioso","notturno","impavido","veloce"],"slug":"wezel","desc_nl":""},{"nl":"Wilde eend","it":"Germano reale","alt":"Lacha","traits_nl":["aanpassend","actief","beweeglijk","flexibel","gezellig","niet kieskeurig","tolerant","verdraagzaam","voorzichtig"],"traits_it":["adattabile","attivo","agile","flessibile","socievole","non esigente","tollerante","tollerante","prudente"],"slug":"wilde-eend","desc_nl":""},{"nl":"Wolf","it":"Lupo","alt":"Grijze wolf, Canis lupus","traits_nl":["beschermend","dapper","familiaal","groepsdier (kleine groep)","hiërarchisch","instinctief","intelligent","territoriaal","trouw","waakzaam"],"traits_it":["protettivo","coraggioso","familiare","animale di piccolo branco","gerarchico","istintivo","intelligente","territoriale","fedele","vigile"],"slug":"wolf","desc_nl":"De roedels van deze sociale hondachtige zijn strikt georganiseerd. Hij communiceert intensief met zijn kenmerkend gehuil, tenminste als de sociale band sterk is. De Wolf is handig, sluw en vindingrijk. Hij handelt trouw tegenover soortgenoten en hecht belang aan een goed gemeenschapsleven. De Wolf heeft een groot uithoudingsvermogen. Hij past zich snel aan een nieuwe situatie aan."},{"nl":"Wolharige mammoet","it":"Mammut lanoso","alt":"","traits_nl":["doorzettend","familiaal","groepsdier","krachtig","sterk","taai","uithoudend"],"traits_it":["tenace","familiare","animale di gruppo","potente","forte","resistente","resistente"],"slug":"wolharige-mammoet","desc_nl":""},{"nl":"Zebra","it":"Zebra","alt":"","traits_nl":["alert","familiaal","groepsdier","krachtig","sociaal","sterk","waakzaam"],"traits_it":["vigile","familiare","animale di gruppo","potente","socievole","forte","vigile"],"slug":"zebra","desc_nl":""},{"nl":"Zeehond","it":"Foca","alt":"Phoca","traits_nl":["aanpassend","behendig","communicatief","gezellig","intelligent","lenig","nieuwsgierig","sociaal","speels"],"traits_it":["adattabile","abile","comunicativo","socievole","intelligente","flessuoso","curioso","socievole","giocoso"],"slug":"zeehond","desc_nl":""},{"nl":"Zeeschildpad","it":"Tartaruga marina","alt":"","traits_nl":["doorzettend","geduldig","onverstoorbaar","rustig","taai","uithoudend","voorzichtig","zwervend"],"traits_it":["tenace","paziente","imperturbabile","tranquillo","resistente","resistente","prudente","nomade"],"slug":"zeeschildpad","desc_nl":""},{"nl":"Zeeotter","it":"Lontra marina","alt":"","traits_nl":["creatief","enthousiast","gezellig","intelligent","levendig","sociaal","speels","vindingrijk"],"traits_it":["creativo","entusiasta","socievole","intelligente","vivace","socievole","giocoso","ingegnoso"],"slug":"zeeotter","desc_nl":""},{"nl":"Zwaan","it":"Cigno","alt":"Knobbelzwaan","traits_nl":["elegant","familiaal","fier","majestueus","sierlijk","territoriaal","trots","trouw","waardig"],"traits_it":["elegante","familiare","fiero","maestoso","aggraziato","territoriale","fiero","fedele","dignitoso"],"slug":"zwaan","desc_nl":""}];
+const ALL_TRAITS = [...new Set(ANIMALS.flatMap(a=>a.traits_it))].sort((a,b)=>a.localeCompare(b,'it'));
+
+let included=new Set(), excluded=new Set(), mode='filter';
+// Cache: nl_name -> {it: translated text} or {nl: original, loading: false}
+const cache = {};
+
+// ── SIMILARITY ───────────────────────────────────────────────
+function jaccard(inc,traits){
+  if(!inc.size)return 0;
+  const b=new Set(traits);let i=0;
+  for(const t of inc)if(b.has(t))i++;
+  return i/(inc.size+b.size-i);
+}
+function recall(inc,traits){
+  if(!inc.size)return 0;
+  const b=new Set(traits);let i=0;
+  for(const t of inc)if(b.has(t))i++;
+  return i/inc.size;
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function render(){
+  const nq=document.getElementById('nq').value.trim().toLowerCase();
+  const grid=document.getElementById('grid');
+  const sleg=document.getElementById('sleg');
+
+  let pool=ANIMALS.filter(a=>!nq||(a.it+' '+a.nl+' '+a.alt).toLowerCase().includes(nq));
+  pool=pool.filter(a=>{for(const t of excluded)if(a.traits_it.includes(t))return false;return true;});
+
+  if(!included.size){
+    pool.sort((a,b)=>a.it.localeCompare(b.it,'it'));
+    sleg.classList.remove('show');
+    setCount(pool.length);
+    buildCards(grid,pool,false);
+    return;
+  }
+  if(mode==='filter'){
+    const r=pool.filter(a=>{for(const t of included)if(!a.traits_it.includes(t))return false;return true;})
+                .sort((a,b)=>a.it.localeCompare(b.it,'it'));
+    sleg.classList.remove('show');
+    setCount(r.length,'esatto');
+    buildCards(grid,r,false);
+  }else{
+    const sc=pool.map(a=>({...a,_s:jaccard(included,a.traits_it),_r:recall(included,a.traits_it)}))
+                 .filter(a=>a._s>0)
+                 .sort((a,b)=>b._s-a._s||a.it.localeCompare(b.it,'it'));
+    sleg.classList.add('show');
+    setCount(sc.length,'simil');
+    buildCards(grid,sc,true);
+  }
+}
+
+function setCount(n,lbl){
+  document.getElementById('hbadge').textContent=`${n} animali`;
+  document.getElementById('fcount').textContent=`${n} animali`;
+  const el=document.getElementById('rcount');
+  if(!lbl)el.textContent=n===ANIMALS.length?`Tutti i totem (${n})`:`${n} risultati`;
+  else if(lbl==='esatto')el.textContent=`${n} risultat${n===1?'o':'i'} · corrispondenza esatta`;
+  else el.textContent=`${n} animali con almeno 1 caratteristica in comune`;
+}
+
+function buildCards(grid,list,showScore){
+  grid.innerHTML='';
+  if(!list.length){
+    grid.innerHTML='<div class="empty"><strong>Nessun animale trovato</strong>Prova a rimuovere alcune caratteristiche o passa alla modalità Similarità.</div>';
+    return;
+  }
+  list.forEach(a=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.onclick=()=>openModal(a,showScore?a._s:null,showScore?a._r:null);
+    let simHtml='';
+    if(showScore&&a._s!=null){
+      const p=Math.round(a._s*100);
+      const col=p>=50?'var(--green)':p>=25?'var(--amber)':'#dc3545';
+      const cls=p>=50?'hi':p>=25?'md':'lo';
+      simHtml=`<div class="sbar" style="width:${p}%;background:${col}"></div><div class="spct ${cls}">${p}%</div>`;
+    }
+    const th=a.traits_it.map(t=>`<span class="ct${included.has(t)?' inc':''}">${t}</span>`).join('');
+    card.innerHTML=`${simHtml}<div class="cname">${a.it}</div>${a.alt?`<div class="calt">${a.alt}</div>`:''}<div class="ctraits">${th}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ── MODAL ──────────────────────────────────────────────────────
+async function openModal(a,score,rec){
+  document.getElementById('m-it').textContent=a.it;
+  document.getElementById('m-nl').textContent=`🇧🇪 ${a.nl}`;
+  document.getElementById('m-alt').textContent=a.alt||'';
+
+  // Sim panel
+  const sc=document.getElementById('msc');
+  if(score!=null&&included.size>0){
+    sc.classList.add('show');
+    const p=Math.round(score*100),rp=Math.round(rec*100);
+    const col=p>=50?'var(--green)':p>=25?'var(--amber)':'#dc3545';
+    const matched=a.traits_it.filter(t=>included.has(t));
+    const ci=document.getElementById('mcircle');
+    ci.textContent=p+'%';ci.style.borderColor=col;ci.style.color=col;
+    document.getElementById('mdetail').innerHTML=
+      `<strong>Similarità Jaccard: ${p}%</strong><br>${matched.length} di ${included.size} caratteristiche incluse presenti (copertura ${rp}%)<br>In comune: <em>${matched.join(', ')||'—'}</em>`;
+  }else{sc.classList.remove('show');}
+
+  // Traits
+  document.getElementById('mtraits').innerHTML=a.traits_it.map(t=>`<span class="mt${included.has(t)?' inc':''}">${t}</span>`).join('');
+
+  // Description: show loading, then fetch+translate
+  const descEl=document.getElementById('mdesc');
+  document.getElementById('ov').classList.add('open');
+
+  // If we already have a translation cached
+  if(cache[a.nl]?.it){
+    descEl.innerHTML=`<div class="desc-area">${cache[a.nl].it}</div>`;
+    return;
+  }
+
+  // Show spinner while working
+  descEl.innerHTML=`<div class="desc-loading"><div class="spinner"></div>Traduzione in corso dal testo originale…</div>`;
+
+  // If we have the Dutch text embedded already, translate it
+  const dutchText=a.desc_nl||'';
+
+  try{
+    let nlText=dutchText;
+
+    // If no Dutch text embedded, fetch from SGV website first
+    if(!nlText){
+      const slug=a.nl.toLowerCase().replace(/\s+/g,'-').replace(/[(),'\.]/g,'');
+      const sgvUrl=`https://www.scoutsengidsenvlaanderen.be/totemzoeker/${slug}`;
+      // Use allorigins proxy to bypass CORS
+      const proxy=`https://api.allorigins.win/get?url=${encodeURIComponent(sgvUrl)}`;
+      const fr=await fetch(proxy);
+      if(fr.ok){
+        const fd=await fr.json();
+        const htm=fd.contents||'';
+        // Extract description between eigenschappen links and "Totems met dezelfde kenmerken"
+        const m=htm.match(/characteristics=\d+[^<]*<\/a>\s*(?:<\/a>\s*)*\s*<\/p>\s*<p[^>]*>([\s\S]+?)<\/p>/);
+        if(m)nlText=m[1].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+        if(!nlText){
+          // fallback: strip tags aggressively from block after traits section
+          const idx=htm.indexOf('totemzoeker?characteristics');
+          if(idx>-1){
+            const after=htm.slice(idx);
+            const pMatch=after.match(/<p[^>]*>((?!.*Totems)([\s\S]+?))<\/p>/);
+            if(pMatch)nlText=pMatch[1].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+          }
+        }
+      }
+    }
+
+    if(!nlText){
+      // Last resort: show a message pointing to the original site
+      descEl.innerHTML=`<div class="desc-original"><span class="orig-label">Descrizione non disponibile offline</span>Consulta il sito originale per la descrizione completa.</div>`;
+      return;
+    }
+
+    // Translate via Claude API
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:400,
+        messages:[{role:'user',content:
+          `Traduci fedelmente questo testo olandese in italiano. È la descrizione ufficiale dell'animale totem "${a.it}" (${a.nl}) dal sito scout belga Scouts en Gidsen Vlaanderen. Traduci il testo così com'è, senza aggiungere o modificare nulla.\n\nTesto olandese:\n${nlText}\n\nRispondi SOLO con la traduzione italiana, nient'altro.`
+        }]
+      })
+    });
+    const d=await res.json();
+    const translated=d.content?.find(b=>b.type==='text')?.text;
+
+    if(translated){
+      cache[a.nl]={it:translated,nl:nlText};
+      descEl.innerHTML=`<div class="desc-area">${translated}</div>`;
+    }else{
+      // API not available (e.g. outside Claude.ai) — show Dutch original
+      cache[a.nl]={nl:nlText};
+      descEl.innerHTML=`<div class="desc-original"><span class="orig-label">Testo originale (Nederlands)</span>${nlText}</div>`;
+    }
+  }catch(e){
+    // Show Dutch if we have it, otherwise fallback message
+    if(dutchText){
+      descEl.innerHTML=`<div class="desc-original"><span class="orig-label">Testo originale (Nederlands)</span>${dutchText}</div>`;
+    }else{
+      descEl.innerHTML=`<div class="desc-original"><span class="orig-label">Non disponibile</span>Consulta <a href="https://www.scoutsengidsenvlaanderen.be/totemzoeker/${a.slug||a.nl.toLowerCase().replace(/\s+/g,'-')}" target="_blank">il sito originale</a>.</div>`;
+    }
+  }
+}
+
+function closeModal(){document.getElementById('ov').classList.remove('open');}
+function maybeClose(e){if(e.target===document.getElementById('ov'))closeModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// ── MODE ──────────────────────────────────────────────────────
+function setMode(m){
+  mode=m;
+  document.getElementById('tab-f').classList.toggle('active',m==='filter');
+  document.getElementById('tab-s').classList.toggle('active',m==='similar');
+  document.getElementById('mhint').innerHTML=m==='filter'
+    ?'Gli animali devono avere <em>tutte</em> le caratteristiche incluse e <em>nessuna</em> di quelle escluse.'
+    :'Classifica tutti gli animali per percentuale di corrispondenza. Quelli con caratteristiche escluse vengono sempre rimossi.';
+  render();
+}
+
+// ── CLOUDS ────────────────────────────────────────────────────
+function buildClouds(){
+  buildCloud('cinc','tt-inc',included,'inc');
+  buildCloud('cexc','tt-exc',excluded,'exc');
+}
+function buildCloud(id,cls,active,which){
+  const el=document.getElementById(id);el.innerHTML='';
+  ALL_TRAITS.forEach(tr=>{
+    const t=document.createElement('span');
+    t.className=`tt ${cls}${active.has(tr)?' on':''}`;
+    t.textContent=tr;t.dataset.tr=tr;t.dataset.w=which;
+    t.onclick=()=>toggle(tr,which);
+    el.appendChild(t);
+  });
+}
+function filterCloud(){
+  const q=document.getElementById('tq').value.trim().toLowerCase();
+  document.querySelectorAll('.tt').forEach(t=>t.classList.toggle('hide',!!q&&!t.dataset.tr.includes(q)));
+}
+function toggle(tr,which){
+  const a=which==='inc'?included:excluded,o=which==='inc'?excluded:included;
+  if(a.has(tr))a.delete(tr);else{a.add(tr);o.delete(tr);}
+  document.querySelectorAll('.tt').forEach(t=>{
+    const s=t.dataset.w==='inc'?included:excluded;
+    t.classList.toggle('on',s.has(t.dataset.tr));
+  });
+  upCounts();upPills();render();
+}
+function upCounts(){
+  document.getElementById('ic').textContent=included.size;
+  document.getElementById('ec').textContent=excluded.size;
+}
+function upPills(){
+  rPills('pinc',included,'p-inc','inc');
+  rPills('pexc',excluded,'p-exc','exc');
+}
+function rPills(id,set,cls,which){
+  const el=document.getElementById(id);
+  if(!set.size){el.innerHTML='<span class="no-p">Nessuna</span>';return;}
+  el.innerHTML=[...set].map(tr=>`<span class="pill ${cls}">${tr}<button onclick="rm('${tr.replace(/'/g,"\\'")}','${which}')">×</button></span>`).join('');
+}
+function rm(tr,which){
+  (which==='inc'?included:excluded).delete(tr);
+  document.querySelectorAll('.tt').forEach(t=>{const s=t.dataset.w==='inc'?included:excluded;t.classList.toggle('on',s.has(t.dataset.tr));});
+  upCounts();upPills();render();
+}
+function clearAll(){
+  included.clear();excluded.clear();
+  document.getElementById('nq').value='';
+  document.getElementById('tq').value='';
+  document.querySelectorAll('.tt').forEach(t=>t.classList.remove('on','hide'));
+  upCounts();upPills();render();
+}
+
+buildClouds();render();
+</script>
+</body>
+</html>
