@@ -23,7 +23,7 @@
     ],
     "slug": "aalscholver",
     "desc_nl": "Deze zeevogel duikt al zwemmend. Op die manier voorziet die zich behendig van vis. De aalscholver is sociaal en nestelt in kolonies op kliffen of in hoge bomen in het binnenland. Deze vogel werkt goed en efficiënt samen met soortgenoten. Na het vissen lijkt die in alle rust van de zon te genieten. Aalscholvers zijn stil van aard, maar laten wel van zich horen als ze in groep zijn.",
-    "desc_it": "Questo uccello marino si immerge nuotando, procurandosi il pesce con grande abilità. Il cormorano è socievole e nidifica in colonie sulle scogliere o sugli alberi alti nell'entroterra. Collabora bene ed efficacemente con i suoi simili. Dopo la pesca sembra godere del sole in piena tranquillità. I cormorani sono silenziosi di natura, ma fanno sentire la loro voce quando sono in gruppo."
+    "desc_it": "Questo uccello marino si immerge nuotando, procurandosi il pesce con grande abilità. Il cormorano è socievole e nidifica in colonie sulle scogliere o su alberi alti nell'entroterra. Collabora bene ed efficacemente con i suoi simili. Dopo la pesca sembra godersi il sole in piena tranquillità. I cormorani sono silenziosi di natura, ma fanno sentire la loro voce quando sono in gruppo."
   },
   {
     "nl": "Aap",
@@ -51,7 +51,7 @@
     ],
     "slug": "aap",
     "desc_nl": "De aap is verstandig, maar laat zich toch dikwijls beetnemen. Ze zijn heel levendig en enorm beweeglijk. Een aap is potsierlijk, vrolijk en moedig. Een vrouwelijke aap zorgt goed voor haar jong.",
-    "desc_it": "La scimmia è saggia, ma si lascia spesso ingannare. È vivace ed enormemente agile. La scimmia è comica, allegra e coraggiosa. La femmina si prende cura dei suoi piccoli con grande dedizione."
+    "desc_it": "La scimmia è intelligente, ma si fa spesso ingannare. Sono molto vivaci ed enormemente agili. Una scimmia è buffa, allegra e coraggiosa. Una scimmia femmina si prende cura della sua prole."
   },
   {
     "nl": "Aardeekhoorn",
@@ -73,7 +73,7 @@
     ],
     "slug": "aardeekhoorn",
     "desc_nl": "Aardeekhoorns zijn overdag actief. Het zijn goede klimmers, maar blijven liever op de grond. Aardeekhoorns maken een ingewikkeld ondergronds gangenstelsel. Ze zijn populair, kieskeurig en zeer bedreven hamsteraars.",
-    "desc_it": "I tamia sono attivi di giorno. Sono buoni arrampicatori, ma preferiscono stare a terra. I tamia scavano un complicato sistema di gallerie sotterranee. Sono esigenti e abilissimi nell'accumulare riserve."
+    "desc_it": "I tamia sono attivi di giorno. Sono buoni arrampicatori, ma preferiscono stare a terra. I tamia costruiscono un complesso sistema di gallerie sotterranee. Sono socievoli, selettivi e abilissimi nel fare scorte di cibo."
   },
   {
     "nl": "Adder",
@@ -99,7 +99,7 @@
     ],
     "slug": "adder",
     "desc_nl": "De adder is een dikke slang met harde schubben die bestand is tegen leven in koude streken. Ze hebben een vast woongebied en leven solitair. Adders zijn inventieve jagers en erg doelmatig. Ze zijn niet agressief, maar bij gevaar kunnen ze dreigend overkomen.",
-    "desc_it": "La vipera è un serpente robusto con scaglie dure, adatto a vivere nelle regioni fredde. Ha un territorio fisso che abbandona raramente e vive in solitario. La vipera è inventiva nella caccia ed estremamente efficace. Non è aggressiva, ma può sembrare minacciosa in caso di pericolo."
+    "desc_it": "La vipera è un serpente tozzo con scaglie dure, resistente alla vita in climi freddi. Hanno un territorio fisso e vivono in solitario. Le vipere sono cacciatrici inventive e molto efficienti. Non sono aggressive, ma in caso di pericolo possono sembrare minacciose."
   },
   {
     "nl": "Agame",
@@ -131,7 +131,7 @@
     ],
     "slug": "agame",
     "desc_nl": "Deze hagedis is een schrokop. Ze zijn grappig, ondeugend, nieuwsgierig en uitdagend. De agame past zich vlot aan. Ze zijn erg snel, soms merkwaardig, maar ongevaarlijk. De agame is verzot op zon en warmte en intimideert hun vijanden door grootdoenerij.",
-    "desc_it": "Questa lucertola è una mangiona. È divertente, birichina, curiosa e provocatoria. L'agama si adatta facilmente. È molto veloce, a volte bizzarra, ma innocua. L'agama ama il sole e il caldo, e intimida i nemici con esibizioni di grandiosità."
+    "desc_it": "Questa lucertola è una gran mangiona. Sono divertenti, birichini, curiosi e provocatori. L'agama si adatta con facilità. Sono molto veloci, a volte bizzarri, ma innocui. L'agama adora il sole e il calore e intimida i nemici con fanfaronate."
   },
   {
     "nl": "Agoeti",
@@ -152,8 +152,8 @@
       "instancabile"
     ],
     "slug": "agoeti",
-    "desc_nl": "",
-    "desc_it": "L'aguti è un roditore tropicale sempre in movimento. È impavido e sfacciato, non si lascia intimidire dai predatori. Con il suo comportamento buffo e instancabile si fa notare facilmente. Sa aprire anche i gusci di frutta durissima con il suo morso potente."
+    "desc_nl": "Deze slanke knaagdieren zijn grappig en bedrijvig. Ze zijn onvermoeibaar. Brutale rakkers en helemaal niet bang. Onder soortgenoten kan de agoeti soms onverdraagzaam zijn.",
+    "desc_it": "Questi slanciati roditori sono divertenti e laboriosi. Sono instancabili. Monelli sfacciati e per nulla timorosi. Tra i propri simili, l'aguti può talvolta essere intollerante."
   },
   {
     "nl": "Albatros",
@@ -184,8 +184,8 @@
       "resistente"
     ],
     "slug": "albatros",
-    "desc_nl": "",
-    "desc_it": "L'albatro è un maestoso uccello marino che percorre enormi distanze senza fatica. Vola per settimane senza mai fermarsi, sfruttando le correnti d'aria con grande maestria. Forma coppie fedeli per tutta la vita e torna sempre agli stessi luoghi di nidificazione. La sua planata silenziosa e potente ispira rispetto e solennità."
+    "desc_nl": "Een albatros is een prachtige, statige en krachtig gebouwde zeevogel. Ze bewegen sierlijk en lijken geen rust nodig te hebben. Een combinatie van doorzettingsvermogen, uithoudingsvermogen en een slimme manier om gebruik te maken van de wind, stellen hen in staat grote afstanden af te leggen. De albatros is een trouw dier dat broedt in grote groepen.",
+    "desc_it": "L'albatro è un magnifico, maestoso e robusto uccello marino. Si muove con grazia e sembra non aver bisogno di riposo. Una combinazione di perseveranza, resistenza e un intelligente uso del vento permette loro di percorrere grandi distanze. L'albatro è un animale fedele che nidifica in grandi colonie."
   },
   {
     "nl": "Alk",
@@ -202,8 +202,8 @@
       "premuroso"
     ],
     "slug": "alk",
-    "desc_nl": "",
-    "desc_it": "L'alca è un uccello marino goffo sulla terra ma abilissimo sott'acqua. Vive in colonie numerose sulle scogliere rocciose e si prende cura dei piccoli con grande dedizione. Sebbene maldestra a terra, nuota con sorprendente destrezza."
+    "desc_nl": "Deze zeevogels met zwarte kop zwemmen en duiken gemakkelijk. Een alk houdt het bij een korte vlucht, want in de lucht lijkt die wat onhandig. Alken leven en broeden in grote groepen en zijn zorgzaam voor hun jongen.",
+    "desc_it": "Questi uccelli marini dalla testa nera nuotano e si immergono con facilità. L'alca preferisce un volo breve, perché in aria appare un po' goffa. Le alche vivono e nidificano in grandi gruppi e si prendono cura dei propri piccoli."
   },
   {
     "nl": "Alpaca",
@@ -228,8 +228,8 @@
       "perseverante"
     ],
     "slug": "alpaca",
-    "desc_nl": "",
-    "desc_it": "L'alpaca è un animale ostinato e fiero delle Ande. È socievole ma può essere cocciuto se non viene trattato con rispetto. È tollerante verso le condizioni difficili e resistente al freddo alpino. Il suo manto folto lo rende prezioso e apprezzato."
+    "desc_nl": "Alpaca&#039;s zijn koppige en trotse dieren. Als ze ergens hun zinnen op zetten, zijn ze daar niet van af te brengen en volharden ze hardnekkig. Een alpaca is kieskeurig wat hun voedsel betreft. Ze leven in goede verstandhouding met soortgenoten.",
+    "desc_it": "Gli alpaca sono animali testardi e fieri. Quando si mettono in testa qualcosa, non c'è verso di farli cambiare idea e persistono ostinatamente. Un alpaca è selettivo riguardo al cibo. Vivono in buona armonia con i propri simili."
   },
   {
     "nl": "Alpenhond",
@@ -252,8 +252,8 @@
       "difensivo"
     ],
     "slug": "alpenhond",
-    "desc_nl": "",
-    "desc_it": "Il cane selvatico asiatico vive in branchi organizzati e caccia in modo cooperativo. È vigile, veloce e adattabile a diversi ambienti. Difende il gruppo con coraggio e perspicacia. È resistente e sa sopravvivere in condizioni difficili."
+    "desc_nl": "Deze wilde honden hebben een groot aanpassingsvermogen. Ze zijn slank, snel en hebben een groot uithoudingsvermogen. Vooral hun reukzin en gehoor zijn sterk ontwikkeld. Alpenhonden leiden een hecht gemeenschapsleven en zijn erg sociaal, maar kunnen fel reageren op vreemden.",
+    "desc_it": "Questi cani selvatici hanno una grande capacità di adattamento. Sono snelli, veloci e dotati di grande resistenza. In particolare l'olfatto e l'udito sono molto sviluppati. Conducono una vita comunitaria unita e sono molto sociali, ma possono reagire con veemenza verso gli estranei."
   },
   {
     "nl": "Amerikaanse zeearend",
@@ -276,8 +276,8 @@
       "fedele"
     ],
     "slug": "amerikaanse-zeearend",
-    "desc_nl": "",
-    "desc_it": "L'aquila di mare americana è un cacciatore paziente e adattabile. Si affeziona al suo territorio e torna ogni anno agli stessi nidi. È perspicace e sa cogliere le opportunità al momento giusto. Forma coppie fedeli per tutta la vita."
+    "desc_nl": "Een Amerikaanse zeearend eet voornamelijk vis. Deze vogel is heel flexibel en past hun jachtmethodes aan aan de omstandigheden. Amerikaanse zeearenden kunnen lange tijd doodstil blijven zitten, waarbij geen enkele beweging in de omgeving hen ontgaat. Amerikaanse zeearenden zijn trouw aan hun partners en gehecht aan hun horst.",
+    "desc_it": "L'aquila di mare americana si nutre principalmente di pesce. Questo uccello è molto flessibile e adatta i metodi di caccia alle circostanze. Possono restare immobili per lungo tempo, senza che nessun movimento nell'ambiente circostante sfugga loro. Sono fedeli ai loro partner e molto legate al nido."
   },
   {
     "nl": "Anaconda",
@@ -300,8 +300,8 @@
       "unico"
     ],
     "slug": "anaconda",
-    "desc_nl": "",
-    "desc_it": "L'anaconda è il più grande serpente del mondo. Si muove nell'acqua con sorprendente velocità e agilità. È un cacciatore astuto e perspicace, capace di aspettare con grande pazienza la preda giusta. È un animale unico e imponente, presente in pochissimi ambienti al mondo."
+    "desc_nl": "Deze waterminnende reuzenslang brengt het grootste deel van hun tijd door in een rivier en voedt zich met landdieren die komen drinken. Na het eten geniet die voldaan van de zon. De anaconda is uniek en zeer gevoelig voor trillingen van de grond of het water. Deze slang is snel en listig, maar toch behoedzaam.",
+    "desc_it": "Questo gigantesco serpente acquatico trascorre la maggior parte del tempo in un fiume e si nutre di animali terrestri che vengono ad abbeverarsi. Dopo mangiato, si gode soddisfatto il sole. L'anaconda è unica e molto sensibile alle vibrazioni del suolo e dell'acqua. Questo serpente è veloce e astuto, ma anche cauto."
   },
   {
     "nl": "Anemoonvis",
@@ -330,8 +330,8 @@
       "astuto"
     ],
     "slug": "anemoonvis",
-    "desc_nl": "",
-    "desc_it": "Il pesce pagliaccio è un piccolo pesce vivace e colorato che vive tra i tentacoli dell'anemone. È intelligente e sa sfruttare il suo ambiente in modo astuto. Vive in gruppi ben organizzati con una gerarchia precisa. Si prende cura del suo territorio con energia ed entusiasmo."
+    "desc_nl": "Deze bekende vis houdt van de geborgenheid van het rif. Hun vrolijke verschijning weet eenieder te charmeren. De anemoonvis hecht veel belang aan hun omgeving en floreert in groepen. Deze koraalvis is zorgzaam voor kroost en soortgenoten. In warme wateren is de anemoonvis intelligent, energiek en van alle markten thuis. Wanneer uitgedaagd, reageert dit visje listig en meedogenloos.",
+    "desc_it": "Questo famoso pesce ama la sicurezza della barriera corallina. Il suo aspetto allegro sa come affascinare chiunque. Il pesce pagliaccio dà molta importanza all'ambiente circostante e prospera in gruppo. È premuroso verso la prole e i propri simili. In acque calde è intelligente, energico e versatile. Quando sfidato, reagisce con astuzia e senza pietà."
   },
   {
     "nl": "Ani",
@@ -352,8 +352,8 @@
       "premuroso"
     ],
     "slug": "ani",
-    "desc_nl": "",
-    "desc_it": "L'ani è un uccello tropicale insolito che vive in gruppi familiari. È empatico e partecipa alla cura dei piccoli in modo comunitario: tutti i membri del gruppo contribuiscono alla cova e all'allevamento. È socievole e costruisce nidi condivisi. Raramente si vede da solo."
+    "desc_nl": "Deze koekoek behoort tot de meest ongewone vogels ter wereld. De ani is buitengewoon sociaal en leeft in groepen die zich gedragen als een hechte familie. Ze blijven altijd dicht in de buurt van de groep. Ze werken samen om hun gemeenschappelijk territorium te verdedigen. Als één van de vogels gewond is, beschermen de andere vogels het dier vol medelijden.",
+    "desc_it": "Questo cuculo è tra gli uccelli più insoliti al mondo. L'ani è straordinariamente sociale e vive in gruppi che si comportano come una famiglia unita. Rimangono sempre vicini al gruppo. Collaborano per difendere il loro territorio comune. Se uno degli uccelli è ferito, gli altri lo proteggono con compassione."
   },
   {
     "nl": "Antilope",
@@ -386,8 +386,8 @@
       "pacifico"
     ],
     "slug": "antilope",
-    "desc_nl": "",
-    "desc_it": "L'antilope è un animale elegante e vivace che vive nelle savane africane. È talentuosa: corre velocissima e sa scattare all'improvviso per sfuggire ai predatori. Vive in branchi ben organizzati e apprende rapidamente dai più esperti. È paziente e perspicace nell'osservare il pericolo."
+    "desc_nl": "De antilope is een groot hert dat in groep leeft. Antilopes zijn geduldig, slank, snel, voorzichtig en elegant. Hun zintuigen zijn sterk ontwikkeld, zodat ze alles opmerken. Antilopes leven in vrede met andere verwante dieren, zijn levendig, behendig en lieftallig. Ze zijn intelligent en leren uit ervaring.",
+    "desc_it": "L'antilope è un grande cervide che vive in gruppo. Le antilopi sono pazienti, snelle, caute ed eleganti. I loro sensi sono molto sviluppati, così che notano tutto. Vivono in pace con altri animali affini, sono vivaci, agili e graziose. Sono intelligenti e imparano dall'esperienza."
   },
   {
     "nl": "Ara",
@@ -418,8 +418,8 @@
       "diffidente"
     ],
     "slug": "ara",
-    "desc_nl": "",
-    "desc_it": "Il pappagallo ara è un uccello intelligente e fedele. Si adatta facilmente all'ambiente familiare e impara a imitare suoni e voci. È curioso ma anche diffidente verso gli estranei. In coppia o in piccoli gruppi mostra grande affetto e lealtà."
+    "desc_nl": "In vergelijking met andere papegaaien zijn ara&#039;s rustig en ernstig. Ze wennen snel aan een nieuwe omgeving en zijn volgzaam en trouw als ze goed behandeld worden. Deze intelligente vogel is nieuwsgierig van aard. De ara leeft op goede voet met soortgenoten maar kan nukkig zijn tegenover vreemden.",
+    "desc_it": "Rispetto agli altri pappagalli, le are sono tranquille e serie. Si abituano rapidamente a un nuovo ambiente e sono docili e fedeli se trattate bene. Questo uccello intelligente è curioso per natura. L'ara va d'accordo con i propri simili ma può essere scontrosa con gli estranei."
   },
   {
     "nl": "Arapaima",
@@ -452,8 +452,8 @@
       "gentile"
     ],
     "slug": "arapaima",
-    "desc_nl": "",
-    "desc_it": "L'arapaima è uno dei pesci d'acqua dolce più grandi del mondo. È focoso e combattivo, ma allo stesso tempo si prende cura dei piccoli con grande dedizione. Nuota in piccoli gruppi e manifesta un comportamento sorprendentemente intelligente. È una specie antica e resistente che sopravvive da milioni di anni."
+    "desc_nl": "Dit intelligente groepsdier graaft een nest in het zand voor hun kleintjes, die het lange tijd beschermt. De arapaima toont zich vriendelijk en behulpzaam bij vertrouwd gezelschap, maar schuwt confrontaties niet. Het ene moment kan het vrolijk en onstuimig rondscharrelen, om vervolgens vol elan van zich af te bijten. Zo eist deze robuuste kanjer hun plaats op. Regelmatig zwemt de arapaima naar het watervlak om lucht te happen. Ook vogels behoren tot buit van deze noeste en fiere jager. De arapaima is steeds klaar voor een volgende uitdaging.",
+    "desc_it": "Questo intelligente animale sociale scava un nido nella sabbia per i suoi piccoli, che protegge a lungo. L'arapaima si mostra amichevole e disponibile in compagnia di fiducia, ma non evita i confronti. In un momento può aggirarsi allegramente e impetuosamente, per poi reagire con slancio. Regolarmente nuota in superficie per respirare. Anche gli uccelli fanno parte della sua preda. L'arapaima è sempre pronto per la prossima sfida."
   },
   {
     "nl": "Arassari",
@@ -482,8 +482,8 @@
       "giocoso"
     ],
     "slug": "arassari",
-    "desc_nl": "",
-    "desc_it": "L'araçari è un tucano colorato e vivace delle foreste tropicali. È allegro e non teme i pericoli. Vive in piccoli gruppi rumorosi e difende il nido con coraggio. È giocoso e dispettoso, sempre in cerca di novità."
+    "desc_nl": "Deze kleine toekan is een brutale grapjas. Deze vogel ziet er slordig uit, maar is het niet. Ze zijn opgewekt en monter. Druk bezig zijn is hun lust en leven. De arassari&#039;s zijn echte speelvogels die plagerig zijn en niet meteen opvallen. Arassari&#039;s leven in troepen. Bij gevaar gaan ze niet op de vlucht, maar helpen hun soortgenoten.",
+    "desc_it": "Questo piccolo tucano è un impertinente buffone. Sembra trasandato, ma non lo è. Sono allegri e vivaci. Essere sempre occupati è la loro ragione di vita. Gli araçari sono veri giocherelloni, dispettosi e non immediatamente appariscenti. Vivono in stormi. In caso di pericolo non fuggono, ma aiutano i propri simili."
   },
   {
     "nl": "Arend",
@@ -518,8 +518,8 @@
       "dignitoso"
     ],
     "slug": "arend",
-    "desc_nl": "",
-    "desc_it": "L'aquila è un rapace fiero e imponente. Caccia con grande pazienza, osservando dall'alto con occhi acutissimi. È ostinata e perseverante: affronta i venti più forti senza mai deviare dalla rotta. Rappresenta dignità, coraggio e nobiltà."
+    "desc_nl": "Deze imponerende, koninklijke roofvogels zijn moedig en sluw. Ze hebben een grenzeloos geduld. Een arend is goed ontwikkeld, zowel op lichamelijk als geestelijk vlak. Ze hebben een fiere en kalme aard. Een arend is gevoelig en zal altijd duidelijk hun ongenoegen laten blijken. Ze volharden hardnekkig in een eens opgevat plan. Zelfs door tegenstand laat die zich niet van hun voornemen afbrengen. Een arend is leergierig, trots en waardig.",
+    "desc_it": "Questi imponenti e regali rapaci sono coraggiosi e astuti. Hanno una pazienza infinita. Un'aquila è ben sviluppata, sia fisicamente che mentalmente. Hanno un carattere fiero e calmo. È sensibile e mostra sempre chiaramente il suo malcontento. Persevera testardamente in un piano una volta concepito. Nemmeno l'opposizione la distoglie dai suoi propositi. Un'aquila è curiosa di imparare, fiera e dignitosa."
   },
   {
     "nl": "Axolotl",
@@ -552,8 +552,8 @@
       "energico"
     ],
     "slug": "axolotl",
-    "desc_nl": "",
-    "desc_it": "L'axolotl è una salamandra acquatica messicana dalle straordinarie capacità di rigenerazione. È mite e bonario, raramente aggressivo. Si adatta bene all'ambiente in cui vive ma preferisce restare nell'ombra. Osserva il mondo con occhi curiosi ed è capace di sopravvivere in condizioni difficili."
+    "desc_nl": "Teruggetrokken in diepe meren vertoeft de axolotl. Deze salamander is zachtaardig en weerbaar. Bij een eerste contact blijft de axolotl waakzaam en schuw. Met een scherp observatievermogen past deze vindingrijke jager zich moeiteloos aan de omgeving aan. De axolotl toont zich gemoedelijk, maar kan plots speels en energiek ontspringen.",
+    "desc_it": "L'axolotl vive appartato nei laghi profondi. Questa salamandra è dolce e resiliente. Al primo contatto rimane vigile e schivo. Con un'acuta capacità di osservazione, questo cacciatore ingegnoso si adatta senza sforzo all'ambiente. L'axolotl appare gioviale, ma può improvvisamente diventare giocoso ed energico."
   },
   {
     "nl": "Baardkoekoek",
@@ -576,8 +576,8 @@
       "veloce"
     ],
     "slug": "baardkoekoek",
-    "desc_nl": "",
-    "desc_it": "Il cuculo barbuto è un uccello abile nel costruire strutture complesse per il nido. È paziente e perspicace, ma anche spericolato quando si tratta di difendere il territorio. Vola veloce e sa orientarsi con precisione. Preferisce la vita nel suo habitat familiare."
+    "desc_nl": "Deze vogel heeft een los donsachtig verenkleed. Ze zijn geduldig, maar ook roekeloos. Een baardkoekoek blijft lang stilzitten tot een prooi voorbijkomt en reageert dan snel en behendig. Niets ontgaat hen. Baardkoekoeken zijn trouw aan hun uitkijkpost: als iets hen doet opschrikken, vliegen ze er nooit ver vandaan.",
+    "desc_it": "Questo uccello ha un piumaggio morbido e soffice. Sono pazienti, ma anche temerari. Il cuculo barbuto sta immobile a lungo finché una preda non passa, e poi reagisce rapidamente e abilmente. Nulla gli sfugge. Sono fedeli al loro posto d'osservazione: se qualcosa li spaventa, non volano mai lontano da esso."
   },
   {
     "nl": "Banteng",
@@ -606,8 +606,8 @@
       "sicuro di sé"
     ],
     "slug": "banteng",
-    "desc_nl": "",
-    "desc_it": "Il banteng è un bovino selvatico dell'Asia meridionale. Vive in branchi ben organizzati ed è robusto e resistente. È cauto e vigile, ma sicuro di sé davanti ai pericoli. È versatile e si adatta a diversi tipi di vegetazione."
+    "desc_nl": "Dit wild hoefdier is roodbruin tot bruinzwart met zijwaarts omhoog gebogen hoorns. De banteng is een sterke en taaie klimmer. Ze zijn gehard, zelfzeker en altijd op hun hoede. Ze hebben een groot uithoudingsvermogen en leven in kuddes. Een banteng is veelzijdig en nuttig.",
+    "desc_it": "Questo ungulato selvatico è di colore marrone rossastro o marrone scuro con corna ricurve verso l'alto. Il banteng è un arrampicatore forte e tenace. Sono robusti, sicuri di sé e sempre in guardia. Hanno una grande resistenza e vivono in greggi. Un banteng è versatile e utile."
   },
   {
     "nl": "Barracuda",
@@ -638,8 +638,8 @@
       "autonomo"
     ],
     "slug": "barracuda",
-    "desc_nl": "",
-    "desc_it": "Il barracuda è un predatore marino temibile e veloce. Caccia in branchi organizzati con grande cooperazione. È coraggioso e opportunista, capace di adattare le strategie di caccia alla situazione. Ha una resistenza notevole e domina le acque con autorità."
+    "desc_nl": "De barracuda is een sterk en moedig roofdier dat op sommige plekken meer wordt gevreesd dan haaien. Wie hen kent, weet echter dat dit onterecht is. De barracuda werkt tactisch en actief samen in grote scholen. De jongen zijn weerbaar en zelfredzaam. De barracuda kan opportunistisch uit de hoek komen.",
+    "desc_it": "La barracuda è un predatore forte e coraggioso che in alcuni luoghi è più temuto degli squali. Chi la conosce bene sa tuttavia che ciò è ingiusto. Collabora tatticamente e attivamente in grandi banchi. I giovani sono resilienti e autosufficienti. La barracuda può mostrarsi opportunista."
   },
   {
     "nl": "Baviaan",
@@ -666,8 +666,8 @@
       "lungimirante"
     ],
     "slug": "baviaan",
-    "desc_nl": "",
-    "desc_it": "Il babbuino vive in grandi gruppi con una gerarchia rigida. È coraggioso e irascibile nella difesa del gruppo. Sa adattarsi a diversi ambienti e impara dai comportamenti altrui. I maschi dominanti sono premurosi verso i piccoli e lungimiranti nelle decisioni."
+    "desc_nl": "Deze op de grond levende aap is stevig gebouwd en leeft in hechte groepen waarbinnen een strenge rangorde heerst. De baviaan is bezorgd, moedig en heeft een groot aanpassingsvermogen. Ze kunnen soms opvliegend reageren. Een baviaan is vooruitziend en een goede na-aper.",
+    "desc_it": "Questa scimmia terrestre è robusta e vive in gruppi uniti dove vige una rigida gerarchia. Il babbuino è premuroso, coraggioso e ha una grande capacità di adattamento. Possono talvolta reagire impetuosamente. Un babbuino è previdente e un bravo imitatore."
   },
   {
     "nl": "Beensnoek",
@@ -692,8 +692,8 @@
       "pacifico"
     ],
     "slug": "beensnoek",
-    "desc_nl": "",
-    "desc_it": "Il luccio armato è un pesce predatore che vive in acque calde e tranquille. È perspicace e opportunista, si muove in piccoli gruppi. Caccia con calma e velocità, aspettando il momento giusto per attaccare. È pacifico finché non viene minacciato."
+    "desc_nl": "Deze grote zoetwatervis verkiest rustige, ondiepe waters. Hoewel het een roofvis is, is een beensnoek vreedzaam van aard en niet agressief. Ze leven in kleine groepen. Een beensnoek is opportunistisch en een opmerkzame speurder. Bewegingsloos genieten in het water kan die als de beste, net als razendsnel zijn.",
+    "desc_it": "Questo grande pesce d'acqua dolce predilige acque tranquille e poco profonde. Nonostante sia un pesce predatore, il luccio armato è pacifico per natura e non aggressivo. Vivono in piccoli gruppi. È opportunista e un attento esploratore. Sa godersi l'immobilità nell'acqua come pochi, ma anche essere velocissimo."
   },
   {
     "nl": "Beer",
@@ -720,8 +720,8 @@
       "resistente"
     ],
     "slug": "beer",
-    "desc_nl": "",
-    "desc_it": "L'orso è un animale grande e forte, ma sorprendentemente socievole con i suoi simili. È intelligente e inventivo nella ricerca del cibo. Sa adattarsi a quasi tutti gli ambienti e le condizioni climatiche. Nonostante la sua forza, può essere bonario e giocoso."
+    "desc_nl": "Een beer is een groot en sterk dier. Ze zijn niet zo vinnig, maar compenseren dit met een fantastisch uithoudingsvermogen. Zwemmen en klimmen kan die goed. Een beer is intelligent en heeft een groot aanpassingsvermogen en improvisatietalent. Ze zijn gemoedelijk en gezellig, maar ook onberekenbaar, waardoor ze gevaarlijk kunnen zijn.",
+    "desc_it": "Un orso è un animale grande e forte. Non sono particolarmente veloci, ma compensano con una fantastica resistenza. Nuotano e si arrampicano con destrezza. Un orso è intelligente e ha una grande capacità di adattamento e talento nell'improvvisare. Sono bonari e socievoli, ma anche imprevedibili, il che li può rendere pericolosi."
   },
   {
     "nl": "Beerdiertje",
@@ -752,8 +752,8 @@
       "indipendente"
     ],
     "slug": "beerdiertje",
-    "desc_nl": "",
-    "desc_it": "Il tardigrado è uno degli animali più resistenti sulla Terra. Sopravvive a temperature estreme, radiazioni e persino al vuoto dello spazio. È piccolo ma indistruttibile, capace di affrontare l'ambiente più ostile. Vive in acque e terreni umidi e si trova in quasi ogni angolo del pianeta."
+    "desc_nl": "Het beerdiertje staat bekend als het meest veerkrachtige dier op aarde. Het is volhardend, sterk en dapper. Levenlustig en vindingrijk pas het beerdiertje zich aan en overleeft het in alle omstandigheden door stromingen geleid, toont dit minuscule wezen verrassend veel moed. Dit groepsdier werkt graag samen, maar kan ook zwervend een eigen weg vinden.",
+    "desc_it": "Il tardigrado è noto come l'animale più resiliente della terra. È perseverante, forte e coraggioso. Vitale e ingegnoso, si adatta e sopravvive in tutte le circostanze. Guidato dalle correnti, questo minuscolo essere mostra una sorprendente quantità di coraggio. Ama collaborare, ma può anche trovare la propria strada vagabondando."
   },
   {
     "nl": "Beermarter",
@@ -784,8 +784,8 @@
       "muscoloso"
     ],
     "slug": "beermarter",
-    "desc_nl": "",
-    "desc_it": "Il binturong è un mammifero mite e docile del sud-est asiatico. È fedele e affettuoso verso chi conosce. Si difende con un odore caratteristico ma raramente aggredisce. Ama arrampicarsi lentamente tra i rami, vivendo una vita tranquilla e giocosa."
+    "desc_nl": "Een beermarter heeft een unieke gespierde grijpstaart. Trouw en volgzaam is hun aard. Een beermarter leidt een kalm en gezapig leven. Wanneer ze actief zijn, laten ze van zich horen. Ze zijn lief en zachtaardig en lijken iedereen graag te mogen. Een beermarter is rustig en speels, maar kan soms agressief zijn als die in het nauw gedreven wordt.",
+    "desc_it": "Il binturong ha una coda prensile muscolosa unica. Fedele e docile è il loro carattere. Un binturong conduce una vita tranquilla e pacifica. Quando sono attivi, fanno sentire la loro presenza. Sono dolci e gentili e sembrano voler bene a tutti. È calmo e giocoso, ma può talvolta essere aggressivo se messo alle strette."
   },
   {
     "nl": "Beloega",
@@ -812,8 +812,8 @@
       "nomade"
     ],
     "slug": "beloega",
-    "desc_nl": "",
-    "desc_it": "La beluga è un cetaceo altamente comunicativo che vive nei mari artici. Emette una grande varietà di suoni per comunicare con il gruppo. È veloce e resistente, capace di nuotare in acque ghiacciate. I cuccioli vengono accuditi nel gruppo con grande attenzione."
+    "desc_nl": "Deze witte dolfijn heeft een krachtig lichaam met daarop een kleine afgeronde kop. Een beloega is communicatief en soms luidruchtig. Het zijn goede zwemmers met een groot uithoudingsvermogen. Een beloega leeft in groep en leidt een zwervend bestaan. Deze dolfijn is snel en speels.",
+    "desc_it": "Questo delfino bianco ha un corpo possente con una piccola testa arrotondata. Un beluga è comunicativo e talvolta rumoroso. Sono buoni nuotatori con grande resistenza. Un beluga vive in gruppo e conduce un'esistenza nomade. Questo delfino è veloce e giocoso."
   },
   {
     "nl": "Beo",
@@ -844,8 +844,8 @@
       "gentile"
     ],
     "slug": "beo",
-    "desc_nl": "",
-    "desc_it": "Il myna è un uccello socievole e curioso, famoso per la sua capacità di imitare suoni e voci. È affettuoso verso i suoi compagni e ama stare in gruppo. È attivo e rumoroso, sempre in movimento. Sebbene schivo con gli estranei, diventa molto gentile con chi conosce."
+    "desc_nl": "Deze koddige, sprekende vogel voelt zich op alle terreinen thuis. Ze leven in groepjes. Een beo is nieuwsgierig, erg actief, rumoerig, maar soms ook schuw. Ze zijn aanhalig, vriendelijk en altijd snel geïnteresseerd. De beo is een goede imitator.",
+    "desc_it": "Questo buffo uccello parlante si sente a suo agio in ogni ambiente. Vivono in piccoli gruppi. Un myna è curioso, molto attivo, chiassoso, ma a volte anche timido. Sono affettuosi, amichevoli e sempre pronti ad interessarsi a tutto. Il myna è un bravo imitatore."
   },
   {
     "nl": "Bergbever",
@@ -874,8 +874,8 @@
       "perseverante"
     ],
     "slug": "bergbever",
-    "desc_nl": "",
-    "desc_it": "Lo scoiattolo di montagna è un roditore instancabile che accumula riserve con grande diligenza. Vive in tane ben ordinate e costruisce il nido con cura. È tranquillo e tollerante, raramente aggressivo. Persevera instancabilmente nella sua attività quotidiana."
+    "desc_nl": "Dit actieve knaagdier waagt zich nooit ver van hun hol. Een bergbever is ordelijk en vlijtig. Ze dulden zowat alle dieren in hun territorium, zolang die geen kwade bedoelingen hebben. Als een bergbever moeilijkheden ondervindt, is die standvastig en inventief. Ze geven zelden op voor ze een oplossing hebben gevonden. In een vertrouwde omgeving is de bergbever rustig.",
+    "desc_it": "Questo roditore attivo non si avventura mai lontano dalla sua tana. Uno scoiattolo di montagna è ordinato e diligente. Tollerano quasi tutti gli animali nel loro territorio, purché non abbiano cattive intenzioni. Quando incontra difficoltà, è tenace e inventivo. Raramente si arrendono prima di trovare una soluzione. In un ambiente familiare è tranquillo."
   },
   {
     "nl": "Berglemming",
@@ -900,8 +900,8 @@
       "socievole"
     ],
     "slug": "berglemming",
-    "desc_nl": "",
-    "desc_it": "Il lemming di montagna è un piccolo roditore attivo e spericolato. Si adatta alle condizioni climatiche più severe. Vive in colonie protettive dove i membri si difendono a vicenda. È avventuroso e non teme le difficoltà del terreno."
+    "desc_nl": "Dit kleine knaagdier leeft op de toendra en op bergweiden. De berglemming is gehard en zowel overdag als ‘s nachts actief. Bij gevaar laat die hun soortgenoten niet in de steek. Ze zijn sociaal en passen zich gemakkelijk aan. De berglemming is avontuurlijk en wat roekeloos.",
+    "desc_it": "Questo piccolo roditore vive sulla tundra e nei pascoli montani. Il lemming di montagna è robusto e attivo sia di giorno che di notte. In caso di pericolo non abbandona i propri simili. Sono sociali e si adattano con facilità. Il lemming di montagna è avventuroso e un po' temerario."
   },
   {
     "nl": "Berner sennenhond",
@@ -936,8 +936,8 @@
       "indipendente"
     ],
     "slug": "berner-sennenhond",
-    "desc_nl": "",
-    "desc_it": "Il bovaro del Bernese è un cane da lavoro potente e fedele. È obbediente e desideroso di imparare, ma mantiene una forte indipendenza di carattere. È tollerante e mite con i bambini e i deboli. Vigile e perspicace, si adatta sia al lavoro che alla vita domestica."
+    "desc_nl": "De Berner sennenhond is een grote, krachtig gebouwde berghond. Ze zijn graag buiten en houden van vrij rondlopen. Deze hond is leergierig, gehoorzaam, waakzaam en opmerkzaam. De Berner sennenhond is zachtmoedig, verdraagzaam en past zich gemakkelijk aan. Ze zijn zelfstandig, maar daardoor soms ook wat eigenwijs. De Berner sennenhond heeft een goede inborst. Tegenover bekenden is die aanhankelijk.",
+    "desc_it": "Il bovaro del Bernese è un cane da montagna grande e robusto. Amano stare all'aperto e girano volentieri liberi. Questo cane è desideroso di imparare, obbediente, vigile e attento. È mite, tollerante e si adatta facilmente. Sono indipendenti, ma per questo a volte un po' testardi. Il bovaro del Bernese ha un buon carattere. Con i conoscenti è affettuoso."
   },
   {
     "nl": "Bever",
@@ -970,8 +970,8 @@
       "taciturno"
     ],
     "slug": "bever",
-    "desc_nl": "",
-    "desc_it": "Il castoro è l'ingegnere del mondo animale. Costruisce dighe e alloggi elaborati con grande abilità. È laborioso e diligente, e lavora instancabilmente per la famiglia. È prudente e lungimirante, e difende il suo territorio con determinazione silenziosa."
+    "desc_nl": "De bever is een werkzaam, vooruitziend en voorzichtig knaagdier. Deze goede zwemmer en duiker leeft in kolonies. Ze verzetten zich tegen dwang. De bever is sociaal, maar eerder zwijgzaam en kent weinig vijanden. Ze zijn ingenieus en hebben een enorme bouwlust. Een bever is trouw en blijft hun hele leven bij hun partner.",
+    "desc_it": "Il castoro è un roditore laborioso, previdente e prudente. Questo bravo nuotatore e sommozzatore vive in colonie. Si oppongono alla costrizione. Il castoro è sociale, ma piuttosto silenzioso e ha pochi nemici. Sono ingegnosi e hanno un'enorme voglia di costruire. Un castoro è fedele e rimane con il proprio partner per tutta la vita."
   },
   {
     "nl": "Bij",
@@ -1001,7 +1001,7 @@
     ],
     "slug": "bij",
     "desc_nl": "De Bij is een sociaal insect. Hij werkt hard en is altijd bezig. Bijen hebben hierbij een duidelijke taakverdeling. De Bij pikt snel zaken op door ouderen te observeren en leert al doende. Hij is altruïstisch. Wat hij ook doet, het is steeds gericht op het welzijn van anderen. Een Bij is toekomstgericht.",
-    "desc_it": "L'ape è un insetto sociale. Lavora sodo ed è sempre in attività. Le api hanno una netta divisione dei compiti. L'ape impara rapidamente osservando le api più anziane e impara facendo. È altruista: tutto ciò che fa è sempre orientato al benessere degli altri. L'ape è lungimirante."
+    "desc_it": "L'ape è un insetto sociale. Lavora sodo ed è sempre indaffarata. Le api hanno una chiara divisione dei compiti. L'ape impara rapidamente osservando gli anziani e impara facendo. È altruista. Qualunque cosa faccia, è sempre orientata al benessere degli altri. Un'ape è orientata al futuro."
   },
   {
     "nl": "Bizon",
@@ -1030,8 +1030,8 @@
       "amichevole"
     ],
     "slug": "bizon",
-    "desc_nl": "",
-    "desc_it": "Il bisonte vive in grandi branchi ben organizzati. È un animale potente ma bonario, che protegge il gruppo con forza. I maschi anziani guidano con saggezza ma possono essere agitati se minacciati. È amichevole con i suoi simili e desidera stare in compagnia."
+    "desc_nl": "De bizon is goedaardig en vreesachtig. Dit groepsdier wordt onrustig en onvoorzichtig als iets of iemand hen ergert. De bizon leeft in kuddes met een duidelijke hiërarchie. In die kuddes worden de zwakkeren beschermd. De bizon is ontvankelijk voor vriendschap en leert graag.",
+    "desc_it": "Il bisonte è bonario e timoroso. Questo animale sociale diventa irrequieto e imprudente quando qualcosa o qualcuno lo irrita. Il bisonte vive in mandrie con una chiara gerarchia. In queste mandrie i più deboli vengono protetti. Il bisonte è ricettivo all'amicizia e ama imparare."
   },
   {
     "nl": "Bladschaap",
@@ -1062,8 +1062,8 @@
       "resistente"
     ],
     "slug": "bladschaap",
-    "desc_nl": "",
-    "desc_it": "La lumaca di mare è un mollusco marino affascinante e colorato. Vive in modo indipendente e silenzioso nei fondali marini. È epicurea: si nutre di anemoni e cnidari con grande tranquillità. È ingegnosa: assimila le cellule urticanti delle prede per difendersi."
+    "desc_nl": "Het bladschaap heeft heel wat kleine bladachtige uitsteeksels, waardoor het op een wollig schaap lijkt. Het eet de groene cellen van algen op waardoor het naast de groene kleur ook fotosynthese kan toepassen. Deze zeeslak krijgt dus energie door te zonnebaden en geeft zelf licht in het donker. Hierdoor laten anderen het bladschaap met rust. Het beweegt langzaam en voorzichtig. Door de groene of bruine kleur kan het zich gemakkelijk verbergen tussen zeegras en koraal en kan het ongestoord de hele dag eten.",
+    "desc_it": "La lumaca di mare ha numerose piccole protuberanze simili a foglie, che la fanno sembrare una pecora lanosa. Mangia le cellule verdi delle alghe, il che gli permette anche di fare la fotosintesi. Ottiene energia prendendo il sole e produce luce propria nel buio, motivo per cui gli altri la lasciano in pace. Si muove lentamente e con cautela. Grazie al colore verde o marrone, può facilmente nascondersi tra le alghe marine e i coralli e mangiare indisturbata tutto il giorno."
   },
   {
     "nl": "Blauwe reiger",
@@ -1091,7 +1091,7 @@
     ],
     "slug": "blauwe-reiger",
     "desc_nl": "Deze vogel heeft een lange sterke snavel en een zwarte band door het oog die doorloopt in de kuif. Ze zijn voorzichtig en eerder schuw. De blauwe reiger is heel geduldig en niet kieskeurig. Hun beweging is sierlijk, bedaard, langzaam en bedachtzaam. De blauwe reiger leeft in kolonies gedurende het broedseizoen, maar meestal in kleine groepen of alleen tijdens de rest van het jaar.",
-    "desc_it": "Questo uccello ha un becco lungo e robusto e una fascia nera attraverso l'occhio che si prolunga nel ciuffo. È cauto e piuttosto schivo. L'airone cenerino è molto paziente e non esigente. Il suo movimento è aggraziato, tranquillo, lento e riflessivo. L'airone vive in colonie durante la stagione riproduttiva, ma per il resto dell'anno si trova perlopiù in piccoli gruppi o da solo."
+    "desc_it": "Questo uccello ha un lungo becco robusto e una banda nera attraverso l'occhio che si prolunga nel ciuffo. Sono cauti e piuttosto schivi. L'airone cenerino è molto paziente e non selettivo. I suoi movimenti sono eleganti, tranquilli, lenti e riflessivi. Vive in colonie durante la stagione riproduttiva, ma per lo più in piccoli gruppi o da solo durante il resto dell'anno."
   },
   {
     "nl": "Blauwe vinvis",
@@ -1112,8 +1112,8 @@
       "melodioso"
     ],
     "slug": "blauwe-vinvis",
-    "desc_nl": "",
-    "desc_it": "La balenottera azzurra è il più grande animale mai esistito sulla Terra. Comunica con canti melodiosi che si propagano per centinaia di chilometri. È pacifica ed elegante nonostante le dimensioni enormi. Migra ogni anno con grande perseveranza attraverso gli oceani."
+    "desc_nl": "Dit zeezoogdier is het grootste dier dat op aarde leeft. Ondanks hun omvang heeft het een elegant voorkomen. De blauwe vinvis is een doorzetter en legt trektochten van duizenden kilometers af. Ze zijn vreedzaam en hebben geen natuurlijke vijanden. De blauwe vinvis leeft vaak alleen, maar ook in paren of kleine groepen en soms in grote groepen. Ze zijn zeer communicatief en staan bekend om hun gezang.",
+    "desc_it": "Questo mammifero marino è il più grande animale che vive sulla terra. Nonostante le sue dimensioni, ha un aspetto elegante. La balenottera azzurra è tenace e percorre migrazioni di migliaia di chilometri. Sono pacifiche e non hanno predatori naturali. Vive spesso da sola, ma anche in coppie o piccoli gruppi e talvolta in grandi gruppi. Sono molto comunicative e famose per il loro canto."
   },
   {
     "nl": "Blauwe zeeslak",
@@ -1140,8 +1140,8 @@
       "docile"
     ],
     "slug": "blauwe-zeeslak",
-    "desc_nl": "",
-    "desc_it": "Il drago blu è un mollusco marino raro e affascinante. È unico nel suo genere: galleggia capovolto sulla superficie del mare. È curioso e tranquillo, ma si difende in modo ingegnoso assorbendo le cellule urticanti delle sue prede. Ha una vasta gamma di comportamenti sorprendenti."
+    "desc_nl": "De blauwe zeeslak is een unieke bewoner van de tropische oceanen. Ze zijn volgzaam en drijven mee met de stroming. Wanneer die hun doel in zicht krijgt, werkt die er rustig naartoe. De blauwe zeeslak is nieuwsgierig en leert al doende nieuwe dingen. Ze zijn kieskeurig en veelzijdig.",
+    "desc_it": "Il drago blu è un abitante unico degli oceani tropicali. Sono docili e si lasciano trasportare dalla corrente. Quando raggiunge il suo obiettivo, si avvicina tranquillamente. Il drago blu è curioso e impara facendo cose nuove. Sono selettivi e versatili."
   },
   {
     "nl": "Boomkikker",
@@ -1168,8 +1168,8 @@
       "espressivo"
     ],
     "slug": "boomkikker",
-    "desc_nl": "",
-    "desc_it": "La raganella è una piccola rana verde che vive tra la vegetazione. È domestica e ama i luoghi umidi e familiari. È buffa e comunicativa, con un canto espressivo. È curiosa e gaudente, sempre in cerca di insetti gustosi."
+    "desc_nl": "In het struikgewas nabij een poel zit deze huiselijke levensgenieter verscholen. De boomkikker is uitermate expressief en kleurt donkergroen tot bruin wanneer het zich niet goed voelt. Dit koddig amfibie is een goede luisteraar die interesse toont in de ander. De boomkikker is communicatief sterk en vindt altijd wel een reden om te lachen.",
+    "desc_it": "Negli arbusti vicino a uno stagno si nasconde questo gaudente casalingo. La raganella è estremamente espressiva e cambia colore dal verde scuro al marrone quando non si sente bene. Questo buffo anfibio è un buon ascoltatore che mostra interesse per gli altri. La raganella è molto comunicativa e trova sempre un motivo per ridere."
   },
   {
     "nl": "Boomklever",
@@ -1194,8 +1194,8 @@
       "pacifico"
     ],
     "slug": "boomklever",
-    "desc_nl": "",
-    "desc_it": "Il picchio muratore è un uccello attivo e rumoroso che cammina su e giù per i tronchi degli alberi. Vive in piccoli gruppi e difende il territorio con decisione. È cocciuto e socievole, sempre in contatto con il suo gruppo. È pacifico ma determinato."
+    "desc_nl": "Deze vogel doet niemand kwaad en heeft geen vijanden. Ze zijn afhankelijk en laten zich dikwijls sneller horen dan zien. De boomklever is actief en altijd druk in de weer. Soms kan die op de meest ongelegen tijdstippen koppige momenten hebben, maar in het algemeen is de boomklever gezellig. Ze houden eerder van kleine groepen.",
+    "desc_it": "Questo uccello non fa del male a nessuno e non ha nemici. Spesso si fa sentire prima di vedersi. Il picchio muratore è attivo e sempre indaffarato. A volte può avere momenti di testardaggine nei momenti più inopportuni, ma in generale è socievole. Preferisce i piccoli gruppi."
   },
   {
     "nl": "Bosbok",
@@ -1226,8 +1226,8 @@
       "perseverante"
     ],
     "slug": "bosbok",
-    "desc_nl": "",
-    "desc_it": "L'antilope boschiva vive nelle fitte foreste africane. È schiva e solitaria, preferisce evitare i predatori con discrezione. È adattabile e coraggiosa, sa sopravvivere in ambienti difficili. È perspicace e vigile, sempre attenta a tutto ciò che la circonda."
+    "desc_nl": "Deze kleine antilope heeft sterk ontwikkelde zintuigen en kan hele grote sprongen maken. Ze leven alleen, in paren of kleine familiegroepjes. De bosbok is actief en kan zich goed aanpassen aan veranderende omstandigheden. Ze zijn verdraagzaam tegenover soortgenoten. De bosbok is wat schuchter, maar ook dapper. Aangezien die hevig weerstand biedt, vinden aanvallers in hen geen gemakkelijke prooi.",
+    "desc_it": "Questa piccola antilope ha sensi molto sviluppati e riesce a compiere salti enormi. Vivono soli, in coppia o in piccoli gruppi familiari. L'antilope boschiva è attiva e si adatta bene alle circostanze mutevoli. Sono tolleranti verso i propri simili. È un po' timida, ma anche coraggiosa. Poiché offre una strenua resistenza, gli aggressori non trovano in essa una preda facile."
   },
   {
     "nl": "Bosduiker",
@@ -1258,8 +1258,8 @@
       "autonomo"
     ],
     "slug": "bosduiker",
-    "desc_nl": "",
-    "desc_it": "Il duiker è una piccola antilope africana estremamente schiva. Vive da solo o in coppia fedele nel sottobosco. È veloce e generoso verso il partner. Evita i pericoli con grande abilità, sfruttando la perfetta conoscenza del suo territorio."
+    "desc_nl": "Deze kleine antilope is een snel en schuw dier dat bij het minste gevaar het bos induikt. Ze weten zich tussen hindernissen snel en behendig voort te bewegen. Ze hebben een grote overlevingsdrang, ook in moeilijke tijden weten ze zichzelf te redden. Een koppel deelt alles met elkaar en wijkt zelden van elkaars zijde. De bosduiker is gehecht aan hun leefgebied en blijft het liefst binnen hun comfortzone.",
+    "desc_it": "Questa piccola antilope è un animale veloce e schivo che si tuffa nel bosco al minimo pericolo. Sa muoversi velocemente e agilmente tra gli ostacoli. Ha un forte istinto di sopravvivenza, anche nei momenti difficili sa cavarsela. Una coppia condivide tutto e raramente si allontana l'uno dall'altro. È legata al proprio territorio e preferisce restare nella propria zona di comfort."
   },
   {
     "nl": "Boxer",
@@ -1288,8 +1288,8 @@
       "diretto"
     ],
     "slug": "boxer",
-    "desc_nl": "",
-    "desc_it": "Il boxer è un cane allegro, coraggioso e diretto. È giocoso e bonario con chi conosce, ma territoriale con gli estranei. È fedele al suo gruppo e agile nei movimenti. La sua esuberanza nasconde una grande affidabilità."
+    "desc_nl": "Deze hond is blijmoedig, goedmoedig en vrijmoedig. De boxer is trouw en aangenaam. Ze zijn makkelijk te temmen. De boxer is erg beweeglijk en heeft een speels karakter. Ze waken streng over hun territorium en zijn dappere dieren.",
+    "desc_it": "Questo cane è allegro, bonario e schietto. Il boxer è fedele e piacevole. Sono facili da addestrare. Il boxer è molto vivace e ha un carattere giocoso. Vegliano rigorosamente sul loro territorio e sono animali coraggiosi."
   },
   {
     "nl": "Bruinvis",
@@ -1310,8 +1310,8 @@
       "impavido"
     ],
     "slug": "bruinvis",
-    "desc_nl": "",
-    "desc_it": "La focena è un piccolo cetaceo agile e intelligente. Ha un ottimo senso dell'orientamento e una memoria eccellente. Nuota spesso in piccoli gruppi con grande impavido coraggio. È una delle creature marine più capaci di adattarsi ai cambiamenti ambientali."
+    "desc_nl": "De bruinvis is noch bruin, noch een vis. Deze energieke zwemmer leeft dapper en onbevreesd nabij riviermondingen en kustgebieden. De bruinvis is een sociaal dier. Het toont zich vriendelijk en verdraagzaam naar zowel soortgenoten als anderen. Met behulp van hun spatelvormige tanden vangt de beweeglijke bruinvis met veel gemak kleine visjes. Deze intelligente duiker verkent graag onbekend terrein. Dankzij hun sterke oriëntatiegevoel en geheugen vindt de bruinvis steeds de weg naar hun zomer- en winterverblijven.",
+    "desc_it": "La focena non è né marrone né un pesce. Questo nuotatore energetico vive coraggiosamente e senza timore vicino alle foci dei fiumi e alle zone costiere. La focena è un animale sociale. Si mostra amichevole e tollerante sia con i propri simili che con gli altri. Grazie ai loro denti a forma di spatola, cattura con grande facilità piccoli pesci. Questo intelligente sommozzatore ama esplorare terreni sconosciuti. Grazie al forte senso dell'orientamento e alla memoria, trova sempre la strada verso i suoi rifugi estivi e invernali."
   },
   {
     "nl": "Brulaap",
@@ -1340,8 +1340,8 @@
       "territoriale"
     ],
     "slug": "brulaap",
-    "desc_nl": "",
-    "desc_it": "La scimmia urlatrice è uno dei primati più rumorosi del mondo. Vive in gruppi e comunica con ruggiti potenti che si sentono a chilometri di distanza. È calma e lenta nei movimenti, ma territoriale nei confronti dei rivali. È affettuosa con i membri del suo gruppo."
+    "desc_nl": "Wanneer de brulaap ‘s morgens ontwaakt, markeert die meestal meteen hun territorium met hun karakteristieke gebrul. Deze aap leeft in groep en beweegt zich langzaam en bedaard voort, behalve wanneer die speelt of opgewonden is. De brulaap heeft nauwelijks vijanden. Ze zijn soms lichtgeraakt maar ook verrassend gevoelig, braaf en lief.",
+    "desc_it": "Quando la scimmia urlatrice si sveglia al mattino, segna solitamente il suo territorio con il caratteristico urlo. Questa scimmia vive in gruppo e si muove lentamente e tranquillamente, tranne quando gioca o è eccitata. La scimmia urlatrice non ha quasi nessun nemico. Sono talvolta suscettibili ma anche sorprendentemente sensibili, bravi e dolci."
   },
   {
     "nl": "Buffel",
@@ -1364,8 +1364,8 @@
       "taciturno"
     ],
     "slug": "buffel",
-    "desc_nl": "",
-    "desc_it": "Il bufalo africano vive in grandi branchi compatti. È taciturno e cooperativo, si muove in modo coordinato con il gruppo. È un difensore potente: il branco si dispone a cerchio per proteggere i cuccioli. È premuroso e socievole con i suoi simili."
+    "desc_nl": "Dit tamme dier is gezellig van aard, maar wordt vaak verkeerd beoordeeld. De buffel is zelden luidruchtig. Ze leven zeer hecht met de rest van de kudde. De buffel is zeer zorgzaam en werkt goed samen. Buffels verdedigen andere groepsleden als die in gevaar zijn. Een kudde heeft geen echte leiding. Buffels besluiten samen of om de beurt waar ze heen gaan.",
+    "desc_it": "Questo animale domestico è di natura socievole, ma spesso viene giudicato male. Il bufalo è raramente rumoroso. Vivono in stretto legame con il resto del branco. Il bufalo è molto premuroso e collabora bene. I bufali difendono gli altri membri del gruppo quando sono in pericolo. Un branco non ha una vera guida. I bufali decidono insieme o a turno dove andare."
   },
   {
     "nl": "Bunzing",
@@ -1396,8 +1396,8 @@
       "lungimirante"
     ],
     "slug": "bunzing",
-    "desc_nl": "",
-    "desc_it": "La puzzola è un mustelide notturno e adattabile. È cauta e astuta nella caccia. Usa il suo odore come potente difesa contro i predatori. È coraggiosa e tenace, e sa orientarsi molto bene nel buio."
+    "desc_nl": "De bunzing is behendig, vlug en listig. En ook: behoedzaam, scherpzinnig en moedig. De bunzing is onverschillig voor pijn of ongemak en kan zich goed aanpassen aan hun omgeving. Ze zijn vooral ‘s nachts actief. De bunzing is vooruitziend: die legt voedselvoorraden aan.",
+    "desc_it": "La puzzola è agile, veloce e astuta. Ed anche: prudente, perspicace e coraggiosa. La puzzola è indifferente al dolore o al disagio e sa adattarsi bene al proprio ambiente. Sono attive soprattutto di notte. La puzzola è previdente: fa scorte di cibo."
   },
   {
     "nl": "Chimpansee",
@@ -1430,8 +1430,8 @@
       "socievole"
     ],
     "slug": "chimpansee",
-    "desc_nl": "",
-    "desc_it": "Lo scimpanzé è il nostro parente più stretto nel regno animale. È molto intelligente e creativo, usa strumenti per procurarsi il cibo. Vive in gruppi con una gerarchia complessa e una forte vita sociale. È empatico e curioso, capace di apprendere e insegnare comportamenti nuovi."
+    "desc_nl": "De chimpansee is een grote, sterke mensaap. Net als alle apen is die verstandig te noemen en toch laat die zich verschalken op een onnozele manier. Ze zijn de levendigste en beweeglijkste zoogdieren, potsierlijke en vrolijke kwasten. De chimpansee is moedig en moeder-aap zorgt goed voor haar jongen.",
+    "desc_it": "Lo scimpanzé è una grande e forte scimmia antropomorfa. Come tutte le scimmie è da definirsi intelligente eppure si lascia ingannare in modo sciocco. Sono i mammiferi più vivaci e agili, buffoni e allegri. Lo scimpanzé è coraggioso e la madre si prende cura dei suoi piccoli."
   },
   {
     "nl": "Collie",
@@ -1461,7 +1461,7 @@
     ],
     "slug": "collie",
     "desc_nl": "De collie is een herdershond die afstamt van de Britse en Schotse schapen. Ze zijn trouw, verstandig en sympathiek. Collies zijn handig als werkhond, maar ook als huisdier. Ze zijn joviaal maar kunnen ook jaloers zijn. Ze leren snel en hebben een goed geheugen.",
-    "desc_it": "Il collie è un cane da pastore discendente dai cani delle Isole Britanniche. È fedele, saggio e simpatico. I collie sono utili come cani da lavoro, ma anche come animali domestici. Sono gioviali ma possono anche essere gelosi. Imparano velocemente e hanno una buona memoria."
+    "desc_it": "Il collie è un cane da pastore discendente dalle pecore britanniche e scozzesi. Sono fedeli, intelligenti e simpatici. I collie sono utili come cani da lavoro, ma anche come animali domestici. Sono gioviali ma possono anche essere gelosi. Imparano in fretta e hanno una buona memoria."
   },
   {
     "nl": "Condor",
@@ -1536,8 +1536,8 @@
       "forte"
     ],
     "slug": "dingo",
-    "desc_nl": "",
-    "desc_it": "Il dingo è un cane selvatico australiano furbo e adattabile. Vive in piccoli branchi gerarchicamente organizzati. È vigile e veloce, sempre pronto a cogliere un'opportunità. Ha una forte indipendenza e raramente cerca il contatto con l'uomo."
+    "desc_nl": "Deze wilde Australische hond blaft niet, maar communiceert via een wolfachtig gehuil. De dingo is intelligent, zeer zelfstandig en daardoor moeilijk tembaar. Ze leven in kleine, hechte families. Het zijn echte doorzetters bij het jagen. De dingo is afwisselend actief en rustig.",
+    "desc_it": "Questo cane selvatico australiano non abbaia, ma comunica attraverso un ululato simile a quello del lupo. Il dingo è intelligente, molto indipendente e quindi difficile da addomesticare. Vivono in piccole famiglie unite. Sono veri perseveranti nella caccia. Il dingo è alternativamente attivo e tranquillo."
   },
   {
     "nl": "Dolfijn",
@@ -1566,8 +1566,8 @@
       "allegro"
     ],
     "slug": "dolfijn",
-    "desc_nl": "",
-    "desc_it": "Il delfino è uno degli animali più intelligenti del mare. È comunicativo e vivace, vive in branchi rumorosi e giocosi. Aiuta i compagni in difficoltà e mostra grande empatia. La sua allegria e la sua agilità lo rendono uno degli animali più amati."
+    "desc_nl": "De dolfijn is gezellig, dartel, vrolijk en heel beweeglijk. Het is een knappe imitator, ondeugend maar vriendelijk. Door de gebogen lijnen van hun bek lijkt een dolfijn te glimlachen.",
+    "desc_it": "Il delfino è socievole, sbarazzino, allegro e molto vivace. È un bravo imitatore, dispettoso ma amichevole. Per le linee curve del suo muso, un delfino sembra sempre sorridere."
   },
   {
     "nl": "Dromedaris",
@@ -1620,8 +1620,8 @@
       "premuroso"
     ],
     "slug": "duif",
-    "desc_nl": "",
-    "desc_it": "La colomba è un simbolo universale di pace e fedeltà. È affettuosa e premurosa con il compagno e i piccoli. Ha un eccellente senso dell'orientamento e torna sempre a casa. È gentile e pacifica in ogni situazione."
+    "desc_nl": "De duif is sierlijk in hun bewegingen. Deze vriendelijke vogel heeft een bevallige houding. Ze vliegen snel en hebben een grote uithouding en een sterk oriëntatievermogen. De duif steekt weinig energie in de bouw van hun nest en is dan ook snel tevreden.",
+    "desc_it": "La colomba è elegante nei movimenti. Questo uccello amichevole ha un portamento aggraziato. Volano veloci e hanno grande resistenza e un forte senso dell'orientamento. La colomba mette poca energia nella costruzione del nido ed è quindi facilmente soddisfatta."
   },
   {
     "nl": "Dwergneushoorn",
@@ -1674,8 +1674,8 @@
       "lungimirante"
     ],
     "slug": "eekhoorn",
-    "desc_nl": "",
-    "desc_it": "Lo scoiattolo è un roditore vivace e agile. È energico e curioso, sempre in movimento tra i rami degli alberi. Accumula riserve di cibo con grande lungimiranza. È giocoso e veloce, difficile da sorprendere."
+    "desc_nl": "De eekhoorn is een slim, listig en pijlsnel knaagdier. Als die jong is, is die vrolijk en dartel. Ze houden ervan om geliefkoosd te worden. Ze zijn altijd bedrijvig en zich altijd bewust van hun eigen kunnen. De eekhoorn staat vooral bekend als volleerd acrobaat die sierlijk van boom tot boom springt. Meestal reageren ze erg uitdagend op een indringer, waarna die achter een boom of tak verdwijnt.",
+    "desc_it": "Lo scoiattolo è un roditore astuto, furbo e velocissimo. Da giovane è allegro e vivace. Amano essere accarezzati. Sono sempre indaffarati e sempre consapevoli delle proprie capacità. Lo scoiattolo è noto soprattutto come acrobata provetto che salta con grazia da un albero all'altro. Di solito reagiscono in modo sfidante a un intruso, dopodiché spariscono dietro un albero o un ramo."
   },
   {
     "nl": "Egel",
@@ -1702,8 +1702,8 @@
       "ingegnoso"
     ],
     "slug": "egel",
-    "desc_nl": "",
-    "desc_it": "Il riccio è un piccolo mammifero notturno e curioso. Si arrotola su sé stesso per difendersi, rivelando un carattere indipendente e ingegnoso. Vive da solo e non cerca compagnia. È tranquillo e adattabile a molti ambienti."
+    "desc_nl": "De egel gaat vooral ‘s nachts op zoek naar voedsel. Ze zijn niet veeleisend, bedrijvig, oplettend en waakzaam. De egel is niet territoriaal en duldt soortgenoten in hun territorium. De egel neemt snel een verdedigingshouding aan als er gevaar dreigt.",
+    "desc_it": "Il riccio va in cerca di cibo soprattutto di notte. Non sono esigenti, sono laboriosi, attenti e vigili. Il riccio non è territoriale e tollera i propri simili nel suo territorio. Assume rapidamente una posizione difensiva quando si prospetta un pericolo."
   },
   {
     "nl": "Ekster",
@@ -1728,8 +1728,8 @@
       "ingegnoso"
     ],
     "slug": "ekster",
-    "desc_nl": "",
-    "desc_it": "La gazza è un corvide intelligente e curioso. È attratta dagli oggetti lucenti e non teme di avvicinarsi agli esseri umani. È comunicativa e socievole, vive in piccoli gruppi. La sua intelligenza le permette di risolvere problemi complessi."
+    "desc_nl": "De ekster staat erom bekend glinsterende voorwerpen te verbergen. Ze zijn zelfverzekerd, intelligent en heel nieuwsgierig. Als die merkt dat die wordt aanvaard, wordt de ekster vlug vriendschappelijk en soms opdringerig. Ze hebben een sterk gemeenschapsgevoel. Deze nuttige vogel is vaak erg opgewonden. De ekster babbelt onafgebroken met een verbazingwekkende rijkdom aan klanken.",
+    "desc_it": "La gazza è famosa per nascondere oggetti luccicanti. Sono sicure di sé, intelligenti e molto curiose. Quando si accorge di essere accettata, la gazza diventa rapidamente amichevole e talvolta invadente. Hanno un forte senso di comunità. Questo uccello utile è spesso molto eccitato. La gazza chiacchiera incessantemente con una sorprendente ricchezza di suoni."
   },
   {
     "nl": "Emoe",
@@ -1754,8 +1754,8 @@
       "resistente"
     ],
     "slug": "emoe",
-    "desc_nl": "",
-    "desc_it": "L'emù è un grande uccello corridore australiano. È tenace e resistente, capace di percorrere enormi distanze. Non sa volare ma corre a grande velocità. Vive in gruppi e affronta coraggiosamente i pericoli."
+    "desc_nl": "Deze Australische vogel kan niet vliegen. Ze trekken hele streken door en zijn heel actief. Op hete zomerdagen is de emoe vaak het enige actieve dier. Ze kunnen dankzij hun groot uithoudingsvermogen een lange periode lopen. Ze kunnen als dat nodig is ook een explosieve snelheid halen. De emoe is heel nieuwsgierig en zelden agressief.",
+    "desc_it": "Questo uccello australiano non sa volare. Percorrono intere regioni e sono molto attivi. Nelle calde giornate estive, l'emù è spesso l'unico animale attivo. Grazie alla loro grande resistenza, possono camminare per lungo tempo. Quando necessario, possono anche raggiungere una velocità esplosiva. L'emù è molto curioso e raramente aggressivo."
   },
   {
     "nl": "Ezel",
@@ -1782,8 +1782,8 @@
       "laborioso"
     ],
     "slug": "ezel",
-    "desc_nl": "",
-    "desc_it": "L'asino è un animale paziente e laborioso. Può sembrare cocciuto, ma in realtà è intelligente e prudente: rifiuta di fare ciò che considera pericoloso. È resistente e utile, apprezzato in tutto il mondo per la sua affidabilità. È socievole e ama la compagnia."
+    "desc_nl": "De ezel wordt vaak geassocieerd met domheid, maar dat is onterecht. Ze zijn bijzonder intelligent en voorzichtig. De ezel is eigenzinnig: die doet niets wat die niet wil doen. Is echter eenmaal hun vertrouwen gewonnen, dan is die vriendelijk en volgzaam en sluit die soms vriendschappen voor het leven. De ezel maakt zich graag nuttig. Ze zijn erg sterk en hebben een goed uithoudingsvermogen. Ze leven in groep en zijn vaak erg actief en levendig.",
+    "desc_it": "L'asino è spesso associato alla stupidità, ma ciò è ingiusto. Sono particolarmente intelligenti e prudenti. L'asino è caparbio: non fa nulla che non voglia fare. Ma una volta guadagnata la loro fiducia, è amichevole e docile e talvolta stringe amicizie per la vita. L'asino ama rendersi utile. Sono molto forti e hanno una buona resistenza. Vivono in gruppo e sono spesso molto attivi e vivaci."
   },
   {
     "nl": "Fennek",
@@ -1808,8 +1808,8 @@
       "veloce"
     ],
     "slug": "fennek",
-    "desc_nl": "",
-    "desc_it": "Il fennec è una piccola volpe del deserto con grandi orecchie caratteristiche. È notturno e molto vigile, sempre attento a ogni suono. È curioso e schivo con gli estranei. È abile e veloce, perfettamente adattato alla vita nel deserto."
+    "desc_nl": "De fennek is een kleine vos met grote oren. Ze leven vooral in woestijnen. De fennek is sluw, opmerkzaam en heeft gevoelige zintuigen. Dit holendier komt vooral ‘s nachts uit hun hol. De fennek is erg actief en speels.",
+    "desc_it": "Il fennec è una piccola volpe con grandi orecchie. Vivono principalmente nei deserti. Il fennec è astuto, attento e ha sensi molto sensibili. Questo animale che vive nelle tane esce principalmente di notte. Il fennec è molto attivo e giocoso."
   },
   {
     "nl": "Flamingo",
@@ -1834,8 +1834,8 @@
       "socievole"
     ],
     "slug": "flamingo",
-    "desc_nl": "",
-    "desc_it": "Il fenicottero è un uccello elegante e appariscente. Vive in grandi colonie lungo le rive dei laghi. Il suo colore rosa intenso lo rende inconfondibile. È socievole e aggraziato in ogni suo movimento."
+    "desc_nl": "Deze opvallende vogel lijkt teer en fragiel, maar overleeft goed in zelfs de moeilijkste omstandigheden. Ze zijn sociaal en leven in grote gemeenschappen. De verschijning van een indringer is voldoende om opschudding te veroorzaken in de hele kolonie. De flamingo is gevoelig. Ze zijn herkenbaar aan hun voortdurende grappige gesnater.",
+    "desc_it": "Questo uccello appariscente sembra fragile e delicato, ma sopravvive bene anche nelle condizioni più difficili. Sono sociali e vivono in grandi comunità. La comparsa di un intruso è sufficiente a creare agitazione nell'intera colonia. Il fenicottero è sensibile. Sono riconoscibili per il loro continuo e buffo gracchiare."
   },
   {
     "nl": "Fossé",
@@ -1912,8 +1912,8 @@
       "pacifico"
     ],
     "slug": "gazelle",
-    "desc_nl": "",
-    "desc_it": "La gazzella è un ungulato elegante e vivace. Vive in branchi vigilanti nelle savane africane. Corre a grande velocità per sfuggire ai predatori con grande agilità. È sensibile e pacifica, ma sempre pronta a fuggire."
+    "desc_nl": "De gazelle is intelligent, erg vlug, levendig, behendig en gracieus. Ze zijn schrander, sluw en heel voorzichtig. De gazelle is lieftallig en leeft in vrede met andere verwante dieren. Ze kunnen hoge snelheden ontwikkelen, maar doen dit slechts zelden, om aan een belager te ontkomen.",
+    "desc_it": "La gazzella è intelligente, molto veloce, vivace, agile e graziosa. Sono sveglie, astute e molto prudenti. La gazzella è graziosa e vive in pace con altri animali affini. Possono raggiungere alte velocità, ma lo fanno raramente, solo per sfuggire a un aggressore."
   },
   {
     "nl": "Gecko",
@@ -1992,8 +1992,8 @@
       "socievole"
     ],
     "slug": "gier",
-    "desc_nl": "",
-    "desc_it": "L'avvoltoio è un uccello paziente ed efficiente. Si nutre delle carcasse lasciando l'ambiente pulito, svolgendo un ruolo ecologico fondamentale. Vola per ore senza fatica osservando tutto dall'alto. È imperturbabile e socievole durante i pasti in gruppo."
+    "desc_nl": "De gier heeft een enorme vleugelspanwijdte en lijkt langzaam te vliegen. Ze zijn sociaal en weinig voorzichtig. Deze vogel is gezellig en werkt goed samen om voedsel te vergaren. De gier deelt het voedsel met hun soortgenoten. Ze hebben een groot uithoudingsvermogen en doorzettingsvermogen en een eindeloos geduld. De gier leeft in groepen met een strenge discipline en rangorde.",
+    "desc_it": "L'avvoltoio ha un'apertura alare enorme e sembra volare lentamente. Sono sociali e poco prudenti. Questo uccello è socievole e collabora bene per trovare cibo. L'avvoltoio condivide il cibo con i propri simili. Hanno grande resistenza, perseveranza e una pazienza infinita. L'avvoltoio vive in gruppi con una rigida disciplina e gerarchia."
   },
   {
     "nl": "Giraf",
@@ -2022,8 +2022,8 @@
       "pacifico"
     ],
     "slug": "giraf",
-    "desc_nl": "",
-    "desc_it": "La giraffa è il più alto degli animali terrestri. Si muove con grazia e maestà nella savana africana. È tranquilla e bonaria, difficilmente aggressiva. Vive in piccoli gruppi e si difende con i possenti calci delle zampe."
+    "desc_nl": "De giraf is schrander en verstandig. Ze bewegen zich gracieus en lieftallig voort. Ondanks hun grootte is die zachtmoedig en vredelievend. Enkel wanneer die lastig gevallen wordt, verdedigt de giraf zich met hun krachtig gespierde poten.",
+    "desc_it": "La giraffa è sveglia e intelligente. Si muove con grazia e dolcezza. Nonostante le sue dimensioni è mite e pacifica. Solo quando viene importunata, la giraffa si difende con le sue potenti zampe muscolose."
   },
   {
     "nl": "Gnoe",
@@ -2048,8 +2048,8 @@
       "resistente"
     ],
     "slug": "gnoe",
-    "desc_nl": "",
-    "desc_it": "Il gnu è famoso per le sue grandi migrazioni attraverso l'Africa orientale. Percorre migliaia di chilometri in branchi enormi, affrontando ogni ostacolo con tenacia. È agitato e spericolato durante le migrazioni. La sua resistenza è straordinaria."
+    "desc_nl": "De Gnoe is een onstuimige, vrolijke buffel met gevoel voor humor. Ze maken uitgelaten bokkensprongen en tonen hun strijdlust door met hun polsen in de grond te wroeten. De gnoe is een kuddebeest dat grote afstanden aflegt. Ze zijn fier en temperamentvol. Als die schrikt, rent die plotseling weg.",
+    "desc_it": "Lo gnu è un bufalo impetuoso e allegro con il senso dell'umorismo. Fanno salti sfrenati e mostrano la loro combattività scavando con i garretti nella terra. Lo gnu è un animale da branco che percorre grandi distanze. Sono fieri e temperamentali. Se si spaventa, scappa all'improvviso."
   },
   {
     "nl": "Gordeldier",
@@ -2102,8 +2102,8 @@
       "premuroso"
     ],
     "slug": "gorilla",
-    "desc_nl": "",
-    "desc_it": "Il gorilla è il più grande primate. Vive in gruppi familiari con una struttura sociale ben definita. Il maschio dominante protegge il gruppo con forza e maestosità. È intelligente, premuroso e socievole, nonostante il suo aspetto imponente."
+    "desc_nl": "De gorilla is een grote indrukwekkende mensaap. Ze zijn eerder schuw, ondanks hun intimiderende uiterlijk. De gorilla is intelligent, maar wordt laat zelfstandig. Deze aap heeft een expressief uiterlijk, is niet erg strijdlustig en vredelievend. De gorilla leeft in kleine families.",
+    "desc_it": "Il gorilla è una grande e imponente scimmia antropomorfa. Sono piuttosto schivi, nonostante il loro aspetto intimidatorio. Il gorilla è intelligente, ma tarda a diventare indipendente. Questa scimmia ha un aspetto espressivo, non è molto combattiva ed è pacifica. Il gorilla vive in piccole famiglie."
   },
   {
     "nl": "Grizzlybeer",
@@ -2130,8 +2130,8 @@
       "fiero"
     ],
     "slug": "grizzlybeer",
-    "desc_nl": "",
-    "desc_it": "L'orso grizzly è uno dei predatori più potenti del Nord America. È fiero e indipendente, difende il suo territorio con grande forza. È coraggioso e non teme quasi nulla. In autunno si ingozza di cibo per prepararsi all'ibernazione."
+    "desc_nl": "De grizzlybeer is een imposante beer met een lange snuit. Deze uitstekende zwemmer leeft graag alleen. Ze zijn actief, maar genieten ook van een lange winterslaap. De grizzlybeer is intelligent, nieuwsgierig en speels. Ze zijn gemoedelijk en gezellig, maar blijven onberekenbaar en kunnen daardoor gevaarlijk zijn.",
+    "desc_it": "L'orso grizzly è un imponente orso dal muso lungo. Questo eccellente nuotatore ama vivere da solo. Sono attivi, ma si godono anche un lungo letargo invernale. L'orso grizzly è intelligente, curioso e giocoso. Sono bonari e socievoli, ma rimangono imprevedibili e possono quindi essere pericolosi."
   },
   {
     "nl": "Groene schildpad",
@@ -2214,8 +2214,8 @@
       "veloce"
     ],
     "slug": "haai",
-    "desc_nl": "",
-    "desc_it": "Lo squalo è uno dei predatori più efficienti della natura. È vigile e istintivo, caccia con grande determinazione e velocità. Ha i sensi finissimi per rilevare prede a grande distanza. È temibile ma fondamentale per l'equilibrio degli ecosistemi marini."
+    "desc_nl": "Deze roofvis is een vlugge zwemmer. De haai zwemt hun prooi voorbij en keert zich dan plots om, zodat hij beter en bij verrassing kan toehappen. Ze hebben krachtige zintuigen en zijn nieuwsgierig, oplettend en speels. De haai heeft een uitgesproken persoonlijkheid. Slechts enkele haaiensoorten zijn gevaarlijk.",
+    "desc_it": "Questo pesce predatore è un nuotatore veloce. Lo squalo supera la preda e poi si gira improvvisamente per attaccare meglio e di sorpresa. Hanno sensi potenti e sono curiosi, attenti e giocosi. Lo squalo ha una personalità marcata. Solo poche specie di squali sono pericolose."
   },
   {
     "nl": "Hamster",
@@ -2242,8 +2242,8 @@
       "lungimirante"
     ],
     "slug": "hamster",
-    "desc_nl": "",
-    "desc_it": "Il criceto è un piccolo roditore indaffarato e curioso. È attivo soprattutto di notte, quando riempie le guance di cibo da portare nella tana. È caparbio e domestico, si affeziona al proprio spazio. È solitario e lungimirante nell'accumulare riserve."
+    "desc_nl": "Het grappige uiterlijk van de hamster kan misleidend zijn, want die gedraagt zich territoriaal. Ze zijn energiek en nieuwsgierig. Een hamster is vlug zelfstandig en leeft solitair. Ze zijn netjes en houden van orde. De hamster legt grote voorraden aan. Ze zijn dus vooruitziend en goed georganiseerd.",
+    "desc_it": "L'aspetto buffo del criceto può essere ingannevole, perché ha un comportamento territoriale. Sono energici e curiosi. Un criceto diventa rapidamente indipendente e vive in solitario. Sono ordinati e amano l'ordine. Il criceto fa grandi scorte. Sono quindi previdenti e ben organizzati."
   },
   {
     "nl": "Havik",
@@ -2268,8 +2268,8 @@
       "vigile"
     ],
     "slug": "havik",
-    "desc_nl": "",
-    "desc_it": "L'astore è un falconiforme agile e deciso. Caccia velocissimo tra gli alberi, cambiando direzione con grande precisione. È vigile e indipendente, vive e caccia da solo. È perspicace nell'identificare le prede prima di attaccare."
+    "desc_nl": "De havik is een middelgrote roofvogel die hun nest jarenlang blijft onderhouden. Deze vogel is wat terughoudend en honkvast. De havik ontwijkt obstakels op hun weg als geen ander. Moedig, krachtig en buitengewoon vlug zijn hun eigenschappen. De havik is fel en onstuimig.",
+    "desc_it": "L'astore è un rapace di medie dimensioni che continua a mantenere il suo nido per anni. Questo uccello è un po' riservato e attaccato al territorio. L'astore evita gli ostacoli sul suo percorso come nessun altro. Coraggioso, potente e straordinariamente veloce sono le sue caratteristiche. L'astore è ardente e impetuoso."
   },
   {
     "nl": "Hedendaagse wolf",
@@ -2322,8 +2322,8 @@
       "veloce"
     ],
     "slug": "hermelijn",
-    "desc_nl": "",
-    "desc_it": "L'ermellino è un mustelide agile e coraggioso. Cambia il colore del manto in inverno, diventando bianco come la neve. Caccia di notte con grande velocità e precisione. È tenace e non si arrende facilmente nemmeno davanti ad animali più grandi."
+    "desc_nl": "Dit slanke dier heeft een fraaie pels. Ze weten wat ze willen en zullen hun doel hoe dan ook bereiken. De hermelijn is behendig, snel, familiaal ingesteld en vrijheidslievend.",
+    "desc_it": "Questo animale slanciato ha una bellissima pelliccia. Sanno quello che vogliono e raggiungeranno il loro obiettivo in ogni caso. L'ermellino è agile, veloce, orientato alla famiglia e amante della libertà."
   },
   {
     "nl": "Honingdas",
@@ -2380,8 +2380,8 @@
       "resistente"
     ],
     "slug": "hyena",
-    "desc_nl": "",
-    "desc_it": "L'iena è un predatore e spazzino estremamente resistente. Vive in clan ben organizzati con una gerarchia matriarcale. È opportunista e intelligente, in grado di adattarsi a molti ambienti. La sua resistenza è proverbiale: può digerire ossa e parti che altri animali rifiutano."
+    "desc_nl": "De hyena leeft en jaagt in grote groepen. Ze zijn zwijgzaam, maar hebben een kenmerkende lach. De hyena is behoedzaam, aanhankelijk en trouw, en ook listig en meedogenloos. Ze hebben een groot uithoudingsvermogen en zijn sterk.",
+    "desc_it": "L'iena vive e caccia in grandi gruppi. Sono silenziose, ma hanno una caratteristica risata. L'iena è cauta, affettuosa e fedele, ma anche astuta e spietata. Hanno una grande resistenza e sono forti."
   },
   {
     "nl": "IJsbeer",
@@ -2410,8 +2410,8 @@
       "resistente"
     ],
     "slug": "ijsbeer",
-    "desc_nl": "",
-    "desc_it": "L'orso polare è un maestro sopravvissuto nel clima più freddo della Terra. È adattabile e resistente, sa nuotare per lunghe distanze nel mare ghiacciato. È cauto e paziente nell'attendere le foche al bordo del ghiaccio. È indipendente e forte."
+    "desc_nl": "De ijsbeer zwerft alleen of in kleine familiegroepen. Als die in groep leeft, is die vrij tolerant tegenover de anderen. Ze zwemmen uitstekend maar traag en zijn zowel overdag als ’s nachts actief. De ijsbeer is over het algemeen ongevaarlijk, maar is onvoorspelbaar als die hongerig is. Het is een opportunistische jager.",
+    "desc_it": "L'orso polare vaga da solo o in piccoli gruppi familiari. Quando vive in gruppo, è abbastanza tollerante verso gli altri. Nuotano ottimamente ma lentamente e sono attivi sia di giorno che di notte. L'orso polare è generalmente innocuo, ma è imprevedibile quando ha fame. È un cacciatore opportunista."
   },
   {
     "nl": "Impala",
@@ -2438,8 +2438,8 @@
       "vigile"
     ],
     "slug": "impala",
-    "desc_nl": "",
-    "desc_it": "L'impala è un'antilope elegante e velocissima. Vive in branchi vigilanti nelle savane africane. Con i suoi salti spettacolari sfugge ai predatori con grande vivacità. È aggraziata e perspicace in ogni suo movimento."
+    "desc_nl": "Deze antilopesoort leeft op open vlakten en in licht beboste gebieden, in de nabijheid van water. De impala heeft een natuurlijke elegantie. Ze zijn slank, wendbaar en lenig. En ook evenwichtig en zachtaardig. De impala heeft goede zintuigen. Ze zijn snel en voorzichtig en leven in kuddeverband.",
+    "desc_it": "Questa specie di antilope vive nelle pianure aperte e nelle aree leggermente boschive, in prossimità dell'acqua. L'impala ha un'eleganza naturale. Sono snelle, agili e flessibili. E anche equilibrate e dolci. L'impala ha buoni sensi. Sono veloci e cauti e vivono in branchi."
   },
   {
     "nl": "Jaguar",
@@ -2467,7 +2467,7 @@
     ],
     "slug": "jaguar",
     "desc_nl": "Dit roofdier is de sterkste van de katachtigen. Niets houdt een jaguar tegen. Wanneer die jaagt, is die uiterst voorzichtig en geduldig. Ze zijn sterk en hebben goed ontwikkelde zintuigen. De jaguar is niet kieskeurig en is flexibel: als die geen prooi vindt, verhuist die. Ze zijn vooruitziend: soms verbergen ze hun prooi voor later. De jaguar houdt van water en is een goede zwemmer.",
-    "desc_it": "Questo predatore è il più forte dei felini. Niente ferma un giaguaro. Quando caccia, è estremamente cauto e paziente. È forte e ha i sensi ben sviluppati. Il giaguaro non è esigente ed è flessibile: se non trova prede, si sposta. È lungimirante: a volte nasconde le prede per dopo. Il giaguaro ama l'acqua ed è un ottimo nuotatore."
+    "desc_it": "Questo predatore è il più forte dei felini. Niente ferma un giaguaro. Quando caccia, è estremamente cauto e paziente. Sono forti e hanno sensi molto sviluppati. Il giaguaro non è selettivo ed è flessibile: se non trova preda, si sposta. Sono previdenti: a volte nascondono la preda per dopo. Il giaguaro ama l'acqua ed è un buon nuotatore."
   },
   {
     "nl": "Jakhals",
@@ -2494,8 +2494,8 @@
       "scaltro"
     ],
     "slug": "jakhals",
-    "desc_nl": "",
-    "desc_it": "Lo sciacallo è un canide notturno e opportunista. È vigile e astuto, sa cogliere ogni occasione favorevole. È perspicace nell'orientarsi e nel trovare cibo in ambienti difficili. Vive da solo o in coppie, sempre furbo e scaltro."
+    "desc_nl": "De jakhals is een slanke hondachtige met een sierlijke houding. Ze leven in groep en hebben een goed gemeenschapsleven. Ze zijn snel en levendig en vooral ‘s nachts actief. De jakhals heeft een groot uithoudingsvermogen en is niet kieskeurig in wat hij eet.",
+    "desc_it": "Lo sciacallo è un canide snello dall'atteggiamento elegante. Vivono in gruppo e hanno una buona vita comunitaria. Sono veloci e vivaci e attivi soprattutto di notte. Lo sciacallo ha una grande resistenza e non è selettivo nel mangiare."
   },
   {
     "nl": "Kakapo",
@@ -2550,8 +2550,8 @@
       "sorprendente"
     ],
     "slug": "kameleon",
-    "desc_nl": "",
-    "desc_it": "Il camaleonte è un rettile lento e sorprendente. Cambia colore per comunicare e mimetizzarsi nell'ambiente. È riflessivo e discreto, non ama l'agitazione. I suoi occhi indipendenti gli consentono di osservare due direzioni contemporaneamente."
+    "desc_nl": "Deze hagedis is heel bedachtzaam. Hun ogen bewegen afzonderlijk van elkaar. Met de verandering van kleur van hun huid – een uitstekende camouflage – drukt die ook hun humeur uit. De kameleon is gemoedelijk, rustig en traag, maar kan soms explosief uit de hoek komen.",
+    "desc_it": "Questa lucertola è molto riflessiva. I loro occhi si muovono indipendentemente l'uno dall'altro. Con il cambio di colore della pelle – un'ottima mimetizzazione – esprime anche il suo umore. Il camaleonte è bonario, calmo e lento, ma a volte può reagire in modo esplosivo."
   },
   {
     "nl": "Kangoeroe",
@@ -2578,8 +2578,8 @@
       "forte"
     ],
     "slug": "kangoeroe",
-    "desc_nl": "",
-    "desc_it": "Il canguro è il simbolo dell'Australia. È potente e veloce, si muove a salti enormi. La femmina porta il cucciolo nel marsupio per mesi, dimostrando grande cura familiare. È vigile e coraggioso, si difende con i possenti calci delle zampe posteriori."
+    "desc_nl": "De kangoeroe is een merkwaardig dier. Ze zijn sociaal en hechten zich doorgaans aan één persoon. Ze zijn beschermend ten opzichte van hun familie en van de zwakkeren in de groep. Bij het minste gerucht reageert de kangoeroe angstig of juist roekeloos. Ze hebben een groot aanpassingsvermogen.",
+    "desc_it": "Il canguro è un animale straordinario. Sono sociali e di solito si affezionano a una sola persona. Sono protettivi verso la famiglia e i più deboli del gruppo. Al minimo rumore il canguro reagisce con paura o al contrario in modo spericolato. Hanno una grande capacità di adattamento."
   },
   {
     "nl": "Karper",
@@ -2602,8 +2602,8 @@
       "resistente"
     ],
     "slug": "karper",
-    "desc_nl": "",
-    "desc_it": "La carpa è un pesce resistente e adattabile. Vive in acque torbide dove altri pesci non sopravviverebbero. È paziente e tenace, e può vivere molti anni. È astuta nel trovare cibo in condizioni difficili."
+    "desc_nl": "Deze bekende vis heeft twee baarddraden onder hun bek. Ze houden ervan rond te trekken, maar zijn toch honkvast. In de winter keert de karper terug naar diep water, waar die in grote scholen overwintert. Het is een echt groepsdier. De karper is gehard en taai. Sommige karpers graven zich in om te overleven.",
+    "desc_it": "Questo noto pesce ha due barbigli sotto il becco. Amano vagare, ma sono comunque attaccati al territorio. In inverno la carpa torna in acque profonde, dove sverna in grandi banchi. È un vero animale da gruppo. La carpa è robusta e tenace. Alcune carpe si seppelliscono per sopravvivere."
   },
   {
     "nl": "Kat",
@@ -2628,8 +2628,8 @@
       "solitario"
     ],
     "slug": "kat",
-    "desc_nl": "",
-    "desc_it": "Il gatto è un felino elegante e indipendente. Caccia con grande agilità e grazia. È curioso e intelligente, ma segue le proprie regole. È solitario per natura ma sa essere affettuoso con chi si guadagna la sua fiducia."
+    "desc_nl": "De kat is onafhankelijk van aard en verwildert snel. Ze zijn zelfstandig en vrijheidslievend. De kat besluipt een prooi met eindeloos geduld. Deze levensgenieter is beweeglijk en speels.",
+    "desc_it": "Il gatto è di natura indipendente e torna allo stato selvatico rapidamente. Sono autonomi e amanti della libertà. Il gatto si avvicina furtivamente a una preda con infinita pazienza. Questo gaudente è vivace e giocoso."
   },
   {
     "nl": "Kerkuil",
@@ -2684,8 +2684,8 @@
       "unico"
     ],
     "slug": "kiwi",
-    "desc_nl": "",
-    "desc_it": "Il kiwi è un uccello notturno e peculiare della Nuova Zelanda. Non sa volare e usa il lungo becco per cercare i lombrichi nel terreno. Vive da solo e protegge gelosamente il suo territorio. È resistente e unico, simbolo della Nuova Zelanda."
+    "desc_nl": "Deze loopvogel rent en springt razendsnel, maar kan niet vliegen. Dit dier is voorzichtig en geruisloos. Een kiwi kan fel reageren op indringers. Ze hebben een uitstekende reukzin, wat uniek is voor vogels. Een kiwi heeft een uitzonderlijke tastzin op de snavelpunt. Deze nachtvogel leeft in paren en is trouw.",
+    "desc_it": "Questo uccello corridore corre e salta velocissimo, ma non sa volare. È un animale cauto e silenzioso. Un kiwi può reagire con veemenza agli intrusi. Ha un olfatto eccellente, cosa unica per gli uccelli. Un kiwi ha un senso del tatto eccezionale sulla punta del becco. Questo uccello notturno vive in coppie ed è fedele."
   },
   {
     "nl": "Koala",
@@ -2712,8 +2712,8 @@
       "prudente"
     ],
     "slug": "koala",
-    "desc_nl": "",
-    "desc_it": "Il koala è un marsupiale pigro e tranquillo dell'Australia. Dorme fino a venti ore al giorno, nutrendosi di foglie di eucalipto. È solitario e schivo, preferisce la sua vita tranquilla tra i rami. Raramente scende a terra."
+    "desc_nl": "Dit buideldier is rustig. De koala draagt zorg voor hun jongen. Ze zijn grappig, verdraagzaam en aanhankelijk. De koala hecht zich gemakkelijk.",
+    "desc_it": "Questo marsupiale è tranquillo. Il koala si prende cura dei propri piccoli. Sono divertenti, tolleranti e affettuosi. Il koala si affeziona facilmente."
   },
   {
     "nl": "Komodovaran",
@@ -2774,8 +2774,8 @@
       "gentile"
     ],
     "slug": "kraanvogel",
-    "desc_nl": "",
-    "desc_it": "La gru è un uccello elegante e socievole. Migra in stormi ben organizzati e rimane fedele al partner per tutta la vita. È cauta e tranquilla, ma sa essere determinata quando necessario. La sua danza nuziale è uno degli spettacoli più belli della natura."
+    "desc_nl": "Deze sierlijk bewegende vogel met heel lange poten trekt elk jaar over en weer tussen hun broedgebied en hun winterverblijf. De kraanvogel is vriendelijk, gezellig en schrander. Ze tonen veel genegenheid naar soortgenoten. Dit dier is actief en loopt meestal kalm en rustig. De kraanvogel is voorzichtig en kieskeurig wat hun gezelschap betreft.",
+    "desc_it": "Questo uccello dal movimento elegante con zampe molto lunghe migra ogni anno avanti e indietro tra la zona di nidificazione e il rifugio invernale. La gru è amichevole, socievole e perspicace. Mostra molto affetto verso i propri simili. È attiva e cammina per lo più con calma e tranquillità. La gru è cauta e selettiva riguardo alla compagnia."
   },
   {
     "nl": "Krokodil",
@@ -2808,8 +2808,8 @@
       "vigile"
     ],
     "slug": "krokodil",
-    "desc_nl": "",
-    "desc_it": "Il coccodrillo è uno dei predatori più antichi e potenti della Terra. È estremamente paziente, capace di restare immobile per ore in attesa della preda. È notturno e territoriale, difende le uova con grande istinto. È imperturbabile e fortissimo."
+    "desc_nl": "De krokodil komt enkel aan land om van de zon te genieten en lijkt een constante grijns op de snuit te hebben. Ze zijn zeer krachtig en taai. De krokodil is op korte afstanden over het land en in het water heel snel. Als jager heeft die snelle reflexen en een goed nachtzicht. De krokodil is een doorzetter.",
+    "desc_it": "Il coccodrillo esce dall'acqua solo per godersi il sole e sembra avere un sorriso costante sul muso. Sono molto potenti e tenaci. Il coccodrillo è molto veloce su brevi distanze sia in terra che in acqua. Come cacciatore ha riflessi rapidi e una buona visione notturna. Il coccodrillo è tenace."
   },
   {
     "nl": "Kwal",
@@ -2866,8 +2866,8 @@
       "fiero"
     ],
     "slug": "leeuw",
-    "desc_nl": "",
-    "desc_it": "Il leone è il re della savana africana. Vive in branchi familiari con una gerarchia ben definita. È fiero e maestoso, difende il suo territorio con grande forza. È coraggioso e potente, rispettato da tutti gli animali."
+    "desc_nl": "Deze zogenoemde koning van de dieren is één van de sterkste en moedigste roofdieren. Ze communiceren met allerlei geluiden en hun gebrul is indrukwekkend. De leeuw is sociaal, trots en edel. Ze roven enkel in nood en kunnen lui zijn.",
+    "desc_it": "Questo cosiddetto re degli animali è uno dei predatori più forti e coraggiosi. Comunicano con vari suoni e il loro ruggito è imponente. Il leone è sociale, fiero e nobile. Predano solo in caso di necessità e possono essere pigri."
   },
   {
     "nl": "Lemur",
@@ -2920,8 +2920,8 @@
       "resistente"
     ],
     "slug": "luiaard",
-    "desc_nl": "",
-    "desc_it": "Il bradipo è il mammifero più lento del mondo. Si muove deliberatamente tra i rami della foresta pluviale, nutrendosi di foglie. È posato e epicureo, vive una vita di totale tranquillità. Il suo metabolismo lentissimo gli permette di sopravvivere con pochissimo cibo."
+    "desc_nl": "Dit middelgrote nachtzoogdier klimt en hangt het grootste deel van de tijd in bomen en komt amper op de grond. Luiaards zijn het liefst alleen en gaan snel hun eigen weg. De luiaard is voorzichtig, kalm en rustig en die trekt zich goed uit de slag. Dit dier is tactisch in het misleiden van roofdieren.",
+    "desc_it": "Questo mammifero notturno di media grandezza si arrampica e pende dagli alberi per la maggior parte del tempo e scende a terra raramente. I bradipi preferiscono stare soli e vanno presto per la propria strada. Il bradipo è cauto, calmo e tranquillo e se la cava bene. Questo animale è tattico nell'ingannare i predatori."
   },
   {
     "nl": "Luipaard",
@@ -2960,8 +2960,8 @@
       "forte"
     ],
     "slug": "luipaard",
-    "desc_nl": "",
-    "desc_it": "Il leopardo è il più adattabile dei grandi felini. Vive in solitario e caccia con grande pazienza e silenzio. È abile nell'arrampicarsi: porta le prede sugli alberi per proteggerle dagli altri predatori. È flessuoso e potente, maestro della discrezione."
+    "desc_nl": "Dit prachtige, krachtige roofdier is behendig en vlug. Het is een goede zwemmer en klimmer. De luipaard brengt de dag zonnebadend en rustend door. ‘s Nachts trekt die behoedzaam en zeer alert op jacht. De luipaard kan zich goed verborgen houden. Dit dier is verstandig en moedig.",
+    "desc_it": "Questo magnifico e potente predatore è agile e veloce. È un buon nuotatore e arrampicatore. Il leopardo trascorre la giornata prendendo il sole e riposando. Di notte si avventura cautamente e molto vigile a caccia. Il leopardo sa nascondersi bene. Questo animale è intelligente e coraggioso."
   },
   {
     "nl": "Lynx",
@@ -2994,8 +2994,8 @@
       "vigile"
     ],
     "slug": "lynx",
-    "desc_nl": "",
-    "desc_it": "La lince è un felino solitario e misterioso. Caccia di notte con grande precisione, sfruttando le sue zampe enormi per camminare sulla neve. È schiva e difficile da avvistare. È perspicace e vigile, sa aspettare il momento giusto per agire."
+    "desc_nl": "Deze fors gebouwde kat heeft duidelijke bakkebaarden en een opvallend korte, dikke staart. Overdag houdt die van zonnebaden. De lynx is een goede vechter. Deze is sterk, grimmig, waakzaam en leeft doorgaans alleen. Omdat ze vooral ‘s nachts jagen, hebben lynxen scherpe ogen. De lynx rent zelden, maar is een onvermoeibare loper.",
+    "desc_it": "Questo gatto dalla corporatura robusta ha evidenti basette e una coda corta e spessa molto appariscente. Di giorno ama prendere il sole. La lince è una buona combattente. È forte, arcigna, vigile e di solito vive sola. Poiché cacciano soprattutto di notte, le linci hanno occhi acuti. La lince corre raramente, ma è un camminatore instancabile."
   },
   {
     "nl": "Maki",
@@ -3020,8 +3020,8 @@
       "territoriale"
     ],
     "slug": "maki",
-    "desc_nl": "",
-    "desc_it": "Il lemure dalla coda ad anelli è uno dei primati più riconoscibili. Vive in gruppi rumorosi e socievoli nel Madagascar. È curioso e giocoso, sempre in comunicazione con il gruppo. Difende il territorio con energiche dimostrazioni di odore."
+    "desc_nl": "Deze halfaap is lenig, behendig en vlug. De maki leeft in groep en is afwisselend actief en rustig. Soms is die koppig. De Maki geeft een aangename indruk en is gewoonlijk zachtaardig, zorgzaam en vreedzaam.",
+    "desc_it": "Questo proscimmio è agile, abile e veloce. Il maki vive in gruppo ed è alternativamente attivo e tranquillo. A volte è testardo. Il maki dà un'impressione piacevole ed è di solito mite, premuroso e pacifico."
   },
   {
     "nl": "Mantiskreeft",
@@ -3074,8 +3074,8 @@
       "indipendente"
     ],
     "slug": "miereneter",
-    "desc_nl": "",
-    "desc_it": "Il formichiere è un mammifero notturno e solitario. Usa la sua lingua lunga e appiccicosa per catturare migliaia di formiche e termiti al giorno. È tranquillo e ingegnoso, raramente aggressivo. Vive e caccia da solo."
+    "desc_nl": "Miereneters zijn opmerkelijk door hun lange snuit. Deze zwerver is een goede klimmer en zwemmer. Ondanks hun schuifelende gang is die actief en een rusteloze zoeker. Bij gevaar verweert de miereneter zich heftig. Deze is gesteld op hun vertrouwde territorium.",
+    "desc_it": "I formichieri sono notevoli per il loro lungo muso. Questo vagabondo è un buon arrampicatore e nuotatore. Nonostante la sua andatura strascicata, è attivo e un cercatore instancabile. In caso di pericolo si difende con veemenza. È affezionato al proprio territorio familiare."
   },
   {
     "nl": "Mink",
@@ -3160,8 +3160,8 @@
       "ingegnoso"
     ],
     "slug": "mol",
-    "desc_nl": "",
-    "desc_it": "La talpa è un mammifero sotterraneo abile e instancabile. Scava tunnel lunghissimi alla ricerca di lombrichi. Vive da sola nell'oscurità, orientandosi con i sensi del tatto e dell'olfatto. È silenziosa e ingegnosa."
+    "desc_nl": "De mol is een ondergrondse graver. Dit dier heeft een uitstekend gehoor en een goede reuk- en tastzin. De mol is rusteloos en geeft niet snel op. Mollen zijn snel zelfstandig en leven volgens een vast schema. Met hun werkijver zijn ze tot veel in staat. Ze hebben een goed richtingsgevoel. De mol is erg gehecht aan hun eigen plek en deelt deze niet graag.",
+    "desc_it": "La talpa è uno scavatore sotterraneo. Questo animale ha un udito eccellente e un buon olfatto e senso del tatto. La talpa è irrequieta e non si arrende facilmente. Le talpe diventano rapidamente indipendenti e vivono secondo un programma fisso. Con la loro laboriosità sono capaci di molto. Hanno un buon senso dell'orientamento. La talpa è molto legata al proprio posto e non ama condividerlo."
   },
   {
     "nl": "Neushoorn",
@@ -3190,8 +3190,8 @@
       "territoriale"
     ],
     "slug": "neushoorn",
-    "desc_nl": "",
-    "desc_it": "Il rinoceronte è uno dei mammiferi più potenti della Terra. È fiero e indomito, difende il territorio con grande forza. Nonostante l'aspetto massiccio, è sorprendentemente veloce. È resistente e coraggioso, non teme quasi nulla."
+    "desc_nl": "Dit grote hoefdier is beweeglijk en snel, maar heeft een beperkt uithoudingsvermogen. De neushoorn is zowel overdag als ’s nachts actief, maar last af en toe een rustpauze in waarvan die erg geniet. DIt dier is alert en heeft een goede reukzin en goed gehoor. De neushoorn is op verdediging ingesteld. Het leeft volgens vaste principes, is trouw en voelt zich goed in kleine groepjes.",
+    "desc_it": "Questo grande ungulato è agile e veloce, ma ha una resistenza limitata. Il rinoceronte è attivo sia di giorno che di notte, ma si prende di tanto in tanto una pausa di cui gode molto. Questo animale è vigile e ha un buon olfatto e un buon udito. Il rinoceronte è orientato alla difesa. Vive secondo principi fissi, è fedele e si trova bene in piccoli gruppi."
   },
   {
     "nl": "Nijlpaard",
@@ -3218,8 +3218,8 @@
       "territoriale"
     ],
     "slug": "nijlpaard",
-    "desc_nl": "",
-    "desc_it": "L'ippopotamo è un mammifero possente e territoriale. Vive in gruppi lungo i fiumi africani. Nonostante l'apparenza bonaria, è uno degli animali più pericolosi dell'Africa. Protegge i piccoli con grande forza e determinazione."
+    "desc_nl": "Met hun enorme afmetingen en grote muil is het nijlpaard een uniek en indrukwekkend dier. Het nijlpaard houdt van zonnebaden in het water en koppelt zo het nuttige aan het aangename. Dit dier is zorgeloos, leeft graag in gezelschap en zorgt goed voor de eigen kroost. Het nijlpaard lijkt sloom, maar aan land kan het snel lopen en is het erg wendbaar. Ze volgen steeds dezelfde paden en hun passage is nooit onopgemerkt.",
+    "desc_it": "Con le sue enormi dimensioni e la grande bocca, l'ippopotamo è un animale unico e imponente. Ama prendere il sole in acqua, unendo così l'utile al dilettevole. Questo animale è spensierato, ama stare in compagnia e si prende cura della propria prole. L'ippopotamo sembra pigro, ma sulla terraferma può correre velocemente ed è molto agile. Seguono sempre gli stessi percorsi e il loro passaggio non passa mai inosservato."
   },
   {
     "nl": "Octopus",
@@ -3246,8 +3246,8 @@
       "ingegnoso"
     ],
     "slug": "octopus",
-    "desc_nl": "",
-    "desc_it": "Il polpo è uno degli animali più intelligenti del mare. È creativo e inventivo, sa aprire barattoli e risolvere problemi complessi. Cambia colore e forma per mimetizzarsi. È misterioso e indipendente, vive da solo nella sua tana."
+    "desc_nl": "Deze intelligente en veelzijdige zeebewoner past zich moeiteloos aan de omgeving aan. Hoewel de octopus graag alleen vertoeft, vertoont het een speelsheid in interactie met objecten of prooien. Met hun flexibele tentakels beweegt het zowel sierlijk als verrassend snel. De octopus maakt een charmante impressie, maar kan ook soms onhandig overkomen.",
+    "desc_it": "Questo intelligente e versatile abitante del mare si adatta senza sforzo all'ambiente circostante. Sebbene il polpo preferisca stare solo, mostra giocosità nell'interazione con oggetti o prede. Con i suoi tentacoli flessibili si muove sia elegantemente che sorprendentemente veloce. Il polpo fa un'impressione affascinante, ma può talvolta sembrare goffo."
   },
   {
     "nl": "Oehoe",
@@ -3280,8 +3280,8 @@
       "vigile"
     ],
     "slug": "oehoe",
-    "desc_nl": "",
-    "desc_it": "Il gufo reale è il più grande gufo d'Europa. Caccia silenziosamente di notte con una precisione straordinaria. È maestoso e misterioso, simbolo di saggezza. Vive e caccia in solitario, difendendo il suo vasto territorio."
+    "desc_nl": "Deze grote uil heeft hun naam te danken aan hun roepgeluid. Door hun imposante verschijning hebben ze weinig vijanden. De oehoe is waakzaam en als die onraad ruikt, zal die elders een rustige plek zoeken. De oehoe kan urenlang muisstil blijven zitten en dan plots in actie schieten. Het is een opportunistische jager en vooruitziend. Oehoes verdedigen hun jongen hardnekkig en een paartje blijft levenslang bij elkaar.",
+    "desc_it": "Questo grande gufo deve il suo nome al suo verso. Per il loro aspetto imponente hanno pochi nemici. Il gufo reale è vigile e se sente pericolo, cercherà un posto tranquillo altrove. Può stare immobile per ore e poi scattare improvvisamente in azione. È un cacciatore opportunista e previdente. I gufi reali difendono i loro piccoli tenacemente e una coppia rimane insieme per tutta la vita."
   },
   {
     "nl": "Okapi",
@@ -3306,8 +3306,8 @@
       "unico"
     ],
     "slug": "okapi",
-    "desc_nl": "",
-    "desc_it": "L'okapi è un mammifero schivo e peculiare delle foreste africane. È l'unico parente vivente della giraffa, ma vive nascosto nella foresta. È tranquillo e solitario, raramente avvistato dagli esseri umani. Ha una corporatura unica e inconfondibile."
+    "desc_nl": "Dit zeldzame en opmerkelijke dier heeft een bruin lichaam, met zwarte en witte strepen op de poten en de achterzijde. De okapi is schrander en verstandig en buitengewoon lieftallig. Ondanks hun grootte zijn ze zachtmoedig en vredelievend. Alleen wanneer de okapi lastig wordt gevallen, verdedigt die zich met hun krachtig gespierde poten.",
+    "desc_it": "Questo animale raro e straordinario ha un corpo marrone con strisce nere e bianche sulle zampe e sul dorso. L'okapi è sveglio e intelligente e straordinariamente grazioso. Nonostante le sue dimensioni è mite e pacifico. Solo quando viene importunato, si difende con le sue potenti zampe muscolose."
   },
   {
     "nl": "Olifant",
@@ -3338,8 +3338,8 @@
       "premuroso"
     ],
     "slug": "olifant",
-    "desc_nl": "",
-    "desc_it": "L'elefante è il più grande animale terrestre. Vive in grandi famiglie matriarcali con una struttura sociale complessa. Ha una memoria straordinaria e riconosce i suoi simili dopo decenni. È premuroso e protettivo, difende con forza i membri più deboli del gruppo."
+    "desc_nl": "De olifant is het grootste en zwaarste landdier. Het leeft in kudden waar het recht van de sterkste geldt. Een olifant is tam, gewillig, leergierig, hardwerkend, behulpzaam, intelligent en waakzaam. Olifanten zijn niet agressief, behalve als je hen kwaad doet. Ze zijn sterk en hebben goed ontwikkelde zintuigen. Ze maken expressieve bewegingen met hun slurf. Een olifant is zachtmoedig, geduldig en heeft een goed geheugen.",
+    "desc_it": "L'elefante è il più grande e pesante animale terrestre. Vive in mandrie dove vale la legge del più forte. Un elefante è docile, disponibile, curioso di imparare, laborioso, intelligente e vigile. Gli elefanti non sono aggressivi, a meno che non li si faccia arrabbiare. Sono forti e hanno sensi molto sviluppati. Fanno movimenti espressivi con la proboscide. Un elefante è mite, paziente e ha una buona memoria."
   },
   {
     "nl": "Ooievaar",
@@ -3364,8 +3364,8 @@
       "nomade"
     ],
     "slug": "ooievaar",
-    "desc_nl": "",
-    "desc_it": "La cicogna è un uccello migratore fedele e premuroso. Torna ogni anno allo stesso nido con grande senso dell'orientamento. Si prende cura dei piccoli con grande dedizione. È resistente nelle lunghe migrazioni e simbolo di fedeltà."
+    "desc_nl": "Deze sierlijke vogel houdt van gezelligheid. De ooievaar vliegt doorgaans grote afstanden in groep. De groepsband wordt onderhouden door altruïstisch gedrag. Daarnaast heeft de ooievaar ook tijd voor zichzelf nodig. Jongen worden grootgebracht in een goed verzorgd nest. Ooievaars zijn geduldig en hebben een snel reactievermogen. Ze drukken hun humeur uit door het geklepper van hun snavel.",
+    "desc_it": "Questo elegante uccello ama la compagnia. La cicogna vola generalmente in gruppo su grandi distanze. Il legame di gruppo viene mantenuto attraverso comportamenti altruistici. Tuttavia, la cicogna ha anche bisogno di tempo per sé stessa. I piccoli vengono allevati in un nido ben curato. Le cicogne sono pazienti e hanno una reazione rapida. Esprimono il loro umore con il crepitare del becco."
   },
   {
     "nl": "Orang-oetan",
@@ -3394,8 +3394,8 @@
       "ingegnoso"
     ],
     "slug": "orang-oetan",
-    "desc_nl": "",
-    "desc_it": "L'orango è un grande scimmia antropomorfa solitaria e intelligente. Usa strumenti con grande precisione e creatività. È osservatore e curioso, passa la vita esplorando la foresta pluviale. È indipendente e ingegnoso, risolve problemi con inventiva."
+    "desc_nl": "Orang-oetan betekent letterlijk ‘bosmens’. Dit dier is gevoelig en zachtaardig. De orang-oetan is vlug onafhankelijk. Deze is goed gehumeurd, speels, nieuwsgierig en op gezelschap gesteld. Op de grond lijkt die onbeholpen. De orang-oetan heeft een mysterieuze blik en bewaart steeds een kalme waardigheid.",
+    "desc_it": "Orang-utan significa letteralmente 'uomo della foresta'. Questo animale è sensibile e mite. L'orango diventa rapidamente indipendente. È di buon umore, giocoso, curioso e amante della compagnia. A terra appare goffo. L'orango ha uno sguardo misterioso e mantiene sempre una calma dignità."
   },
   {
     "nl": "Orca",
@@ -3452,8 +3452,8 @@
       "ingegnoso"
     ],
     "slug": "otter",
-    "desc_nl": "",
-    "desc_it": "La lontra è uno dei mammiferi più giocosi. Nuota con grande abilità e trascorre molto tempo a giocare con i sassi. Vive in gruppo e costruisce scivoli di fango per divertirsi. È socievole, intelligente e creativa."
+    "desc_nl": "Deze meesterlijke zwemmer en duiker heeft goed ontwikkelde zintuigen. Een otter is moedig, vrolijk, sterk en intelligent. In het algemeen is die niet kieskeurig. De otter is goedaardig. Deze behendige zwerver kan zich goed camoufleren.",
+    "desc_it": "Questo maestro nuotatore e sommozzatore ha sensi molto sviluppati. Una lontra è coraggiosa, allegra, forte e intelligente. In generale non è selettiva. La lontra è bonaria. Questo agile vagabondo sa camuffarsi bene."
   },
   {
     "nl": "Panda",
@@ -3478,8 +3478,8 @@
       "giocoso"
     ],
     "slug": "panda",
-    "desc_nl": "",
-    "desc_it": "Il panda gigante è un orso pacifico e solitario. Trascorre la maggior parte della giornata a mangiare bambù con grande tranquillità. È bonario e imperturbabile, difficilmente aggressivo. È giocoso nella fase giovanile e rimane un simbolo di pace."
+    "desc_nl": "De panda is heel zeldzaam en daardoor niet zo bekend. Ze leven ook in ontoegankelijke gebieden. De panda is speels van aard en heeft een ongewoon uiterlijk. Dit dier is spontaan, vrolijk, behendig en aanhankelijk. Het past zich snel aan en blijft goed geluimd.",
+    "desc_it": "Il panda è molto raro e perciò non molto conosciuto. Vivono in zone inaccessibili. Il panda è per natura giocoso e ha un aspetto insolito. Questo animale è spontaneo, allegro, agile e affettuoso. Si adatta rapidamente e rimane di buon umore."
   },
   {
     "nl": "Panter",
@@ -3540,8 +3540,8 @@
       "fiero"
     ],
     "slug": "pauw",
-    "desc_nl": "",
-    "desc_it": "Il pavone è il simbolo della bellezza e della fierezza nel regno animale. Apre la sua coda spettacolare per corteggiare le femmine. È maestoso e consapevole del proprio fascino. Non rinuncia mai a esibirsi."
+    "desc_nl": "De pauw is een prachtige vogel. Pauwen zijn erg nieuwsgierig en hebben een goed geheugen. Ze zijn lawaaierig en je herkent hen vanop afstand aan hun roep. De pauw is erg hartstochtelijk. Deze opgewekte pronker is trots en leidt een regelmatig leven in kleine families.",
+    "desc_it": "Il pavone è un uccello magnifico. I pavoni sono molto curiosi e hanno una buona memoria. Sono rumorosi e li si riconosce da lontano per il loro richiamo. Il pavone è molto appassionato. Questo vivace ostentatore è fiero e conduce una vita regolare in piccole famiglie."
   },
   {
     "nl": "Pinguïn",
@@ -3570,8 +3570,8 @@
       "premuroso"
     ],
     "slug": "pinguïn",
-    "desc_nl": "",
-    "desc_it": "Il pinguino è un uccello sociale e fedele. Vive in grandi colonie dove le coppie si riconoscono per il canto. È tenace nelle condizioni climatiche più dure. Si prende cura dei piccoli a turno con il partner, dimostrando grande dedizione."
+    "desc_nl": "Deze vogels gebruiken hun vleugels om door het water te klieven, zoals andere vogels door de lucht vliegen. Pinguïns zijn levendig, gezellig, luidruchtig, argeloos en sociaal. De pinguïn is buitengewoon behendig. Als deze broedt, is die ijverig en opofferingsgezind. De pinguïn leidt een regelmatig leven.",
+    "desc_it": "Questi uccelli usano le ali per fendere l'acqua, come altri uccelli volano nell'aria. I pinguini sono vivaci, socievoli, rumorosi, ingenui e sociali. Il pinguino è straordinariamente abile. Quando cova, è diligente e dedito. Il pinguino conduce una vita regolare."
   },
   {
     "nl": "Poema",
@@ -3600,8 +3600,8 @@
       "forte"
     ],
     "slug": "poema",
-    "desc_nl": "",
-    "desc_it": "Il puma è il felino americano più adattabile. Vive in solitario e caccia con pazienza e abilità. È flessuoso e silenzioso, sa arrampicarsi e nuotare. È determinato e tenace, capace di adattarsi a quasi ogni ambiente."
+    "desc_nl": "Deze grote krachtige kat beweegt zich sierlijk en met groot gemak voort. Dit dier leeft eerder solitair, maar is wel verdraagzaam en niet aggressief tegenover soortgenoten. Poema&#039;s tonen hun moed bij gevaar. Ze hebben een grote vitaliteit. Zelfs als poema&#039;s dodelijk verwond zijn, vechten ze verwoed door. De poema is vooruitziend.",
+    "desc_it": "Questo grande e potente felino si muove con grazia e grande facilità. Vive per lo più in solitario, ma è tollerante e non aggressivo verso i propri simili. I puma mostrano il loro coraggio in caso di pericolo. Hanno una grande vitalità. Anche quando i puma sono mortalmente feriti, continuano a combattere furiosamente. Il puma è previdente."
   },
   {
     "nl": "Python",
@@ -3628,8 +3628,8 @@
       "forte"
     ],
     "slug": "python",
-    "desc_nl": "",
-    "desc_it": "Il pitone è un serpente tranquillo e paziente. Aspetta immobile la preda, poi attacca con velocità sorprendente. È imperturbabile e forte, capace di sopravvivere a lungo senza mangiare. Vive da solo, silenzioso e maestoso."
+    "desc_nl": "Deze grote wurgslang is zeer gevoelig voor trillingen van de grond. De python is snel en een goede klimmer, zwemmer en duiker. Deze is rustig, stil en eerder passief, maar kan ook levendig zijn. De python handelt doordacht en jaagt door hinderlagen op te zetten. Pythons beschermen hun eigen nest strijdbaar en verslinden hun prooi gulzig.",
+    "desc_it": "Questo grande serpente costrittore è molto sensibile alle vibrazioni del suolo. Il pitone è veloce e un buon arrampicatore, nuotatore e sommozzatore. È tranquillo, silenzioso e piuttosto passivo, ma può anche essere vivace. Il pitone agisce con riflessione e caccia tramite agguati. I pitoni difendono il proprio nido combattivamente e divorano la preda con avidità."
   },
   {
     "nl": "Raaf",
@@ -3658,8 +3658,8 @@
       "scaltro"
     ],
     "slug": "raaf",
-    "desc_nl": "",
-    "desc_it": "Il corvo è uno degli uccelli più intelligenti. È creativo e inventivo, usa strumenti e risolve enigmi complessi. È misterioso e curioso, osserva l'ambiente con grande attenzione. È scaltro e comunicativo, vive in coppie o piccoli gruppi."
+    "desc_nl": "De raaf is de grootste en krachtigste van de kraaiachtigen. Ze zijn sterk, listig en behendig. Ze voeren grappige en dolle streken uit. De raaf is intelligent en leert gemakkelijk. Deze vogel eet meestal aas en hamstert voedsel.",
+    "desc_it": "Il corvo è il più grande e potente dei corvidi. Sono forti, astuti e abili. Compiono trucchi divertenti e stravaganti. Il corvo è intelligente e impara facilmente. Questo uccello mangia per lo più carogne e accumula cibo."
   },
   {
     "nl": "Rat",
@@ -3716,8 +3716,8 @@
       "nomade"
     ],
     "slug": "rendier",
-    "desc_nl": "",
-    "desc_it": "La renna è un cervide nomade e resistente delle regioni artiche. Migra in grandi branchi attraverso vastissime distanze. È adattabile alle condizioni climatiche più dure. Porta il peso del lavoro con grande forza e tenacia."
+    "desc_nl": "Het rendier is schrander en heeft een mooi uiterlijk. Het is nuttig en eerder zwijgzaam. Deze taaie trekker heeft een groot uithoudingsvermogen. Rendieren leven in kudden en vinden overal hun weg.",
+    "desc_it": "La renna è sveglia e ha un bell'aspetto. È utile e piuttosto silenziosa. Questo tenace migratore ha una grande resistenza. Le renne vivono in mandrie e trovano la strada ovunque."
   },
   {
     "nl": "Roofvogel algemeen",
@@ -3772,8 +3772,8 @@
       "prudente"
     ],
     "slug": "schildpad",
-    "desc_nl": "",
-    "desc_it": "La tartaruga è uno dei rettili più antichi del mondo. Si muove lentamente ma con grande perseveranza, non si arrende mai. La sua corazza è il simbolo della resistenza e della prudenza. Vive per decenni con grande tranquillità."
+    "desc_nl": "Schildpadden kunnen, ondanks hun zware pantser, aanzienlijke afstanden afleggen. De schildpad is gehard, een volhouder en tegen veel opgewassen. Dit dier is speels, maar het grootste deel van de dag brengt die door in rust. Wanneer die echter in actie schiet, is de schildpad een te duchten tegenstander. De schildpad is intelligent en heeft een goed geheugen. Ze zijn opmerkzaam door hun goed zicht en reukvermogen.",
+    "desc_it": "Le tartarughe possono percorrere distanze considerevoli nonostante il loro pesante guscio. La tartaruga è robusta, tenace e capace di far fronte a molte situazioni. Questo animale è giocoso, ma trascorre la maggior parte della giornata a riposare. Quando però entra in azione, la tartaruga è una temibile avversaria. La tartaruga è intelligente e ha una buona memoria. Sono attente grazie alla loro buona vista e olfatto."
   },
   {
     "nl": "Schoenbekooievaar",
@@ -3802,8 +3802,8 @@
       "prudente"
     ],
     "slug": "schoenbekooievaar",
-    "desc_nl": "",
-    "desc_it": "Il becco a scarpa è un uccello misterioso e solitario delle paludi africane. Caccia in modo preciso, aspettando immobile per ore. Si adatta ad ambienti difficili ed è resistente ai climi ostili. È saggio e paziente, uno degli uccelli più particolari del mondo."
+    "desc_nl": "De schoenbekooievaar is een bijzonder dier. Ze leven stil en eenzaam, soms in kleine groepjes in voor veel dieren ontoegankelijk gebied. De schoenbekooievaar heeft een uitzonderlijk uithoudings- en doorzettingsvermogen. Het zijn verstandige dieren. Ze zijn altijd klaar om op gevaar te reageren: voorzichtigheid is hun tweede natuur. Als de schoenbekooievaar eenmaal vriendschap heeft gesloten, is die heel trouw.",
+    "desc_it": "Il becco a scarpa è un animale straordinario. Vivono in silenzio e solitudine, a volte in piccoli gruppi in zone inaccessibili a molti animali. Il becco a scarpa ha un'eccezionale resistenza e perseveranza. Sono animali intelligenti. Sono sempre pronti a reagire al pericolo: la prudenza è la loro seconda natura. Una volta che il becco a scarpa ha stretto amicizia, è molto fedele."
   },
   {
     "nl": "Sifaka",
@@ -3839,7 +3839,7 @@
     ],
     "slug": "sifaka",
     "desc_nl": "De sifaka is een grote halfaap die leeft op Madagaskar. Ze leven in familiegroepen en zijn erg beschermend naar soortgenoten. Ze zijn vriendelijk, vreedzaam en gevoelig. Ze zijn ook ondeugend en enthousiast. Ze zijn slim en bedachtzaam.",
-    "desc_it": "Il sifaka è un grande lemure che vive a Madagascar. Vive in gruppi familiari ed è molto protettivo nei confronti dei suoi simili. È amichevole, pacifico e sensibile. È anche birichino ed entusiasta. È intelligente e riflessivo."
+    "desc_it": "Il sifaka è un grande proscimmio che vive in Madagascar. Vivono in gruppi familiari e sono molto protettivi verso i propri simili. Sono amichevoli, pacifici e sensibili. Sono anche birichini ed entusiasti. Sono intelligenti e riflessivi."
   },
   {
     "nl": "Slang algemeen",
@@ -3932,8 +3932,8 @@
       "vigile"
     ],
     "slug": "sperwer",
-    "desc_nl": "",
-    "desc_it": "Lo sparviero è un piccolo falconiforme agile e preciso. Caccia tra gli alberi con grande velocità, cambiando direzione in pochi centesimi di secondo. È determinato e vigile, caccia sia piccoli uccelli che roditori. È perspicace e deciso in ogni suo volo."
+    "desc_nl": "Deze roofvogel heeft een opvallende geel oog. De sperwer is dapper en soms brutaal. Al schertsend jaagt die met een verrassingsaanval anderen schrik aan. De sperwer is krachtig, volhardend en heeft een groot concentratievermogen. Sperwers bouwen hun nest slordig. Ze dragen geduldig en waakzaam zorg voor hun jongen.",
+    "desc_it": "Questo rapace ha un occhio giallo molto appariscente. Lo sparviero è coraggioso e a volte sfrontato. Scherzando, spaventa gli altri con un attacco a sorpresa. Lo sparviero è potente, perseverante e ha una grande capacità di concentrazione. Gli sparvieri costruiscono il nido in modo disordinato. Si prendono cura dei loro piccoli con pazienza e vigilanza."
   },
   {
     "nl": "Springbok",
@@ -3958,8 +3958,8 @@
       "pacifico"
     ],
     "slug": "springbok",
-    "desc_nl": "",
-    "desc_it": "Lo springbok è una piccola antilope africana velocissima ed elegante. È famoso per i suoi salti spettacolari quando è eccitato o spaventato. Vive in branchi vigilanti nelle savane aride. È fiero e aggraziato in ogni suo movimento."
+    "desc_nl": "De springbok leeft in grote groepen met een sterke sociale structuur. Ze zijn zachtmoedig, nieuwsgierig, rustig, waakzaam, verstandig en vriendelijk. De springbok leeft in vrede met anderen. Hun naam verwijst naar de sprong die ze maken om de kudde te waarschuwen voor dreigend gevaar. De springbok zal zelden de confrontatie verkiezen. Ze laten hun soortgenoot niet in de steek.",
+    "desc_it": "Lo springbok vive in grandi gruppi con una forte struttura sociale. Sono miti, curiosi, tranquilli, vigili, intelligenti e amichevoli. Lo springbok vive in pace con gli altri. Il loro nome si riferisce al salto che fanno per avvertire il branco del pericolo imminente. Lo springbok raramente sceglie lo scontro. Non abbandonano i propri simili."
   },
   {
     "nl": "Stekelvarken",
@@ -3982,8 +3982,8 @@
       "prudente"
     ],
     "slug": "stekelvarken",
-    "desc_nl": "",
-    "desc_it": "L'istrice è un roditore notturno e difensivo. Quando si sente minacciato, rizza i suoi aculei aguzzi. È cauto e schivo, evita i conflitti quando possibile. Vive da solo o in piccoli gruppi familiari."
+    "desc_nl": "Dit knaagdier is een klein en stil nachtdier dat overdag genietend ligt te zonnebaden voor hun hol. Het stekelvarken is standvastig en moeilijk te overhalen, soms een beetje eigenwijs. Zolang het zich niet bedreigd voelt, is het stekelvarken vriendelijk en vreedzaam. Als het dier zich dan toch aangevallen voelt, verdedigt die zich fel en hardnekkig. Het stekelvarken is rustig, zachtmoedig en een goede leermeester. Al maakt die soms een trage indruk, dit knaagdier is in staat om zeer snel te reageren.",
+    "desc_it": "Questo roditore è un piccolo e silenzioso animale notturno che di giorno se ne sta a prendere il sole davanti alla tana. L'istrice è tenace e difficile da convincere, a volte un po' testardo. Finché non si sente minacciato, l'istrice è amichevole e pacifico. Se l'animale si sente attaccato, si difende con veemenza e ostinazione. L'istrice è tranquillo, mite e un buon insegnante. Pur facendo a volte un'impressione lenta, questo roditore è in grado di reagire molto rapidamente."
   },
   {
     "nl": "Stekelstaarteekhoorn",
@@ -4014,8 +4014,8 @@
       "pacifico"
     ],
     "slug": "stekelstaarteekhoorn",
-    "desc_nl": "",
-    "desc_it": "Lo scoiattolo spinoso è un roditore vivace e flessuoso. È nervoso e schivo, ma molto perspicace nell'osservare l'ambiente. Si muove velocissimo tra i rami e il terreno. È sensibile e birichino, sempre in cerca di avventure."
+    "desc_nl": "De stekelstaarteekhoorn leeft in hoge bomen waar die zich snel, lenig en met grote sprongen verplaatst. Dit knaagdiertje kan zich erg goed verschuilen als er gevaar dreigt: zelfs een grote groep is nauwelijks op te merken. De stekelstaarteekhoorn is vreedzaam, een beetje nerveus zo nu en dan, levendig en guitig. Dit dier is gevoelig en heeft goed ontwikkelde zintuigen.",
+    "desc_it": "Lo scoiattolo spinoso vive sugli alberi alti dove si muove velocemente, agilmente e con grandi salti. Questo piccolo roditore sa nascondersi molto bene quando si avvicina il pericolo: anche un grande gruppo è appena percettibile. Lo scoiattolo spinoso è pacifico, un po' nervoso di tanto in tanto, vivace e birichino. Questo animale è sensibile e ha sensi molto sviluppati."
   },
   {
     "nl": "Stinkdier",
@@ -4070,8 +4070,8 @@
       "premuroso"
     ],
     "slug": "stokstaartje",
-    "desc_nl": "",
-    "desc_it": "Il suricato vive in famiglie ben organizzate nel Kalahari. Una sentinella è sempre in guardia per avvertire il gruppo dei pericoli. È comunicativo e socievole, il gruppo segue regole precise. È premuroso e protettivo verso i piccoli."
+    "desc_nl": "Deze energieke graver bouwt een ingewikkeld gangenstelsel. Het stokstaartje is erg sociaal en vaak aanhankelijk. Dit dier voelt zich met opvallend gemak overal thuis. Het stokstaartje handelt zelden instinctief: het leert veel uit ervaring. Het heeft een goed geheugen en is erg schrander. Het stokstaartje is gezellig, vriendelijk, grappig en speels, maar ook steeds waakzaam en uitermate dapper. Stokstaartjes liggen graag in de zon, maar kunnen ook plots onstuimig en drukdoend met iets bezig zijn.",
+    "desc_it": "Questo energetico scavatore costruisce un complesso sistema di gallerie. Il suricato è molto sociale e spesso affettuoso. Questo animale si trova a suo agio ovunque con una facilità sorprendente. Il suricato agisce raramente d'istinto: impara molto dall'esperienza. Ha una buona memoria ed è molto perspicace. Il suricato è socievole, amichevole, divertente e giocoso, ma sempre vigile e straordinariamente coraggioso. I suricati amano stare al sole, ma possono anche diventare improvvisamente impetuosi e indaffarati in qualcosa."
   },
   {
     "nl": "Struisvogel",
@@ -4100,8 +4100,8 @@
       "forte"
     ],
     "slug": "struisvogel",
-    "desc_nl": "",
-    "desc_it": "Lo struzzo è il più grande uccello del mondo. Non sa volare, ma corre velocissimo sulla savana. Vive in gruppi e difende il nido con i possenti calci delle zampe. È fiero ed energico, non teme quasi nessun predatore."
+    "desc_nl": "De struisvogel is de snelste loopvogel ter wereld. Ze zijn sterk, bewegen soepel en hebben een groot uithoudingsvermogen. Deze vogels zijn zeer opmerkzaam. De struisvogel is verdraagzaam tegenover andere diersoorten en werkt goed samen in groep. Dit dier is een genieter. Bij conflict kan de struisvogel een geduchte tegenstander zijn.",
+    "desc_it": "Lo struzzo è il più veloce degli uccelli corridori del mondo. Sono forti, si muovono con fluidità e hanno una grande resistenza. Questi uccelli sono molto attenti. Lo struzzo è tollerante verso altre specie animali e collabora bene in gruppo. Questo animale è un gaudente. In caso di conflitto, lo struzzo può essere un temibile avversario."
   },
   {
     "nl": "Tapir",
@@ -4129,7 +4129,7 @@
     ],
     "slug": "tapir",
     "desc_nl": "De tapir is een goedaardig dier dat leeft in tropische wouden en graslanden. Ze zijn alert maar ook rustig van aard. Ze zijn echte gewoontedieren die steeds dezelfde paden bewandelen. Ze zijn nieuwsgierig maar ook eerder schuw. Ze zijn vreedzaam en houden van hun vaste woonplaats.",
-    "desc_it": "Il tapiro è un animale bonario che vive nelle foreste tropicali e nelle praterie. È vigile ma anche di carattere tranquillo. È un vero animale delle abitudini che percorre sempre gli stessi sentieri. È curioso ma anche piuttosto schivo. È pacifico e ama il suo territorio fisso."
+    "desc_it": "Il tapiro è un animale bonario che vive nelle foreste tropicali e nei pascoli. Sono vigili ma anche di natura tranquilla. Sono veri animali abitudinari che percorrono sempre gli stessi sentieri. Sono curiosi ma anche piuttosto timidi. Sono pacifici e amano la loro dimora fissa."
   },
   {
     "nl": "Tasmaanse duivel",
@@ -4196,8 +4196,8 @@
       "forte"
     ],
     "slug": "tijger",
-    "desc_nl": "",
-    "desc_it": "La tigre è il più grande felino al mondo. È una cacciatrice solitaria, paziente e silenziosa. Caccia di notte sfruttando il suo manto rigato come mimetismo nella giungla. È potente ed elegante, padrona assoluta del suo territorio."
+    "desc_nl": "Deze prachtige kat verenigt in zich een verleidelijke schoonheid en een ontembare wildheid. Tijgers zijn zich goed bewust van hun kracht. Ze leven en werken graag alleen, maar voelen hun soortgenoten toch zeer goed aan. De tijger is vriendschappelijk en deelt voedsel met anderen als die er teveel heeft. Deze katachtige vermijdt fysieke conflicten met soortgenoten en zoekt naar andere oplossingen. De tijger is dapper.",
+    "desc_it": "Questo magnifico felino unisce in sé una bellezza seducente e una selvaggia indomabilità. Le tigri sono ben consapevoli della loro forza. Amano vivere e lavorare da sole, ma sentono comunque molto bene i propri simili. La tigre è amichevole e condivide il cibo con gli altri quando ne ha troppo. Questo felino evita i conflitti fisici con i propri simili e cerca altre soluzioni. La tigre è coraggiosa."
   },
   {
     "nl": "Uil",
@@ -4232,8 +4232,8 @@
       "vigile"
     ],
     "slug": "uil",
-    "desc_nl": "",
-    "desc_it": "Il gufo è un rapace notturno saggio e misterioso. Caccia in silenzio assoluto nella notte. È solitario e schivo, raramente si fa vedere di giorno. Ha un udito e una vista notturna eccezionali."
+    "desc_nl": "De uil is een krachtige en actieve jager die ‘s nachts op pad gaat. Ze hebben goed ontwikkelde oren en ogen. De uil is opmerkzaam: elk moment observeert die het gebied rondom zich. De uil is erg goed in camouflage. Deze nachtvogel is stilzwijgend, proper en nuttig. De uil is moedig en behendig. Ze helpen zwakkere soortgenoten.",
+    "desc_it": "Il gufo è un cacciatore potente e attivo che si avventura di notte. Hanno orecchie e occhi molto sviluppati. Il gufo è attento: in ogni momento osserva l'area circostante. Il gufo è molto bravo a mimetizzarsi. Questo uccello notturno è silenzioso, pulito e utile. Il gufo è coraggioso e abile. Aiutano i simili più deboli."
   },
   {
     "nl": "Vleermuis",
@@ -4260,8 +4260,8 @@
       "agile"
     ],
     "slug": "vleermuis",
-    "desc_nl": "",
-    "desc_it": "Il pipistrello è l'unico mammifero capace di volare. È notturno e si orienta con l'ecolocalizzazione. Vive in colonie numerose nelle grotte o negli edifici. È agile e perspicace, fondamentale per l'ecosistema come controllore degli insetti."
+    "desc_nl": "Dit nachtdier heeft met echolocatie een heel eigen, goed ontwikkeld zintuig. De vleermuis is een zeer nuttig dier. Het leeft in grote groepen en verzorgt hun jongen goed. De vleermuis is erg beweeglijk en een zeer behendige vlieger. De vleermuis is een unieke jager en is zeer opmerkzaam.",
+    "desc_it": "Questo animale notturno ha un senso unico e molto sviluppato con l'ecolocalizzazione. Il pipistrello è un animale molto utile. Vive in grandi gruppi e si prende cura dei piccoli. Il pipistrello è molto vivace e un volatore molto agile. Il pipistrello è un cacciatore unico ed è molto attento."
   },
   {
     "nl": "Vos",
@@ -4296,8 +4296,8 @@
       "ingegnoso"
     ],
     "slug": "vos",
-    "desc_nl": "",
-    "desc_it": "La volpe è il simbolo della furbizia nel mondo animale. È adattabile e intelligente, vive in quasi ogni ambiente. Caccia con grande astuzia, soprattutto di notte. È curiosa e inventiva, sa sfruttare ogni situazione a suo vantaggio."
+    "desc_nl": "De vos is een slank en sierlijk roofdier. Dit dier beseft het gevaar wel, maar vreest het niet. Ze zijn stoutmoedig en sluw. De vos is verstandig en vindingrijk. Het is een opportunist. De vos is in staat om zich constant aan te passen aan een nieuwe situatie en heeft een grote overlevingsdrang.",
+    "desc_it": "La volpe è un predatore snello ed elegante. Questo animale percepisce il pericolo, ma non lo teme. Sono audaci e astuti. La volpe è intelligente e ingegnosa. È un opportunista. La volpe è in grado di adattarsi costantemente a nuove situazioni e ha un grande istinto di sopravvivenza."
   },
   {
     "nl": "Walrus",
@@ -4320,8 +4320,8 @@
       "territoriale"
     ],
     "slug": "walrus",
-    "desc_nl": "",
-    "desc_it": "Il tricheco è un grande mammifero marino dei mari artici. Vive in grandi gruppi rumorosi sulle rive ghiacciate. È potente e territoriale, i maschi si sfidano per le femmine. È socievole con il gruppo e protegge i cuccioli con forza."
+    "desc_nl": "Dit grote, sterke en indrukwekkende zeezoogdier met lange slagtanden leeft in de poolgebieden. De walrus is een sociaal dagdier en is zeer gezellig. Deze verkiest grote groepen, zit graag dicht bij de anderen en heeft weinig vijanden. De walrus is een genieter en is gevoelig.",
+    "desc_it": "Questo grande, forte e imponente mammifero marino con lunghe zanne vive nelle regioni polari. Il tricheco è un animale sociale diurno e molto socievole. Preferisce i grandi gruppi, ama stare vicino agli altri e ha pochi nemici. Il tricheco è un gaudente e sensibile."
   },
   {
     "nl": "Wezel",
@@ -4348,8 +4348,8 @@
       "veloce"
     ],
     "slug": "wezel",
-    "desc_nl": "",
-    "desc_it": "La donnola è il più piccolo mustelide, ma tra i più coraggiosi. Caccia roditori molto più grandi di lei senza esitazione. È flessuosa e veloce, si insinua nei buchi più stretti. È notturna e tenace, non si arrende mai."
+    "desc_nl": "Deze marterachtige is het kleinste roofzoogdier ter wereld. De wezel is stoutmoedig, dapper, buitengewoon behendig en gespierd. Dit dier valt soms prooien aan die vele keren groter zijn dan zichzelf. De wezel is vooruitziend en jaagt soms op meer dieren dan die nodig heeft en slaat die dan op als voorraad. De wezel is familiaal ingesteld en vrijheidslievend.",
+    "desc_it": "Questo mustelide è il più piccolo mammifero predatore del mondo. La donnola è audace, coraggiosa, straordinariamente agile e muscolosa. Questo animale attacca a volte prede molte volte più grandi di sé. La donnola è previdente e caccia a volte più animali del necessario, conservandoli poi come scorta. La donnola è orientata alla famiglia e amante della libertà."
   },
   {
     "nl": "Wilde eend",
@@ -4378,8 +4378,8 @@
       "prudente"
     ],
     "slug": "wilde-eend",
-    "desc_nl": "",
-    "desc_it": "Il germano reale è un'anatra adattabile e non esigente. Vive in quasi ogni tipo di specchio d'acqua. È socievole e tollerante, si mescola facilmente con altre specie. È agile sia nell'acqua che nell'aria."
+    "desc_nl": "De wilde eend leeft in vijvers, moerassen, meren en sloten. Deze watervogel eet kleine visjes, slakken en wormen, maar is zeer flexibel in hun voedselkeuze. De wilde eend is sociaal, gezellig, verdraagzaam en zeer tolerant. De wilde eend heeft een groot aanpassingsvermogen. Dit dier is actief, beweeglijk en voorzichtig.",
+    "desc_it": "Il germano reale vive in stagni, paludi, laghi e fossati. Questo uccello acquatico mangia piccoli pesci, lumache e vermi, ma è molto flessibile nella scelta del cibo. Il germano reale è sociale, socievole, tollerante e molto accomodante. Ha una grande capacità di adattamento. Questo animale è attivo, vivace e prudente."
   },
   {
     "nl": "Wolf",
@@ -4411,7 +4411,7 @@
     ],
     "slug": "wolf",
     "desc_nl": "De roedels van deze sociale hondachtige zijn strikt georganiseerd. Hij communiceert intensief met zijn kenmerkend gehuil, tenminste als de sociale band sterk is. De Wolf is handig, sluw en vindingrijk. Hij handelt trouw tegenover soortgenoten en hecht belang aan een goed gemeenschapsleven. De Wolf heeft een groot uithoudingsvermogen. Hij past zich snel aan een nieuwe situatie aan.",
-    "desc_it": "I branchi di questo canide sociale sono rigorosamente organizzati. Comunica intensamente con il suo caratteristico ululato, almeno quando il legame sociale è forte. Il lupo è abile, astuto e inventivo. Agisce con fedeltà verso i suoi simili e attribuisce importanza a una buona vita comunitaria. Il lupo ha una grande resistenza. Si adatta rapidamente a nuove situazioni."
+    "desc_it": "I branchi di questo canide sociale sono strettamente organizzati. Comunica intensamente con il suo caratteristico ululato, almeno quando il legame sociale è forte. Il lupo è abile, astuto e ingegnoso. Agisce fedelmente verso i propri simili e dà importanza a una buona vita comunitaria. Il lupo ha una grande resistenza. Si adatta rapidamente a nuove situazioni."
   },
   {
     "nl": "Wolharige mammoet",
@@ -4462,8 +4462,8 @@
       "vigile"
     ],
     "slug": "zebra",
-    "desc_nl": "",
-    "desc_it": "La zebra vive in grandi branchi nelle savane africane. Il suo manto a strisce è inconfondibile e confonde la visione dei predatori. È vigile e socievole, sempre in stretto contatto con il gruppo. È forte e veloce, si difende con potenti calci."
+    "desc_nl": "Dit zeer sociale dier leeft op de uitgestrekte graslanden. De zebra is levendig, krachtig en de hele dag door actief. Het dier is schrander, vriendelijk en heeft een groot uithoudingsvermogen. De zebra leeft in familiegroep met een strikte hiërarchie en heeft een langdurige, sterke familieband. De zebra draagt sterk zorg voor de jongere, oudere en zwakkere familieleden.",
+    "desc_it": "Questo animale molto sociale vive nelle vaste pianure erbose. La zebra è vivace, forte e attiva per tutta la giornata. L'animale è sveglio, amichevole e ha una grande resistenza. La zebra vive in gruppi familiari con una rigida gerarchia e ha un legame familiare forte e duraturo. La zebra si prende grande cura dei membri della famiglia più giovani, anziani e più deboli."
   },
   {
     "nl": "Zeehond",
@@ -4492,8 +4492,8 @@
       "giocoso"
     ],
     "slug": "zeehond",
-    "desc_nl": "",
-    "desc_it": "La foca è un mammifero marino abile e curioso. Nuota con grande eleganza e velocità nell'acqua fredda. È socievole e comunicativa, vive in colonie numerose. I cuccioli vengono accuditi con grande dedizione dalle madri."
+    "desc_nl": "De zeehond is een vrij klein waterroofdier. Deze behendige, goede zwemmer en duiker komt enkel uit het water om te rusten of te zonnen. Ze leven in kleine kudden en zijn sociaal. De zeehond is leerzaam, bedrijvig en vinnig. Het dier is vriendelijk, maar kan gevat uit de hoek komen.",
+    "desc_it": "La foca è un piccolo predatore acquatico. Questo agile nuotatore e sommozzatore esce dall'acqua solo per riposare o prendere il sole. Vivono in piccoli branchi e sono sociali. La foca è curiosa di imparare, laboriosa e vivace. L'animale è amichevole, ma può rispondere prontamente."
   },
   {
     "nl": "Zeeschildpad",
@@ -4520,8 +4520,8 @@
       "nomade"
     ],
     "slug": "zeeschildpad",
-    "desc_nl": "",
-    "desc_it": "La tartaruga marina percorre migliaia di chilometri attraverso gli oceani. Torna ogni anno sulle stesse spiagge per deporre le uova con grande tenacia. È paziente e imperturbabile, simbolo di perseveranza. Naviga con precisione grazie al campo magnetico terrestre."
+    "desc_nl": "Met hun gestroomlijnde schild schieten de krachtige zeeschildpadden aan een hoge snelheid door het water. Deze unieke reiziger legt grote afstanden af en heeft een groot uithoudingsvermogen. De zeeschildpad is steeds beweeglijk en stopt zelden met zwemmen. Dit waterdier is vriendelijk, intrigerend en keert graag terug naar een vertrouwde plek.",
+    "desc_it": "Con il loro guscio aerodinamico, le potenti tartarughe marine si muovono nell'acqua ad alta velocità. Questo viaggiatore unico percorre grandi distanze e ha una grande resistenza. La tartaruga marina è sempre in movimento e raramente smette di nuotare. Questo animale acquatico è amichevole, affascinante e ama tornare in un posto familiare."
   },
   {
     "nl": "Zeeotter",
@@ -4578,7 +4578,7 @@
       "dignitoso"
     ],
     "slug": "zwaan",
-    "desc_nl": "",
-    "desc_it": "Il cigno è l'uccello più elegante delle acque dolci. Si muove con grazia maestosa sulla superficie dell'acqua. È fedele al compagno per tutta la vita e difende il nido con grande forza. È fiero e dignitoso in ogni suo gesto."
+    "desc_nl": "De zwaan is een grote, statige en sierlijke watervogel. Deze is verstandig en vlug van begrip. De zwaan getuigt van zelfvertrouwen, maar uit dit niet en is eerder rustig. De zwaan heeft een groot aanpassingsvermogen. Deze watervogel is trouw en teder voor de jongen. De zwaan verdedigt de kroost fel, maar zal enkel heftig reageren bij uitdaging.",
+    "desc_it": "Il cigno è un grande, maestoso ed elegante uccello acquatico. È intelligente e rapido di comprensione. Il cigno mostra sicurezza in sé, ma non la esprime e preferisce la tranquillità. Il cigno ha una grande capacità di adattamento. Questo uccello acquatico è fedele e tenero con i piccoli. Il cigno difende la prole con veemenza, ma reagirà violentemente solo se sfidato."
   }
 ]
