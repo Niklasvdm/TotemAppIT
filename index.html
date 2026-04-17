@@ -27,10 +27,13 @@
   .lang-btn.active{background:#fff;color:var(--green);}
 
   .layout{display:grid;grid-template-columns:330px 1fr;min-height:calc(100vh - 62px);}
+  .mob-filter-btn{display:none;}
   @media(max-width:760px){
     .layout{grid-template-columns:1fr;}
-    .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border);}
-    .sb-scroll{max-height:55vh;}
+    .sidebar{display:none;position:static;height:auto;border-right:none;border-bottom:1px solid var(--border);}
+    .sidebar.open{display:flex;}
+    .sb-scroll{max-height:none;overflow-y:visible;}
+    .mob-filter-btn{display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:500;padding:.28rem .75rem;border-radius:20px;background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);cursor:pointer;font-family:'DM Sans',sans-serif;}
     .cname{padding-right:0;}
   }
 
@@ -137,6 +140,7 @@
     <div class="h-sub">Scouts en Gidsen Vlaanderen · Totemzoeker</div>
   </div>
   <div class="h-right">
+    <button class="mob-filter-btn" id="mob-filter-btn" onclick="toggleFilters()">☰ Filtri</button>
     <div class="h-badge" id="hbadge">160 animali</div>
     <div class="lang-toggle">
       <button class="lang-btn active" id="btn-it" onclick="setLang('it')">🇮🇹 IT</button>
@@ -464,7 +468,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 // ── UI STRINGS ────────────────────────────────────────────────
 const UI = {
   it: {
-    title:'Cercatore di Totem', mode:'Modalità',
+    title:'Cercatore di Totem', mode:'Modalità', filters:'Filtri', closeFilters:'Chiudi filtri',
     tabExact:'🔍 Esatto', tabSim:'✨ Similarità',
     hintExact:'Gli animali devono avere <em>tutte</em> le caratteristiche incluse e <em>nessuna</em> di quelle escluse.',
     hintSim:'Classifica tutti gli animali per percentuale di corrispondenza. Quelli con caratteristiche escluse vengono sempre rimossi.',
@@ -483,7 +487,7 @@ const UI = {
     jaccard:(p,m,s,rp,common)=>`<strong>Similarità Jaccard: ${p}%</strong><br>${m} di ${s} caratteristiche incluse presenti (copertura ${rp}%)<br>In comune: <em>${common||'—'}</em>`,
   },
   en: {
-    title:'Totem Finder', mode:'Mode',
+    title:'Totem Finder', mode:'Mode', filters:'Filters', closeFilters:'Close filters',
     tabExact:'🔍 Exact', tabSim:'✨ Similarity',
     hintExact:'Animals must have <em>all</em> included traits and <em>none</em> of the excluded ones.',
     hintSim:'Ranks all animals by match percentage. Animals with excluded traits are always removed.',
@@ -528,7 +532,16 @@ function updateUI(){
   document.getElementById('m-fonte').textContent=t.fonte;
   // re-render pills "none" text
   if(!included.size) document.getElementById('pinc').innerHTML=`<span class="no-p">${t.none}</span>`;
+  const fbtn=document.getElementById('mob-filter-btn');
+  if(fbtn){const open=document.querySelector('.sidebar').classList.contains('open');fbtn.textContent=open?('✕ '+t.closeFilters):('☰ '+t.filters);}
   if(!excluded.size) document.getElementById('pexc').innerHTML=`<span class="no-p">${t.none}</span>`;
+}
+
+function toggleFilters(){
+  const sb=document.querySelector('.sidebar');
+  const btn=document.getElementById('mob-filter-btn');
+  const open=sb.classList.toggle('open');
+  btn.textContent=open?('✕ '+T().closeFilters):('☰ '+T().filters);
 }
 
 buildClouds();render();
