@@ -33,8 +33,8 @@
   .traits{display:flex;flex-wrap:wrap;gap:.3rem;}
   .trait{font-size:.8rem;padding:.28rem .65rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
   .desc{font-size:.97rem;line-height:1.82;color:var(--ink);}
-  .desc-nl{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
-  .desc-nl .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .desc-other{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
+  .desc-other .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
   .source{font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.9rem;}
   .source a{color:var(--green);}
 
@@ -62,8 +62,9 @@
 
   <div class="section">
     <span class="slabel">Descrizione</span>
-    <div class="desc-nl"><span class="orig-label">Testo originale (Nederlands — traduzione non ancora disponibile)</span>Deze zangvogel is Europa’s kleinste vogeltje. Actief en vlug fladdert deze rusteloze vogel van boom naar boom. Hoewel het goudhaantje klein is, is dit geharde dier in staat tot grote prestaties. Tijdens de trek legt die vaak enorme afstanden af. Het vindingrijke goudhaantje is altijd op jacht naar insecten.</div>
-    
+    <p class="desc">Questo uccello canoro è il più piccolo d&#x27;Europa. Attivo e veloce, questo uccello irrequieto svolazza da un albero all&#x27;altro. Nonostante le dimensioni ridotte, questo animale robusto è capace di grandi imprese. Durante la migrazione, spesso copre distanze enormi. L&#x27;intraprendente fiorrancino è sempre a caccia di insetti.</p>
+    <div class="desc-other"><span class="orig-label">🇬🇧 English</span>This songbird is Europe&#x27;s smallest bird. Active and swift, this restless bird flutters from tree to tree. Although the goldcrest is small, this hardened animal is capable of great feats. During migration, it often covers enormous distances. The resourceful goldcrest is always on the hunt for insects.</div>
+    <div class="desc-other"><span class="orig-label">🇧🇪 Nederlands (origineel)</span>Deze zangvogel is Europa’s kleinste vogeltje. Actief en vlug fladdert deze rusteloze vogel van boom naar boom. Hoewel het goudhaantje klein is, is dit geharde dier in staat tot grote prestaties. Tijdens de trek legt die vaak enorme afstanden af. Het vindingrijke goudhaantje is altijd op jacht naar insecten.</div>
   </div>
 
   <div class="source">

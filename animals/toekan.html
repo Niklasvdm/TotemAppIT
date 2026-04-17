@@ -33,8 +33,8 @@
   .traits{display:flex;flex-wrap:wrap;gap:.3rem;}
   .trait{font-size:.8rem;padding:.28rem .65rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
   .desc{font-size:.97rem;line-height:1.82;color:var(--ink);}
-  .desc-nl{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
-  .desc-nl .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .desc-other{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
+  .desc-other .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
   .source{font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.9rem;}
   .source a{color:var(--green);}
 
@@ -62,8 +62,9 @@
 
   <div class="section">
     <span class="slabel">Descrizione</span>
-    <div class="desc-nl"><span class="orig-label">Testo originale (Nederlands — traduzione non ancora disponibile)</span>De toekan is een prachtige vogel die vooral bekend is door hun kleurrijke snavel. Deze snavel gebruikt die op een inventieve manier. Als deze oerwoudbewoner een monotone roep laat klinken, is de toekan over grote afstanden te horen. Deze is ondernemend en speels. De toekan is een goede imitator, rusteloos en nonchalant.</div>
-    
+    <p class="desc">Il tucano è un bellissimo uccello noto soprattutto per il suo becco colorato. Questo becco lo usa in modo inventivo. Quando questo abitante della giungla emette un richiamo monotono, il tucano può essere udito a grandi distanze. Questo tucano è intraprendente e giocoso. Il tucano è un buon imitatore, irrequieto e disinvolto.</p>
+    <div class="desc-other"><span class="orig-label">🇬🇧 English</span>The toucan is a beautiful bird best known for their colourful beak. This beak uses it in an inventive way. When this jungle dweller lets out a monotonous call, the toucan can be heard over great distances. This one is enterprising and playful. The toucan is a good imitator, restless and nonchalant.</div>
+    <div class="desc-other"><span class="orig-label">🇧🇪 Nederlands (origineel)</span>De toekan is een prachtige vogel die vooral bekend is door hun kleurrijke snavel. Deze snavel gebruikt die op een inventieve manier. Als deze oerwoudbewoner een monotone roep laat klinken, is de toekan over grote afstanden te horen. Deze is ondernemend en speels. De toekan is een goede imitator, rusteloos en nonchalant.</div>
   </div>
 
   <div class="source">

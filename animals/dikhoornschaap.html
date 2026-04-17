@@ -33,8 +33,8 @@
   .traits{display:flex;flex-wrap:wrap;gap:.3rem;}
   .trait{font-size:.8rem;padding:.28rem .65rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
   .desc{font-size:.97rem;line-height:1.82;color:var(--ink);}
-  .desc-nl{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
-  .desc-nl .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .desc-other{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
+  .desc-other .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
   .source{font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.9rem;}
   .source a{color:var(--green);}
 
@@ -62,8 +62,9 @@
 
   <div class="section">
     <span class="slabel">Descrizione</span>
-    <div class="desc-nl"><span class="orig-label">Testo originale (Nederlands — traduzione non ancora disponibile)</span>Dit wilde schaap is gekend om zijn grote horens. Het is behendig en kan de meest steile rotshellingen beklimmen. Het is een groepsdier en is verdraagzaam voor andere kuddes. Overdag is die doorgaans actief. In de zomer gaat het dikhoornschaap het liefst genieten op een zonnig plekje.</div>
-    
+    <p class="desc">Questa pecora selvatica è nota per le sue grandi corna. È agile e può scalare i pendii rocciosi più ripidi. È un animale di gruppo ed è tollerante nei confronti delle altre greggi. Durante il giorno è solitamente attiva. In estate, la pecora bighorn preferisce godersi un posto al sole.</p>
+    <div class="desc-other"><span class="orig-label">🇬🇧 English</span>This wild sheep is known for its large horns. It is agile and can climb the steepest rocky slopes. It is a group animal and is tolerant of other flocks. During the day, it is usually active. In summer, bighorn sheep prefer to enjoy a sunny spot.</div>
+    <div class="desc-other"><span class="orig-label">🇧🇪 Nederlands (origineel)</span>Dit wilde schaap is gekend om zijn grote horens. Het is behendig en kan de meest steile rotshellingen beklimmen. Het is een groepsdier en is verdraagzaam voor andere kuddes. Overdag is die doorgaans actief. In de zomer gaat het dikhoornschaap het liefst genieten op een zonnig plekje.</div>
   </div>
 
   <div class="source">

@@ -50,8 +50,8 @@ ANIMAL_PAGE_CSS = """
   .traits{display:flex;flex-wrap:wrap;gap:.3rem;}
   .trait{font-size:.8rem;padding:.28rem .65rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
   .desc{font-size:.97rem;line-height:1.82;color:var(--ink);}
-  .desc-nl{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
-  .desc-nl .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .desc-other{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
+  .desc-other .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
   .source{font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.9rem;}
   .source a{color:var(--green);}
 """
@@ -60,34 +60,45 @@ FONTS = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;
 
 
 def animal_page_html(animal: dict) -> str:
-    name_it = escape(animal["it"])
-    name_nl = escape(animal["nl"])
+    name_it  = escape(animal["it"])
+    name_nl  = escape(animal["nl"])
     name_alt = escape(animal.get("alt", ""))
-    desc_it = escape(animal.get("desc_it", "")).replace("\n", "<br>")
-    desc_nl = escape(animal.get("desc_nl", "")).replace("\n", "<br>")
+    desc_it  = escape(animal.get("desc_it", "")).replace("\n", "<br>")
+    desc_en  = escape(animal.get("desc_en", "")).replace("\n", "<br>")
+    desc_nl  = escape(animal.get("desc_nl", "")).replace("\n", "<br>")
     slug_url = escape(animal["slug"])
-    sgv_url = f"https://www.scoutsengidsenvlaanderen.be/totemzoeker/{slug_url}"
+    sgv_url  = f"https://www.scoutsengidsenvlaanderen.be/totemzoeker/{slug_url}"
 
     traits_html = "".join(
         f'<span class="trait">{escape(t)}</span>' for t in animal.get("traits_it", [])
     )
 
+    # Primary description block (Italian preferred, Dutch fallback)
     if desc_it:
         description_html = f'<p class="desc">{desc_it}</p>'
     else:
         description_html = (
-            f'<div class="desc-nl">'
+            f'<div class="desc-other">'
             f'<span class="orig-label">Testo originale (Nederlands — traduzione non ancora disponibile)</span>'
             f'{desc_nl}'
             f'</div>'
         )
 
-    # optionally show Dutch original below Italian
+    # Secondary blocks: English then Dutch originals
+    english_block = ""
+    if desc_en:
+        english_block = (
+            f'<div class="desc-other">'
+            f'<span class="orig-label">🇬🇧 English</span>'
+            f'{desc_en}'
+            f'</div>'
+        )
+
     dutch_block = ""
     if desc_it and desc_nl:
         dutch_block = (
-            f'<div class="desc-nl">'
-            f'<span class="orig-label">Testo originale (Nederlands)</span>'
+            f'<div class="desc-other">'
+            f'<span class="orig-label">🇧🇪 Nederlands (origineel)</span>'
             f'{desc_nl}'
             f'</div>'
         )
@@ -129,6 +140,7 @@ def animal_page_html(animal: dict) -> str:
   <div class="section">
     <span class="slabel">Descrizione</span>
     {description_html}
+    {english_block}
     {dutch_block}
   </div>
 
@@ -143,11 +155,18 @@ def animal_page_html(animal: dict) -> str:
 
 
 def update_index_animals(animals: list) -> None:
-    """Replace the ANIMALS constant in index.html with the current data."""
+    """Replace the ANIMALS constant in index.html with the current data.
+
+    Descriptions (desc_nl, desc_it, desc_en) are intentionally stripped out —
+    they live in the individual animals/*.html pages, not in index.html.
+    index.html only needs slug, names, and traits for search/filtering.
+    """
     with open(INDEX_FILE, encoding="utf-8") as f:
         source = f.read()
 
-    new_array = json.dumps(animals, ensure_ascii=False, separators=(",", ":"))
+    STRIP_FIELDS = {"desc_nl", "desc_it", "desc_en"}
+    slim = [{k: v for k, v in a.items() if k not in STRIP_FIELDS} for a in animals]
+    new_array = json.dumps(slim, ensure_ascii=False, separators=(",", ":"))
     updated = re.sub(
         r'const ANIMALS = \[.*?\];',
         f'const ANIMALS = {new_array};',
@@ -161,6 +180,40 @@ def update_index_animals(animals: list) -> None:
         with open(INDEX_FILE, "w", encoding="utf-8") as f:
             f.write(updated)
         print("  index.html ANIMALS array updated.")
+
+
+def update_index_descriptions(animals: list) -> None:
+    """Replace the DESCRIPTIONS constant in index.html with current description data.
+
+    Embedded inline (like ANIMALS) so it works with file:// and needs no network request.
+    """
+    with open(INDEX_FILE, encoding="utf-8") as f:
+        source = f.read()
+
+    descs = {}
+    for a in animals:
+        entry = {}
+        if a.get("desc_it"): entry["it"] = a["desc_it"]
+        if a.get("desc_en"): entry["en"] = a["desc_en"]
+        if a.get("desc_nl"): entry["nl"] = a["desc_nl"]
+        if entry:
+            descs[a["slug"]] = entry
+
+    new_obj = json.dumps(descs, ensure_ascii=False, separators=(",", ":"))
+    updated = re.sub(
+        r'const DESCRIPTIONS = \{.*?\};',
+        f'const DESCRIPTIONS = {new_obj};',
+        source,
+        flags=re.DOTALL,
+    )
+
+    if updated == source:
+        print("  index.html DESCRIPTIONS unchanged (or pattern not matched).")
+    else:
+        with open(INDEX_FILE, "w", encoding="utf-8") as f:
+            f.write(updated)
+        size_kb = len(updated.encode()) // 1024
+        print(f"  index.html DESCRIPTIONS updated (~{size_kb} KB total)")
 
 
 def main():
@@ -183,9 +236,12 @@ def main():
     print("Updating index.html ANIMALS array …")
     update_index_animals(animals)
 
+    print("Updating index.html DESCRIPTIONS …")
+    update_index_descriptions(animals)
+
     print(f"\nDone.")
-    print(f"  animals/  → {len(animals)} individual pages")
-    print(f"  index.html → ANIMALS array refreshed")
+    print(f"  animals/   → {len(animals)} individual pages")
+    print(f"  index.html → ANIMALS array + DESCRIPTIONS updated")
 
 
 if __name__ == "__main__":

@@ -33,8 +33,8 @@
   .traits{display:flex;flex-wrap:wrap;gap:.3rem;}
   .trait{font-size:.8rem;padding:.28rem .65rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
   .desc{font-size:.97rem;line-height:1.82;color:var(--ink);}
-  .desc-nl{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
-  .desc-nl .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .desc-other{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
+  .desc-other .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
   .source{font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.9rem;}
   .source a{color:var(--green);}
 
@@ -62,8 +62,9 @@
 
   <div class="section">
     <span class="slabel">Descrizione</span>
-    <div class="desc-nl"><span class="orig-label">Testo originale (Nederlands — traduzione non ancora disponibile)</span>Deze grote antilope leeft op de savanne. Ze zien er wat onbeholpen uit maar bewegen sierlijk en snel. De kongoni leeft in grote groep, is sociaal en kalm van aard. Wanneer die wordt uitgedaagd, kan die fel reageren, maar niet agressief. De kongoni verdedigt hun jongen sterk en waarschuwt hun soortgenoten bij gevaar.</div>
-    
+    <p class="desc">Questa grande antilope vive nella savana. Ha un aspetto un po&#x27; goffo, ma si muove con grazia e rapidità. Il kongoni vive in gruppi numerosi, è sociale e di natura calma. Quando viene sfidato, può reagire in modo feroce, ma non aggressivo. Il kongoni difende strenuamente i suoi piccoli e avverte i suoi simili in caso di pericolo.</p>
+    <div class="desc-other"><span class="orig-label">🇬🇧 English</span>This large antelope lives on the savannah. They look somewhat awkward but move gracefully and quickly. The kongoni lives in large groups, is social and calm in nature. When challenged, it can react fiercely, but not aggressively. The kongoni strongly defends their young and warns their peers when in danger.</div>
+    <div class="desc-other"><span class="orig-label">🇧🇪 Nederlands (origineel)</span>Deze grote antilope leeft op de savanne. Ze zien er wat onbeholpen uit maar bewegen sierlijk en snel. De kongoni leeft in grote groep, is sociaal en kalm van aard. Wanneer die wordt uitgedaagd, kan die fel reageren, maar niet agressief. De kongoni verdedigt hun jongen sterk en waarschuwt hun soortgenoten bij gevaar.</div>
   </div>
 
   <div class="source">

@@ -335,6 +335,11 @@ def main():
         if a["slug"] == "gibbon":
             a["it"] = "Gibbonw".replace("w", "")
 
+    # Fix honingdas: "Ratel" (Afrikaans) → proper Italian name
+    for a in animals:
+        if a["slug"] == "honingdas":
+            a["it"] = "Tasso del miele"
+
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(animals, f, ensure_ascii=False, indent=2)
 
