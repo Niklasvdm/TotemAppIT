@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beccapesci – Totem Scouts</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --ink:#1a1208; --green:#2c5f2e; --green-mid:#3d7a40; --green-light:#e8f4e8;
+    --green-pale:#f4faf4; --red:#b91c1c;
+    --amber:#c17f24;
+    --bg:#faf8f4; --surface:#fff; --surface2:#f6f3ee;
+    --border:#ddd5c8; --muted:#7a6e60;
+    --tag-bg:#ecf4ec; --tag-border:#b8d4b9; --r:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;min-height:100vh;}
+  header{background:var(--green);padding:1.2rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+  .h-title{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:#fff;}
+  .h-sub{font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.1rem;}
+  .h-back{font-size:.8rem;color:rgba(255,255,255,.85);text-decoration:none;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:.3rem .75rem;border-radius:20px;transition:background .15s;}
+  .h-back:hover{background:rgba(255,255,255,.22);}
+
+
+  .page{max-width:680px;margin:2.5rem auto;padding:0 1.2rem 4rem;}
+  .animal-name{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:700;color:var(--green);line-height:1.1;margin-bottom:.25rem;}
+  .name-nl{font-size:.9rem;color:var(--muted);margin-bottom:.1rem;}
+  .name-alt{font-size:.82rem;color:var(--muted);font-style:italic;margin-bottom:1.5rem;}
+  .section{margin-bottom:1.6rem;}
+  .slabel{font-size:.65rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.55rem;display:block;}
+  .traits{display:flex;flex-wrap:wrap;gap:.3rem;}
+  .trait{font-size:.8rem;padding:.28rem .65rem;border-radius:20px;background:var(--tag-bg);color:var(--green);border:1px solid var(--tag-border);}
+  .desc{font-size:.97rem;line-height:1.82;color:var(--ink);}
+  .desc-nl{font-size:.82rem;color:var(--muted);background:var(--surface2);border-left:3px solid var(--border);padding:.65rem .9rem;border-radius:0 6px 6px 0;line-height:1.65;font-style:italic;margin-top:.8rem;}
+  .desc-nl .orig-label{font-size:.63rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem;font-style:normal;}
+  .source{font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:.9rem;}
+  .source a{color:var(--green);}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-title">🐾 Cercatore di Totem</div>
+    <div class="h-sub">Scouts en Gidsen Vlaanderen · Totemzoeker</div>
+  </div>
+  <a class="h-back" href="../index.html">← Tutti i totem</a>
+</header>
+
+<div class="page">
+  <div class="animal-name">Beccapesci</div>
+  <div class="name-nl">🇧🇪 Schaarbek</div>
+  <div class="name-alt">Rayador</div>
+
+  <div class="section">
+    <span class="slabel">Caratteristiche</span>
+    <div class="traits"><span class="trait">abile</span><span class="trait">onesto</span><span class="trait">solidale</span><span class="trait">diligente</span><span class="trait">calmo</span><span class="trait">ordinato</span><span class="trait">tranquillo</span><span class="trait">cooperativo</span><span class="trait">gentile</span></div>
+  </div>
+
+  <div class="section">
+    <span class="slabel">Descrizione</span>
+    <div class="desc-nl"><span class="orig-label">Testo originale (Nederlands — traduzione non ancora disponibile)</span>Deze vogel leeft in kolonies langs kusten en rivieren. De schaarbek is ordelijk en werkt steeds samen met soortgenoten, waarbij ze elkaar aflossen. Schaarbekken zijn vriendelijk en gedienstig. Ze zijn eerlijk en gaan behendig te werk, zonder een spoor van luiheid te vertonen. De schaarbek stelt rust en kalmte op prijs. De kolonie verhuist snel als er onrust of gevaar dreigt om de orde zo vlug mogelijk te herstellen.</div>
+    
+  </div>
+
+  <div class="source">
+    Fonte: <a href="https://www.scoutsengidsenvlaanderen.be/totemzoeker/schaarbek" target="_blank" rel="noopener">Scouts en Gidsen Vlaanderen – Totemzoeker</a>
+  </div>
+</div>
+
+</body>
+</html>
