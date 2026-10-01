@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,24 +19,46 @@ import (
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
 )
 
+// slugRe guards the image file path against traversal: slugs are lowercase
+// letters, digits and hyphens only.
+var slugRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+
 // Catalog is the slice of the data layer the API consumes. *store.Store
 // satisfies it; tests supply a fake. (Interface defined by the consumer.)
 type Catalog interface {
 	ListAnimals(ctx context.Context, f store.Filter) ([]store.Animal, error)
 	GetAnimal(ctx context.Context, slug, lang string) (*store.AnimalDetail, error)
 	Similar(ctx context.Context, slug, lang string, limit int) ([]store.Animal, error)
+	SimilarByTraits(ctx context.Context, include, exclude []string, lang string, limit int) ([]store.Animal, error)
 	ListTraits(ctx context.Context, lang string) ([]store.Trait, error)
 }
 
 // Server holds the router and its dependencies.
 type Server struct {
-	cat    Catalog
-	Router http.Handler
+	cat      Catalog
+	imageDir string            // directory of <slug>.webp files (TOTEM_IMAGE_DIR)
+	Emoji    map[string]string // slug -> emoji, served at /api/v1/emoji (set by main)
+	Router   http.Handler
 }
 
-// New wires the routes and middleware.
-func New(cat Catalog) *Server {
-	s := &Server{cat: cat}
+// LoadEmoji reads a slug->emoji JSON map from path (returns nil on any error, so
+// the frontend simply falls back to a default glyph).
+func LoadEmoji(path string) map[string]string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var m map[string]string
+	if json.Unmarshal(b, &m) != nil {
+		return nil
+	}
+	return m
+}
+
+// New wires the routes and middleware. imageDir is where animal images are served
+// from (may be "" if images aren't deployed — the image route then 404s).
+func New(cat Catalog, imageDir string) *Server {
+	s := &Server{cat: cat, imageDir: imageDir}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
@@ -43,7 +68,10 @@ func New(cat Catalog) *Server {
 		r.Get("/animals", s.listAnimals)
 		r.Get("/animals/{slug}", s.getAnimal)
 		r.Get("/animals/{slug}/similar", s.similar)
+		r.Get("/similar", s.similarByTraits)
+		r.Get("/animals/{slug}/image", s.animalImage)
 		r.Get("/traits", s.listTraits)
+		r.Get("/emoji", s.emoji)
 	})
 
 	s.Router = r
@@ -53,19 +81,30 @@ func New(cat Catalog) *Server {
 // --- DTOs (JSON shapes; separate from the domain types) ---------------------
 
 type animalDTO struct {
-	Slug   string   `json:"slug"`
-	Name   string   `json:"name"`
-	Traits []string `json:"traits"`
+	Slug        string   `json:"slug"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Traits      []string `json:"traits"`
+	Score       float64  `json:"score,omitempty"` // Jaccard 0..1, only on similarity results
 }
 
 type animalDetailDTO struct {
-	Slug        string   `json:"slug"`
-	Name        string   `json:"name"`
-	NameNL      string   `json:"nameNl"`
-	AltNames    string   `json:"altNames,omitempty"`
-	Description string   `json:"description"`
-	Traits      []string `json:"traits"`
-	SourceURL   string   `json:"sourceUrl,omitempty"`
+	Slug        string    `json:"slug"`
+	Name        string    `json:"name"`
+	NameNL      string    `json:"nameNl"`
+	AltNames    string    `json:"altNames,omitempty"`
+	Description string    `json:"description"`
+	Traits      []string  `json:"traits"`
+	SourceURL   string    `json:"sourceUrl,omitempty"`
+	Image       *imageDTO `json:"image,omitempty"`
+}
+
+// imageDTO carries the image URL plus the attribution the UI must display.
+type imageDTO struct {
+	URL     string `json:"url"`
+	Author  string `json:"author,omitempty"`
+	License string `json:"license,omitempty"`
+	Source  string `json:"source,omitempty"`
 }
 
 type traitDTO struct {
@@ -75,6 +114,15 @@ type traitDTO struct {
 }
 
 // --- Handlers ---------------------------------------------------------------
+
+// emoji returns the slug -> emoji map the finder cards use.
+func (s *Server) emoji(w http.ResponseWriter, _ *http.Request) {
+	if s.Emoji == nil {
+		writeJSON(w, http.StatusOK, map[string]string{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.Emoji)
+}
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -98,7 +146,7 @@ func (s *Server) listAnimals(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]animalDTO, 0, len(animals))
 	for _, a := range animals {
-		out = append(out, animalDTO{Slug: a.Slug, Name: a.Name, Traits: a.Traits})
+		out = append(out, animalDTO{Slug: a.Slug, Name: a.Name, Description: a.Description, Traits: a.Traits, Score: a.Score})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -117,7 +165,7 @@ func (s *Server) getAnimal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, animalDetailDTO{
+	dto := animalDetailDTO{
 		Slug:        d.Slug,
 		Name:        d.Name,
 		NameNL:      d.NameNL,
@@ -125,7 +173,33 @@ func (s *Server) getAnimal(w http.ResponseWriter, r *http.Request) {
 		Description: d.Description,
 		Traits:      d.Traits,
 		SourceURL:   d.SourceURL,
-	})
+	}
+	if d.ImagePath != "" {
+		dto.Image = &imageDTO{
+			URL:     "/api/v1/animals/" + d.Slug + "/image",
+			Author:  d.ImageAuthor,
+			License: d.ImageLicense,
+			Source:  d.ImageSource,
+		}
+	}
+	writeJSON(w, http.StatusOK, dto)
+}
+
+// animalImage streams <slug>.webp from imageDir, or 404 if absent.
+func (s *Server) animalImage(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if s.imageDir == "" || !slugRe.MatchString(slug) {
+		writeErr(w, http.StatusNotFound, "no image")
+		return
+	}
+	path := filepath.Join(s.imageDir, slug+".webp")
+	if _, err := os.Stat(path); err != nil {
+		writeErr(w, http.StatusNotFound, "no image")
+		return
+	}
+	w.Header().Set("Content-Type", "image/webp")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	http.ServeFile(w, r, path)
 }
 
 func (s *Server) similar(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +218,27 @@ func (s *Server) similar(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]animalDTO, 0, len(animals))
 	for _, a := range animals {
-		out = append(out, animalDTO{Slug: a.Slug, Name: a.Name, Traits: a.Traits})
+		out = append(out, animalDTO{Slug: a.Slug, Name: a.Name, Description: a.Description, Traits: a.Traits, Score: a.Score})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// similarByTraits ranks animals by Jaccard overlap with the selected trait
+// profile (Similarity mode). Reuses the include/exclude query params.
+func (s *Server) similarByTraits(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	lang := validLang(q.Get("lang"))
+	include := splitCSV(q.Get("include"))
+	exclude := splitCSV(q.Get("exclude"))
+
+	animals, err := s.cat.SimilarByTraits(r.Context(), include, exclude, lang, 60)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "could not compute similar animals")
+		return
+	}
+	out := make([]animalDTO, 0, len(animals))
+	for _, a := range animals {
+		out = append(out, animalDTO{Slug: a.Slug, Name: a.Name, Description: a.Description, Traits: a.Traits, Score: a.Score})
 	}
 	writeJSON(w, http.StatusOK, out)
 }

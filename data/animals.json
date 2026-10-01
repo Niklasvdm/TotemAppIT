@@ -353,7 +353,7 @@
     "desc_nl": "Deze wilde honden hebben een groot aanpassingsvermogen. Ze zijn slank, snel en hebben een groot uithoudingsvermogen. Vooral hun reukzin en gehoor zijn sterk ontwikkeld. Alpenhonden leiden een hecht gemeenschapsleven en zijn erg sociaal, maar kunnen fel reageren op vreemden.",
     "desc_it": "Questi cani selvatici hanno una grande capacità di adattamento. Sono snelli, veloci e dotati di grande resistenza. In particolare l'olfatto e l'udito sono molto sviluppati. Conducono una vita comunitaria unita e sono molto sociali, ma possono reagire con veemenza verso gli estranei.",
     "desc_en": "These wild dogs have great adaptability. They are slender, fast and have great stamina. Their sense of smell and hearing are especially highly developed. Alpine dogs lead a close community life and are very social, but can react fiercely to strangers.",
-    "en": "Alpine dog",
+    "en": "Dhole",
     "traits_en": [
       "customising",
       "perceptive",
@@ -817,7 +817,7 @@
     "desc_nl": "Deze vogel heeft een los donsachtig verenkleed. Ze zijn geduldig, maar ook roekeloos. Een baardkoekoek blijft lang stilzitten tot een prooi voorbijkomt en reageert dan snel en behendig. Niets ontgaat hen. Baardkoekoeken zijn trouw aan hun uitkijkpost: als iets hen doet opschrikken, vliegen ze er nooit ver vandaan.",
     "desc_it": "Questo uccello ha un piumaggio morbido e soffice. Sono pazienti, ma anche temerari. Il cuculo barbuto sta immobile a lungo finché una preda non passa, e poi reagisce rapidamente e abilmente. Nulla gli sfugge. Sono fedeli al loro posto d'osservazione: se qualcosa li spaventa, non volano mai lontano da esso.",
     "desc_en": "This bird has a loose downy plumage. They are patient but also reckless. A bearded cuckoo stays still for a long time until prey passes by, then reacts quickly and deftly. Nothing escapes them. Bearded cuckoos are loyal to their lookout: if something startles them, they never fly far from it.",
-    "en": "Bearded cuckoo",
+    "en": "Dwarf koel",
     "traits_en": [
       "deft",
       "patient",
@@ -1111,7 +1111,7 @@
     "desc_nl": "Een beermarter heeft een unieke gespierde grijpstaart. Trouw en volgzaam is hun aard. Een beermarter leidt een kalm en gezapig leven. Wanneer ze actief zijn, laten ze van zich horen. Ze zijn lief en zachtaardig en lijken iedereen graag te mogen. Een beermarter is rustig en speels, maar kan soms agressief zijn als die in het nauw gedreven wordt.",
     "desc_it": "Il binturong ha una coda prensile muscolosa unica. Fedele e docile è il loro carattere. Un binturong conduce una vita tranquilla e pacifica. Quando sono attivi, fanno sentire la loro presenza. Sono dolci e gentili e sembrano voler bene a tutti. È calmo e giocoso, ma può talvolta essere aggressivo se messo alle strette.",
     "desc_en": "A bear marten has a uniquely muscular prehensile tail. Loyal and docile is their nature. A bear marten leads a calm and sedate life. When they are active, they make themselves heard. They are sweet and gentle and seem to like everyone. A bear marten is calm and playful, but can sometimes be aggressive when cornered.",
-    "en": "Bear marten",
+    "en": "Binturong",
     "traits_en": [
       "gentle",
       "docile",
@@ -1280,7 +1280,7 @@
     "desc_nl": "Dit kleine knaagdier leeft op de toendra en op bergweiden. De berglemming is gehard en zowel overdag als ‘s nachts actief. Bij gevaar laat die hun soortgenoten niet in de steek. Ze zijn sociaal en passen zich gemakkelijk aan. De berglemming is avontuurlijk en wat roekeloos.",
     "desc_it": "Questo piccolo roditore vive sulla tundra e nei pascoli montani. Il lemming di montagna è robusto e attivo sia di giorno che di notte. In caso di pericolo non abbandona i propri simili. Sono sociali e si adattano con facilità. Il lemming di montagna è avventuroso e un po' temerario.",
     "desc_en": "This small rodent lives on the tundra and mountain pastures. The mountain lemming is hardy and active both day and night. When in danger, they do not abandon their conspecifics. They are social and adapt easily. The mountain lemming is adventurous and somewhat reckless.",
-    "en": "Mountain lemming",
+    "en": "Norway lemming",
     "traits_en": [
       "customising",
       "active",
@@ -1552,7 +1552,7 @@
     "desc_nl": "Deze vogel heeft een lange sterke snavel en een zwarte band door het oog die doorloopt in de kuif. Ze zijn voorzichtig en eerder schuw. De blauwe reiger is heel geduldig en niet kieskeurig. Hun beweging is sierlijk, bedaard, langzaam en bedachtzaam. De blauwe reiger leeft in kolonies gedurende het broedseizoen, maar meestal in kleine groepen of alleen tijdens de rest van het jaar.",
     "desc_it": "Questo uccello ha un lungo becco robusto e una banda nera attraverso l'occhio che si prolunga nel ciuffo. Sono cauti e piuttosto schivi. L'airone cenerino è molto paziente e non selettivo. I suoi movimenti sono eleganti, tranquilli, lenti e riflessivi. Vive in colonie durante la stagione riproduttiva, ma per lo più in piccoli gruppi o da solo durante il resto dell'anno.",
     "desc_en": "This bird has a long strong bill and a black band through the eye that continues into the crest. They are cautious and rather shy. The blue heron is very patient and unfussy. Their movement is graceful, subdued, slow and thoughtful. The grey heron lives in colonies during the breeding season, but usually in small groups or alone during the rest of the year.",
-    "en": "Blue heron",
+    "en": "Grey heron",
     "traits_en": [
       "subdued",
       "thoughtful",
@@ -2450,7 +2450,7 @@
     "desc_nl": "De comorenwever is een felgekleurde en opvallende zangvogel. Ze zijn verdraagzaam, trouw en weinig schuw. Deze vogel geeft een erg rustige indruk maar is innerlijk heel levendig. Meestal bouwt een comorenwever een nest met een ingewikkelde structuur, maar soms maakt die er zich gemakkelijk van af.",
     "desc_it": "Il tessitore comorante è un uccello canoro dai colori sgargianti e di grande impatto. È tollerante, fedele e poco timido. Questo uccello dà un'impressione di calma, ma è internamente molto vivace. Di solito il tessitore comorante costruisce un nido dalla struttura intricata, ma a volte lo fa in modo semplice.",
     "desc_en": "The comorant weaver is a brightly coloured and striking songbird. They are tolerant, loyal and not very shy. This bird gives a very calm impression but is internally very lively. Usually, a comorant weaver builds a nest with an intricate structure, but sometimes it makes easy work of it.",
-    "en": "Comoros weaver",
+    "en": "Comoros fody",
     "traits_en": [
       "lazy",
       "ingenious",
@@ -3298,7 +3298,7 @@
     "desc_nl": "Deze kleine muis leeft in dichtbegroeide graslanden. Ze zijn actief en behendig. Als er iets verdachts gebeurt, verstart die en speurt die de omgeving af. De dwergmuis gedraagt zich erg territoriaal, behalve in de winter want dan werkt die goed samen om te overleven.",
     "desc_it": "Questo piccolo topo vive in fitte praterie. È attivo e agile. Se succede qualcosa di sospetto, si irrigidisce e scruta la zona. Il topo pigmeo si comporta in modo molto territoriale, tranne in inverno, quando collabora per sopravvivere.",
     "desc_en": "This small mouse lives in dense grasslands. They are active and agile. If something suspicious happens, it stiffens and scans the area. The pygmy mouse behaves very territorially, except in winter, when it works well together to survive.",
-    "en": "Pygmy mouse",
+    "en": "Eurasian harvest mouse",
     "traits_en": [
       "active",
       "deft",
@@ -4106,7 +4106,7 @@
     "desc_nl": "De franjeschildpad is erg gesteld op rust en ruimte voor zichzelf. Het is een rasechte levensgenieter en plantrekker. Door het spaarzaam en doordacht plannen van acties, maakt de franjeschildpad een geduldige indruk. Meestal houdt dit reptiel zich verborgen, om vervolgens op het geknipte moment hun slag te slaan.",
     "desc_it": "La tartaruga scatola ama molto la tranquillità e lo spazio per sé. È un bon vivant di razza e un mangiatore di piante. Pianificando le sue azioni in modo parsimonioso e ponderato, la tartaruga frangiata fa un'impressione paziente. Di solito, questo rettile si tiene nascosto, per poi fare la sua mossa all'ultimo momento.",
     "desc_en": "The box turtle is very fond of peace and quiet and space for itself. It is a purebred bon vivant and plant-eater. Sparingly and thoughtfully planning its actions, the fringed turtle makes a patient impression. Usually, this reptile keeps itself hidden, only to make their move at the cutting edge.",
-    "en": "Fringe turtle",
+    "en": "Mata mata",
     "traits_en": [
       "peace seeker",
       "independent",
@@ -4675,7 +4675,7 @@
     "desc_nl": "De geep is een makreelachtige vis met sterk verlengde kaken. Ze zijn flexibel en staan vooral bekend om de gewoonte om uit het water te springen en vervolgens langs het wateroppervlak te scheren. De geep is erg snel en leeft altijd in scholen. Ze vertonen een zekere speelsheid wanneer ze hun acrobatische sprongen maken.",
     "desc_it": "Il geep è un pesce simile allo sgombro con mascelle molto allungate. Sono flessibili e sono conosciute soprattutto per la loro abitudine di saltare fuori dall'acqua e poi sfiorare la superficie. Le anguille sono molto veloci e vivono sempre in banchi. Mostrano una certa giocosità quando compiono i loro salti acrobatici.",
     "desc_en": "The geep is a mackerel-like fish with greatly elongated jaws. They are flexible and are best known for their habit of jumping out of the water and then skimming along the surface. Eels are very fast and always live in schools. They show a certain playfulness when they make their acrobatic jumps.",
-    "en": "Geep",
+    "en": "Garfish",
     "traits_en": [
       "acrobatic",
       "flexible",
@@ -5071,7 +5071,7 @@
     "desc_nl": "Dit knaagdier leeft in de woestijn tussen de rotsen. De goendi is behendig en kan zich snel voortbewegen. Naar de buitenwereld toe is hun gedrag eerder onopvallend: die verraadt zich alleen maar als die zich beweegt. Bij soortgenoten is de goendi erg communicatief en bevordert die zo de groepssfeer. Ze kunnen enorm genieten van de zon.",
     "desc_it": "Questo roditore vive nel deserto tra le rocce. Il goendi è agile e può muoversi rapidamente. Nei confronti del mondo esterno, il suo comportamento è piuttosto poco appariscente: si tradisce solo quando si muove. Tra i conspecifici, il goendi è molto comunicativo e promuove lo spirito di gruppo. Può godere immensamente della luce del sole.",
     "desc_en": "This rodent lives in the desert among the rocks. The goendi is agile and can move quickly. Towards the outside world, their behaviour is rather inconspicuous: it only betrays itself when it moves. Among conspecifics, the goendi is very communicative and thus promotes group spirit. They can enjoy the sunshine immensely.",
-    "en": "Goendi",
+    "en": "Common gundi",
     "traits_en": [
       "deft",
       "communicative",
@@ -6080,7 +6080,7 @@
     "desc_nl": "De hazelmuis leeft in loofbos of struikgewas en houdt een winterslaap. Het is een goede klimmer.’s Nachts is die zeer actief en beweeglijk. De hazelmuis heeft een goed gehoor en goede reukzin, maar een nog betere tastzin. Ze zijn trouw aan hun familie en omgeving.",
     "desc_it": "Il topo nocciola vive nei boschi di latifoglie o nelle macchie e va in letargo. È un buon arrampicatore e di notte è molto attivo e agile. Il topo nocciola ha un buon udito e un buon olfatto, ma un senso del tatto ancora migliore. È fedele alla famiglia e all'ambiente.",
     "desc_en": "The hazel mouse lives in deciduous forest or scrubland and hibernates. A good climber, it is very active and agile at night. The hazel mouse has good hearing and a good sense of smell, but an even better sense of touch. They are loyal to their family and environment.",
-    "en": "Hazel mouse",
+    "en": "Hazel dormouse",
     "traits_en": [
       "active",
       "movable",
@@ -6724,7 +6724,7 @@
     "desc_nl": "Deze vogel kan tot op grote diepte duiken en zo ontsnappen als die belaagd wordt. De ijsduiker heeft zich aangepast aan het leven op het water. Ze zijn echter onbeholpen in nieuwe omgevingen, waar ze zich enkel begeven uit noodzaak. De ijsduiker leeft in kleine troepen en heeft een luide roep. De jongen liften af en toe mee op de rug van volwassen dieren.",
     "desc_it": "Questo uccello può immergersi a grandi profondità e quindi fuggire quando è sotto assedio. Il palombaro dei ghiacci si è adattato alla vita sull'acqua. Tuttavia, è impacciato nei nuovi ambienti, dove si muove solo per necessità. Il palombaro vive in piccoli gruppi e ha un forte richiamo. I piccoli a volte fanno l'autostop sul dorso degli adulti.",
     "desc_en": "This bird can dive to great depths and thus escape when under siege. The ice diver has adapted to life on water. However, they are awkward in new environments, where they move only out of necessity. The polar diver lives in small troops and has a loud call. The young occasionally hitchhike on the backs of adults.",
-    "en": "Polar diver",
+    "en": "Common loon",
     "traits_en": [
       "customising",
       "creature of habit",
@@ -8188,7 +8188,7 @@
     "desc_nl": "Deze prachtige witte, slanke steltloper heeft een gedeeltelijk zwarte kop en zwarte strepen op de vleugels. De kluut leeft in dichte en grote groepen. Deze goede zwemmer beweegt heel sierlijk. De kluut is bedrijvig en beweeglijk, maar ook moedig en waakzaam. Dit dier beschermt hun familie en jongen fel.",
     "desc_it": "Questo bellissimo trampoliere bianco e snello ha la testa parzialmente nera e strisce nere sulle ali. L'avocetta vive in gruppi densi e numerosi. Questo buon nuotatore si muove con molta grazia. L'avocetta è laboriosa e agile, ma anche audace e vigile. Questo animale protegge ferocemente la famiglia e i piccoli.",
     "desc_en": "This beautiful white, slender wader has a partially black head and black stripes on its wings. The avocet lives in dense and large groups. This good swimmer moves very gracefully. The avocet is industrious and agile, but also bold and vigilant. This animal fiercely protects their family and young.",
-    "en": "Pied Piper",
+    "en": "Pied avocet",
     "traits_en": [
       "bustling",
       "protective",
@@ -8231,7 +8231,7 @@
     "desc_nl": "Dit opvallende zwijn houdt ervan om zich door de modder te wentelen. Ze zijn weerbaar en leven onbevreesd op de savanne. Het knobbelzwijn is verstandig, uitgesproken sociaal en heeft een sterke familieband. Ze zijn verdraagzaam wanneer andere families in hun leefomgeving komen. Dit dier is zorgzaam voor de jongen en onbaatzuchtig. Het knobbelzwijn is overdag actief, maar schuilt vaak voor de hitte in holen.",
     "desc_it": "Questo cinghiale impressionante ama sguazzare nel fango. È resistente e vive senza paura nella savana. Il cinghiale muto è sensibile, decisamente sociale e ha forti legami familiari. Sono tolleranti quando altre famiglie entrano nel loro habitat. Questo animale è premuroso nei confronti dei suoi piccoli e altruista. Il cinghiale muto è attivo durante il giorno, ma spesso si nasconde dal caldo nelle tane.",
     "desc_en": "This striking boar loves to wallow through the mud. They are resilient and live fearlessly on the savannah. The mute boar is sensible, distinctly social and has strong family ties. They are tolerant when other families enter their habitat. This animal is caring for its young and selfless. The Mute boar is active during the day but often hides from the heat in burrows.",
-    "en": "Mute boar",
+    "en": "Warthog",
     "traits_en": [
       "active",
       "altruistic",
@@ -8730,7 +8730,7 @@
     "desc_nl": "Het voorkomen, doen en laten van deze zangvogel is zeer aantrekkelijk. Dit dier is veelzijdig begaafd en erg nuttig. De koolmees is bedrijvig, behendig, vrolijk, opgewekt, nieuwsgierig maar kan ook twistziek zijn. Ze zijn sociaal en trekken rond in familieverband.",
     "desc_it": "L'aspetto, le azioni e il comportamento di questo uccello canoro sono molto attraenti. Questo animale è polivalente e molto utile. La cinciallegra è laboriosa, agile, allegra, solare, curiosa ma può anche essere litigiosa. Sono sociali e si muovono in gruppi familiari.",
     "desc_en": "The appearance, acts and behaviour of this songbird is very attractive. This animal is multi-talented and very useful. The great tit is industrious, agile, cheerful, cheerful, curious but can also be contentious. They are social and move around in family groups.",
-    "en": "Titmouse",
+    "en": "Great tit",
     "traits_en": [
       "attractive",
       "bustling",
@@ -9149,7 +9149,7 @@
     "desc_nl": "De kwartelsnip heeft korte poten en een korte snavel en is herkenbaar aan hun snelle zigzagvlucht. Deze sociale steltloper leeft in groep. Ze zijn onopvallend, onverstoorbaar en zeker niet bang. Bij gevaar is de kwartelsnip inventief en brengt die hun belager in de war.",
     "desc_it": "Il beccaccino ha zampe e becco corti e si riconosce per il volo veloce a zig-zag. Questo trampoliere sociale vive in gruppi. È poco appariscente, imperturbabile e certamente non ha paura. In caso di pericolo, il beccaccino è ingegnoso e confonde l'aggressore.",
     "desc_en": "The quail snipe has short legs and a short bill and can be recognised by their fast zigzag flight. This social stilt-walker lives in groups. They are inconspicuous, unflappable and certainly not afraid. When in danger, the quail snipe is inventive and confuses their attacker.",
-    "en": "Quail snipe",
+    "en": "Seedsnipe",
     "traits_en": [
       "brave",
       "social animal",
@@ -9270,7 +9270,7 @@
     "desc_nl": "De lampongaap leeft in grote groepen. Ze zijn vrijmoedig en hebben een onbewogen houding. Deze grote aap wordt niet snel onrustig en is heel geduldig, vooral in het gezelschap van hun soortgenoten.",
     "desc_it": "La scimmia lampuga vive in gruppi numerosi. Sono audaci e hanno un atteggiamento impassibile. Questa grande scimmia non si agita facilmente ed è molto paziente, soprattutto in compagnia dei suoi simili.",
     "desc_en": "The lampong monkey lives in large groups. They are bold and have an impassive demeanour. This large monkey does not get restless easily and is very patient, especially in the company of their peers.",
-    "en": "Lampong monkey",
+    "en": "Southern pig-tailed macaque",
     "traits_en": [
       "patient",
       "social animal",
@@ -10114,7 +10114,7 @@
     "desc_nl": "De manenwolf is een bruinrode wilde hondachtige met lange poten. Dit dier wordt door de Indianen ‘vos op stelten’ genoemd. Het is een opmerkelijke verschijning. Manenwolven zijn trouw en sociaal. Ze zijn beweeglijk, leggen grote afstanden af en hebben een groot uithoudingsvermogen. Manenwolven zijn zorgzaam voor hun kroost.",
     "desc_it": "Il lupo dalla criniera è un animale simile a un cane selvatico di colore rosso-bruno con zampe lunghe. Questo animale è chiamato dagli indiani \"volpe sui trampoli\". Il suo aspetto è notevole. I lupi dalla criniera sono fedeli e sociali. Sono agili, coprono lunghe distanze e hanno una grande resistenza. I lupi dalla criniera si prendono cura della loro prole.",
     "desc_en": "The maned wolf is a brownish-red wild dog-like animal with long legs. This animal is called 'fox on stilts' by the Indians. It is a remarkable appearance. Maned wolves are loyal and social. They are agile, cover long distances and have great stamina. Maned wolves are caring for their offspring.",
-    "en": "Mane wolf",
+    "en": "Maned wolf",
     "traits_en": [
       "movable",
       "remarkable",
@@ -10191,7 +10191,7 @@
     "desc_nl": "Deze katachtige voedt zich met kleine knaagdieren. De manoel is intelligent en jaagt door hinderlagen op te zetten. Ze zijn kieskeurig wat hun voedsel betreft en zorgvuldig in de verzorging van hun vacht. De manoel kan een felle vechter zijn. Dit dier zorgt goed voor hun jongen.",
     "desc_it": "Questo felino si nutre di piccoli roditori. Il manoel è intelligente e caccia tendendo imboscate. È esigente in fatto di cibo e meticoloso nella cura della sua pelliccia. Il manoel può essere un combattente feroce. Questo animale si prende cura dei suoi piccoli.",
     "desc_en": "This feline feeds on small rodents. The manoel is intelligent and hunts by setting up ambushes. They are picky about their food and meticulous in the care of their fur. The manoel can be a fierce fighter. This animal takes good care of their young.",
-    "en": "Manoel",
+    "en": "Pallas's cat",
     "traits_en": [
       "bright",
       "intelligent",
@@ -10575,7 +10575,7 @@
     "desc_nl": "Deze koraalbewoner leeft veelal solitair, maar is ook terug te vinden in paren of kleine scholen. Dankzij hun gestreepte lichaam en masker, kan de maskerwimpelvis zich goed camoufleren tussen de koraalriffen. Het zorgzame karakter van deze vis uit zich vooral in het gezond houden van het rif. Bij gevaar stelt de maskerwimpelvis zich schuw op.",
     "desc_it": "Questo abitante dei coralli vive per lo più solitario, ma si può trovare anche in coppie o in piccoli banchi. Grazie al corpo e alla maschera a strisce, il pesce mascherina riesce a mimetizzarsi bene tra le barriere coralline. La natura premurosa di questo pesce si manifesta soprattutto nel mantenere in salute la barriera corallina. In caso di pericolo, il tordo mascherato si atteggia timidamente.",
     "desc_en": "This coral resident mostly lives solitary, but can also be found in pairs or small schools. Thanks to their striped body and mask, the mask wrasse can camouflage itself well among coral reefs. The caring nature of this fish manifests itself mainly in keeping the reef healthy. When in danger, the masked wrasse poses shyly.",
-    "en": "Masked wrasse",
+    "en": "Moorish idol",
     "traits_en": [
       "solitary",
       "social animal (small group)",
@@ -11410,7 +11410,7 @@
     "desc_nl": "Deze Canadese hond is buitengewoon zachtmoedig. Door hun leergierigheid, intelligentie en geduld zijn newfoundlanders aangenaam gezelschap. Ze zijn vriendelijk en tolerant. Onder bedreiging toont de newfoundlander moed en is die erg waakzaam. Newfoundlanders komen goed overeen met hun soortgenoten.",
     "desc_it": "Questo cane canadese è eccezionalmente gentile. La loro curiosità, intelligenza e pazienza rendono i Terranova di piacevole compagnia. Sono amichevoli e tolleranti. In caso di minaccia, il Terranova mostra coraggio ed è molto vigile. I Terranova vanno d'accordo con i loro simili.",
     "desc_en": "This Canadian dog is exceptionally gentle. Their inquisitiveness, intelligence and patience make newfoundlanders pleasant company. They are friendly and tolerant. Under threat, the newfoundlander shows courage and is very vigilant. Newfoundlanders get along well with their peers.",
-    "en": "Newfoundlander",
+    "en": "Newfoundland dog",
     "traits_en": [
       "pleasant",
       "patient",
@@ -11572,7 +11572,7 @@
     "desc_nl": "Deze grote uil heeft hun naam te danken aan hun roepgeluid. Door hun imposante verschijning hebben ze weinig vijanden. De oehoe is waakzaam en als die onraad ruikt, zal die elders een rustige plek zoeken. De oehoe kan urenlang muisstil blijven zitten en dan plots in actie schieten. Het is een opportunistische jager en vooruitziend. Oehoes verdedigen hun jongen hardnekkig en een paartje blijft levenslang bij elkaar.",
     "desc_it": "Questo grande gufo deve il suo nome al suo verso. Per il loro aspetto imponente hanno pochi nemici. Il gufo reale è vigile e se sente pericolo, cercherà un posto tranquillo altrove. Può stare immobile per ore e poi scattare improvvisamente in azione. È un cacciatore opportunista e previdente. I gufi reali difendono i loro piccoli tenacemente e una coppia rimane insieme per tutta la vita.",
     "desc_en": "This great owl gets their name from their call. Because of their imposing appearance, they have few enemies. The eagle owl is vigilant and if it smells danger, it will seek a quiet place elsewhere. It can sit silently for hours and then suddenly spring into action. It is an opportunistic hunter and farsighted. Eagle owls defend their young tenaciously and a pair stays together for life.",
-    "en": "Owl",
+    "en": "Eurasian eagle-owl",
     "traits_en": [
       "alert",
       "intelligent",
@@ -11975,7 +11975,7 @@
     "desc_nl": "Deze zangvogel bouwt een overdekt nest van gras en spinrag. Het ornaatelfje is een goede zanger en imitator. Dit dier is actief en rusteloos. Het leeft in groep, is trouw en werkt goed samen. Ornaatelfjes onderhouden en verdedigen hun territorium samen met anderen. Ze kunnen zich aanpassen aan een veranderende omgeving en leren vlot bij.",
     "desc_it": "Questo uccello canoro costruisce un nido coperto di erba e ragnatele. Il folletto ornato è un buon cantante e imitatore. Questo animale è attivo e irrequieto. Vive in gruppo, è leale e collabora bene. Gli elfi ornati mantengono e difendono il loro territorio insieme ad altri. Sono in grado di adattarsi a un ambiente mutevole e imparano rapidamente.",
     "desc_en": "This songbird builds a covered nest of grass and cobwebs. The ornate elf is a good singer and imitator. This animal is active and restless. It lives in groups, is loyal and cooperates well. Ornate elves maintain and defend their territory together with others. They can adapt to a changing environment and learn quickly.",
-    "en": "Ornate woodnymph",
+    "en": "Superb fairywren",
     "traits_en": [
       "customising",
       "active",
@@ -12521,7 +12521,7 @@
     "desc_nl": "Deze katachtige heeft lange poten en een prachtig gekleurde vacht. Het dier is zeer actief en een uitstekende klimmer. De pardelkat is zeer behendig en in staat een vogel tijdens de vlucht te vangen. Pardelkatten zijn echte nachtdieren. Overdag slapen ze in de bomen, bijna onopvallend door hun goede camouflage. De pardelkat verdedigt zich fel. Het heeft een groot aanpassingsvermogen en vertoeft in verschillende leefomgevingen.",
     "desc_it": "Questo felino ha zampe lunghe e una bella pelliccia colorata. L'animale è molto attivo ed è un eccellente arrampicatore. Il gatto pardel è molto agile e capace di afferrare un uccello in volo. I gatti pardel sono veri e propri animali notturni. Durante il giorno dormono sugli alberi, quasi senza farsi notare grazie alla loro buona mimetizzazione. Il gatto pardel si difende ferocemente. Ha una grande capacità di adattamento e abita in diversi habitat.",
     "desc_en": "This feline has long legs and beautifully coloured fur. The animal is very active and an excellent climber. The pardel cat is very agile and capable of catching a bird in flight. Pardel cats are true nocturnal animals. During the day, they sleep in the trees, almost inconspicuous due to their good camouflage. The pardel cat defends itself fiercely. It has great adaptability and dwells in different habitats.",
-    "en": "Pardel cat",
+    "en": "Ocelot",
     "traits_en": [
       "customising",
       "active",
@@ -12762,7 +12762,7 @@
     "desc_nl": "Statig en sierlijk glijdt de pauwoogstekelrog over de zeebodem. Met waakzame blik observeert het de omgeving, ten allen tijde klaar om gezwind te reageren op veranderingen. Hoewel dit roofdier onbevreesd is, vermijdt het onnodige conflicten. De pauwoogstekelrog is geduldig, maar laat nooit een kans onbenut.",
     "desc_it": "Con eleganza e grazia, la razza dagli occhi di pavone scivola sui fondali marini. Con occhi attenti, osserva l'ambiente circostante, pronta in ogni momento a reagire rapidamente ai cambiamenti. Sebbene questo predatore sia impavido, evita i conflitti inutili. La ragnatela dagli occhi di pavone è paziente, ma non perde mai un'occasione.",
     "desc_en": "Stately and gracefully, the peacock-eyed stingray glides across the seabed. With watchful eyes, it observes its surroundings, ready at all times to react swiftly to changes. Although this predator is fearless, it avoids unnecessary conflict. The peacock-eyed stingray is patient, but never misses an opportunity.",
-    "en": "Peacock stingray",
+    "en": "Ocellate river stingray",
     "traits_en": [
       "stately",
       "graceful",
@@ -13629,7 +13629,7 @@
     "desc_nl": "Deze steltloper heeft een opvallende opgerichte houding en relatief lange poten. Dit dier is energiek en een goede hardloper, die echter ook plots stil kan staan en die niet dikwijls vliegt. De renvogel is behoedzaam en heeft een groot aanpassingsvermogen.",
     "desc_it": "Questo trampoliere ha una caratteristica postura eretta e zampe relativamente lunghe. È un animale energico e un buon corridore, ma può anche fermarsi all'improvviso e non vola spesso. L'uccello corridore è prudente e ha una grande capacità di adattamento.",
     "desc_en": "This stilt-walker has a distinctive erect posture and relatively long legs. This animal is energetic and a good runner, but it can also stop suddenly and does not often fly. The racebird is cautious and has great adaptability.",
-    "en": "Roadrunner",
+    "en": "Cream-coloured courser",
     "traits_en": [
       "customising",
       "cautious",
@@ -13988,7 +13988,7 @@
     "desc_nl": "Deze vogel is een levendige en rusteloze acrobaat. De salangaan is humoristisch, creatief en kunstzinnig. Het dier heeft een sterk aanpassings- en oriënteringsvermogen dat hen in staat stelt snel in een nieuwe omgeving te aarden. De salangaan is een uitgesproken groepsdier, dat in grote kolonies leeft. Omdat die vlug en verstandig is, ontsnapt het makkelijk aan hun belagers.",
     "desc_it": "Questo uccello è un acrobata vivace e irrequieto. Il salangan è spiritoso, creativo e artistico. L'animale ha una forte capacità di adattamento e di orientamento che gli permette di ambientarsi rapidamente in un nuovo ambiente. Il salangan è un animale di gruppo, che vive in grandi colonie. Essendo rapido e sensibile, sfugge facilmente ai suoi aggressori.",
     "desc_en": "This bird is a lively and restless acrobat. The salangan is humorous, creative and artistic. The animal has strong adaptability and orientation skills that enable them to quickly ground themselves in a new environment. The salangan is a distinct group animal, living in large colonies. Being swift and sensible, it easily escapes their attackers.",
-    "en": "Salanganese",
+    "en": "Swiftlet",
     "traits_en": [
       "customising",
       "acrobatic",
@@ -14392,7 +14392,7 @@
     "desc_nl": "De schroefhoorngeit voelt zich het meest comfortabel in kleine, hechte groepjes. Ze staan niet vijandig tegenover andere dieren, maar zoeken er niet snel contact mee. Deze dieren zijn fraai, verstandig, nieuwsgierig, voorzichtig en lenig. De schroefhoorngeit is gehard door het leven in onherbergzame streken. Een jonge schroefhoorngeit is snel zelfstandig en gaat graag op onderzoek uit. Deze is opvallend leergierig.",
     "desc_it": "La capra striata si sente più a suo agio in piccoli gruppi affiatati. Non è ostile agli altri animali, ma non cerca facilmente il contatto con loro. Questi animali sono belli, sensibili, curiosi, prudenti e agili. La capra striata è temprata dalla vita in regioni inospitali. Una capra giovane è rapidamente indipendente e ama esplorare. Questo esemplare è straordinariamente curioso.",
     "desc_en": "The screwhorn goat feels most comfortable in small, close-knit groups. They are not hostile to other animals, but do not readily seek contact with them. These animals are handsome, sensible, curious, cautious and agile. The screwhorn goat is hardened by life in inhospitable regions. A young screwhorn goat is quickly independent and likes to explore. This one is remarkably inquisitive.",
-    "en": "Screw horn goat",
+    "en": "Markhor",
     "traits_en": [
       "family",
       "beautiful",
@@ -15598,7 +15598,7 @@
     "desc_nl": "De spoorkoekoek is een forse grondvogel die een verzorgd, stevig en goed verborgen nest bouwt. Deze stoutmoedige vogel haalt soms gedurfde acties uit om hun jongen te voeden. De spoorkoekoek is levendig en openhartig, maar zelden uitbundig. Deze vogel heeft een diepe en verdragende roep.",
     "desc_it": "Il cuculo delle rotaie è un uccello di terra di notevoli dimensioni che costruisce un nido ordinato, robusto e ben nascosto. Questo uccello audace a volte compie azioni coraggiose per nutrire i propri piccoli. Il cuculo delle rotaie è vivace e schietto, ma raramente esuberante. Questo uccello ha un richiamo profondo e tollerante.",
     "desc_en": "The rail cuckoo is a substantial ground bird that builds a neat, sturdy and well-hidden nest. This bold bird sometimes takes bold actions to feed their young. The rail cuckoo is lively and frank, but rarely exuberant. This bird has a deep and tolerant call.",
-    "en": "Spur-winged cuckoo",
+    "en": "Coucal",
     "traits_en": [
       "protective",
       "communicative",
@@ -17334,7 +17334,7 @@
     "desc_nl": "Dit kleine knaagdier heeft een ruige vacht en korte staart. Het springt, klimt, huppelt en is geweldig snel. De veldmuis is zeer vrolijk, goedhartig, argeloos en verstandig. Dit dier hoort scherp, ruikt op grote afstand en ziet voortreffelijk. De veldmuis is vooruitziend en verzamelt voedselvoorraden in hun nest.",
     "desc_it": "Questo piccolo roditore ha una pelliccia ispida e una coda corta. Salta, si arrampica, saltella ed è straordinariamente veloce. Il topo di campagna è molto allegro, bonario, insospettabile e sensibile. Questo animale sente molto bene, sente gli odori a grande distanza e vede benissimo. Il topo di campagna è lungimirante e raccoglie le scorte di cibo nel suo nido.",
     "desc_en": "This little rodent has shaggy fur and a short tail. It jumps, climbs, hops and is wonderfully quick. The field mouse is very cheerful, good-natured, guileless and sensible. This animal hears keenly, smells at a great distance and sees superbly. The field mouse is farsighted and collects food supplies in their nest.",
-    "en": "Field mouse",
+    "en": "Common vole",
     "traits_en": [
       "unsuspecting",
       "deft",
@@ -17632,7 +17632,7 @@
     "desc_nl": "De vuurstaartlabeo fleurt op in sociale kringen met een grote verscheidenheid aan soorten, maar duldt geen soortgenoten in het nauwkeurig afgezet territorium. Vrienden en kleinere dieren kunnen rekenen op de bescherming van de vuurstaartlabeo. Dit visje is levendig en actief van aard. De vuurstaartlabeo verkent graag onbekend terrein.",
     "desc_it": "Il labeo dalla coda di fuoco vive in ambienti sociali con un'ampia varietà di specie, ma non tollera conspecifici nel suo territorio ben delimitato. Gli amici e gli animali più piccoli possono contare sulla protezione del labeo dalla coda di fuoco. Questo piccolo pesce è vivace e attivo in natura. Il lobeo dalla coda di fuoco ama esplorare territori sconosciuti.",
     "desc_en": "The fire-tailed labeo brightens up in social circles with a wide variety of species, but does not tolerate conspecifics in its precisely demarcated territory. Friends and smaller animals can count on the fire-tailed labeo's protection. This little fish is lively and active in nature. The fire-tailed lobeo likes to explore unknown territory.",
-    "en": "Firetail labeo",
+    "en": "Red-tailed black shark",
     "traits_en": [
       "social",
       "collaborative",
@@ -17880,7 +17880,7 @@
     "desc_nl": "De wilde eend leeft in vijvers, moerassen, meren en sloten. Deze watervogel eet kleine visjes, slakken en wormen, maar is zeer flexibel in hun voedselkeuze. De wilde eend is sociaal, gezellig, verdraagzaam en zeer tolerant. De wilde eend heeft een groot aanpassingsvermogen. Dit dier is actief, beweeglijk en voorzichtig.",
     "desc_it": "Il germano reale vive in stagni, paludi, laghi e fossati. Questo uccello acquatico mangia piccoli pesci, lumache e vermi, ma è molto flessibile nella scelta del cibo. Il germano reale è sociale, socievole, tollerante e molto accomodante. Ha una grande capacità di adattamento. Questo animale è attivo, vivace e prudente.",
     "desc_en": "The mallard duck lives in ponds, marshes, lakes and ditches. This water bird eats small fish, snails and worms, but is very flexible in their choice of food. The mallard duck is social, sociable, tolerant and very tolerant. The mallard has great adaptability. This animal is active, agile and cautious.",
-    "en": "Wild duck",
+    "en": "Mallard",
     "traits_en": [
       "customising",
       "active",
@@ -18013,7 +18013,7 @@
     "slug": "wolharige-mammoet",
     "desc_nl": "",
     "desc_it": "Il mammut lanoso era un mammifero preistorico che viveva nelle steppe ghiacciate. Viveva in grandi branchi familiari, proteggendosi a vicenda dal freddo e dai predatori. Era potente e resistente, adatto alle condizioni climatiche più dure. Simbolo di forza e tenacia in un ambiente ostile.",
-    "en": "Wooly mammoth",
+    "en": "Woolly mammoth",
     "traits_en": [
       "persistent",
       "family",
@@ -18278,7 +18278,7 @@
   },
   {
     "nl": "Zebramangoest",
-    "it": "Mangusta bandita",
+    "it": "Mangusta striata",
     "alt": "Mungo",
     "traits_nl": [
       "alert",
@@ -18304,7 +18304,7 @@
     "desc_nl": "Zebramangoesten danken hun naam aan hun gestreepte tekening op de rug. Ze zijn zeer communicatief, opgewekt en goedaardig. De zebramangoest leeft in familieverband en jaagt in groep op diens prooi. De zebramangoest is alert, vindingrijk en zeer sociaal.",
     "desc_it": "Le manguste zebrate devono il loro nome alle marcature a strisce sul dorso. Sono molto comunicative, allegre e di buon carattere. Vivono in famiglia e cacciano le prede in gruppo. È vigile, intraprendente e molto sociale.",
     "desc_en": "Zebra mongooses get their name from their striped markings on the back. They are highly communicative, cheerful and good-natured. They live in families and hunt their prey in groups. It is alert, resourceful and very social.",
-    "en": "Zebra mongoose",
+    "en": "Banded mongoose",
     "traits_en": [
       "alert",
       "communicative",
@@ -18764,7 +18764,7 @@
     "desc_nl": "De zonnebaars is een zoetwatervis met levendige kleuren. Het groeit snel en is gevoelig voor vervuiling. De zonnebaars leeft sociaal in scholen, maar stelt zich met momenten territoriaal op. Deze vis is nieuwsgierig en toch steeds alert voor gevaar. Op die momenten vertoont het daadkracht en strijdlust. In nieuwe omgevingen, legt de zonnebaars een zekere brutaliteit voor de dag.",
     "desc_it": "Il pesce luna è un pesce d'acqua dolce dai colori vivaci. Cresce rapidamente ed è sensibile all'inquinamento. Il pesce luna vive socialmente in branchi, ma a volte adotta un atteggiamento territoriale. Questo pesce è curioso ma sempre attento ai pericoli. In quei momenti, mostra decisione e combattività. In ambienti nuovi, il pesce luna mostra una certa sfrontatezza.",
     "desc_en": "The sunfish is a freshwater fish with vibrant colours. It grows quickly and is sensitive to pollution. The sunfish lives socially in schools, but at times adopts a territorial attitude. This fish is curious yet ever alert for danger. At those moments, it shows decisiveness and belligerence. In new environments, the sunfish displays a certain cheekiness.",
-    "en": "Sunfish",
+    "en": "Pumpkinseed",
     "traits_en": [
       "colourful",
       "fragile",

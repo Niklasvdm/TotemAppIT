@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
@@ -29,6 +31,9 @@ func (f *fakeCatalog) GetAnimal(_ context.Context, slug, _ string) (*store.Anima
 func (f *fakeCatalog) Similar(context.Context, string, string, int) ([]store.Animal, error) {
 	return []store.Animal{{Slug: "wolf", Name: "Lupo"}}, nil
 }
+func (f *fakeCatalog) SimilarByTraits(context.Context, []string, []string, string, int) ([]store.Animal, error) {
+	return []store.Animal{{Slug: "wolf", Name: "Lupo"}}, nil
+}
 func (f *fakeCatalog) ListTraits(context.Context, string) ([]store.Trait, error) {
 	return []store.Trait{{Key: "sluw", Label: "astuto", Count: 2}}, nil
 }
@@ -42,7 +47,7 @@ func do(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
 
 func TestListAnimalsParsesFilter(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc)
+	srv := New(fc, "")
 
 	rec := do(t, srv, "/api/v1/animals?lang=en&q=fox&include=sluw,snel&exclude=nat")
 	if rec.Code != http.StatusOK {
@@ -66,7 +71,7 @@ func TestListAnimalsParsesFilter(t *testing.T) {
 
 func TestLangDefaultsToIT(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc)
+	srv := New(fc, "")
 	_ = do(t, srv, "/api/v1/animals") // no lang param
 	if fc.gotFilter.Lang != "it" {
 		t.Fatalf("default lang: %q", fc.gotFilter.Lang)
@@ -74,7 +79,7 @@ func TestLangDefaultsToIT(t *testing.T) {
 }
 
 func TestGetAnimalNotFound(t *testing.T) {
-	srv := New(&fakeCatalog{})
+	srv := New(&fakeCatalog{}, "")
 	if rec := do(t, srv, "/api/v1/animals/nope"); rec.Code != http.StatusNotFound {
 		t.Fatalf("want 404, got %d", rec.Code)
 	}
@@ -83,8 +88,27 @@ func TestGetAnimalNotFound(t *testing.T) {
 	}
 }
 
+func TestAnimalImage(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "vos.webp"), []byte("RIFFfake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := New(&fakeCatalog{}, dir)
+
+	if rec := do(t, srv, "/api/v1/animals/vos/image"); rec.Code != http.StatusOK {
+		t.Fatalf("existing image: want 200, got %d", rec.Code)
+	}
+	if rec := do(t, srv, "/api/v1/animals/missing/image"); rec.Code != http.StatusNotFound {
+		t.Fatalf("missing image: want 404, got %d", rec.Code)
+	}
+	// path-traversal attempt must not escape the image dir
+	if rec := do(t, srv, "/api/v1/animals/..%2f..%2fetc%2fpasswd/image"); rec.Code != http.StatusNotFound {
+		t.Fatalf("traversal: want 404, got %d", rec.Code)
+	}
+}
+
 func TestHealth(t *testing.T) {
-	srv := New(&fakeCatalog{})
+	srv := New(&fakeCatalog{}, "")
 	if rec := do(t, srv, "/healthz"); rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 		t.Fatalf("health: %d %q", rec.Code, rec.Body.String())
 	}

@@ -17,6 +17,7 @@ func main() {
 	dbPath := flag.String("db", "totem.db", "path to the (encrypted) database file")
 	// Default assumes you run from src/ (the module root); data/ lives at the repo root.
 	dataPath := flag.String("data", "../data/animals.json", "path to animals.json")
+	attrPath := flag.String("attributions", "../data/images/attributions.json", "path to image attributions (optional)")
 	force := flag.Bool("force", false, "replace an already-seeded catalogue")
 	flag.Parse()
 
@@ -42,4 +43,10 @@ func main() {
 	}
 	log.Printf("seeded %s: %d animals, %d traits, %d links",
 		*dbPath, stats.Animals, stats.Traits, stats.Links)
+
+	imgs, err := ingest.LoadImages(ctx, s.DB, *attrPath)
+	if err != nil {
+		log.Fatalf("load images: %v", err)
+	}
+	log.Printf("image attributions loaded for %d animals (from %s)", imgs, *attrPath)
 }

@@ -134,6 +134,42 @@ func Load(ctx context.Context, db *sql.DB, animals []SourceAnimal, force bool) (
 	return st, nil
 }
 
+// LoadImages reads data/images/attributions.json ({slug: {author, license,
+// source_url}}) and records image metadata on the matching animals. It sets
+// image_path to "<slug>.webp" (the file the image endpoint serves). Returns the
+// number of animals updated. A missing file is not an error (returns 0).
+func LoadImages(ctx context.Context, db *sql.DB, attributionsPath string) (int, error) {
+	raw, err := os.ReadFile(attributionsPath)
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read %s: %w", attributionsPath, err)
+	}
+	var attrs map[string]struct {
+		Author    string `json:"author"`
+		License   string `json:"license"`
+		SourceURL string `json:"source_url"`
+	}
+	if err := json.Unmarshal(raw, &attrs); err != nil {
+		return 0, fmt.Errorf("parse %s: %w", attributionsPath, err)
+	}
+
+	updated := 0
+	for slug, a := range attrs {
+		res, err := db.ExecContext(ctx,
+			`UPDATE animal SET image_path = ?, image_author = ?, image_license = ?, image_source = ? WHERE slug = ?`,
+			slug+".webp", a.Author, a.License, a.SourceURL, slug)
+		if err != nil {
+			return updated, fmt.Errorf("set image for %s: %w", slug, err)
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			updated++
+		}
+	}
+	return updated, nil
+}
+
 // at returns s[i] or "" when out of range (defends against misaligned arrays).
 func at(s []string, i int) string {
 	if i < len(s) {

@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -17,23 +16,12 @@ import (
 )
 
 func main() {
-	// 8683 = "TOTE" on a phone keypad; deliberately unusual, and below the Linux
-	// ephemeral range (32768+) so the listener can't clash with an outbound port.
+	// 8683 = "TOTE" on a phone keypad; unusual, and below the ephemeral range.
 	addr := env("TOTEM_ADDR", "127.0.0.1:8683")
+	imageDir := env("TOTEM_IMAGE_DIR", "../data/images")
 	dbPath := env("TOTEM_DB_PATH", "totem.db")
-	// The Adiantum key comes from the environment: TOTEM_DB_KEY directly, or
-	// TOTEM_DB_KEY_FILE pointing at a file (e.g. a systemd-provided credential,
-	// so the key is never baked into the unit or visible in the process list).
-	key := os.Getenv("TOTEM_DB_KEY")
-	if key == "" {
-		if f := os.Getenv("TOTEM_DB_KEY_FILE"); f != "" {
-			b, err := os.ReadFile(f)
-			if err != nil {
-				log.Fatalf("read TOTEM_DB_KEY_FILE: %v", err)
-			}
-			key = strings.TrimSpace(string(b))
-		}
-	}
+
+	key := dbKey()
 	if key == "" {
 		log.Fatal("set TOTEM_DB_KEY or TOTEM_DB_KEY_FILE (the Adiantum encryption key)")
 	}
@@ -44,13 +32,19 @@ func main() {
 	}
 	defer st.Close()
 
-	if err := st.Migrate(context.Background()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := st.Migrate(ctx); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
 
+	app := api.New(st, imageDir)
+	app.Emoji = api.LoadEmoji(env("TOTEM_EMOJI_FILE", "../data/emoji.json"))
+
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      api.New(st).Router,
+		Handler:      app.Router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -58,27 +52,40 @@ func main() {
 
 	go func() {
 		log.Printf("totemd listening on %s", addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("serve: %v", err)
 		}
 	}()
 
-	// Graceful shutdown on SIGINT/SIGTERM.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	<-ctx.Done() // SIGINT/SIGTERM
 	log.Println("shutting down…")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Printf("shutdown: %v", err)
 	}
 }
 
+// env returns the environment variable, or def when unset.
 func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
+}
+
+// dbKey reads the Adiantum key from TOTEM_DB_KEY, or from the file named by
+// TOTEM_DB_KEY_FILE (e.g. a systemd credential), trimming a trailing newline.
+func dbKey() string {
+	if k := os.Getenv("TOTEM_DB_KEY"); k != "" {
+		return k
+	}
+	if f := os.Getenv("TOTEM_DB_KEY_FILE"); f != "" {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			log.Fatalf("read TOTEM_DB_KEY_FILE: %v", err)
+		}
+		return strings.TrimSpace(string(b))
+	}
+	return ""
 }

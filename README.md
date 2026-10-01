@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.2.5
+version: 0.2.12
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -21,8 +21,8 @@ Domain terms used throughout this document, defined once here.
 
 - **Totem** — one animal. Identified by its **slug** (`aalscholver`), not its display name, because the same animal has three names (nl/it/en) and the slug is the stable key across all of them and across the individual detail pages.
 - **Trait** — a single character attribute (`coraggioso`, `solitario`). Traits are **shared** across animals and **deduplicated** — "coraggioso" is one row, referenced by every brave animal — which is what makes the trait cloud and similarity cheap to compute.
-- **Filter mode** — the exact-match search: return animals whose trait set is a *superset* of the included traits and *disjoint* from the excluded ones. A set operation, not a ranking.
-- **Similarity mode** — the fuzzy search: rank all animals by how close their trait set is to a target profile (Jaccard overlap). A ranking, not a filter — every animal gets a score.
+- **Similarity** — the finder's default (and only) mode: pick traits and animals are ranked by how closely their trait set matches (Jaccard overlap), each with a **% match**. Excluded traits still hard-filter. With no traits picked, it just lists everything.
+- **Exact filter** — a superset/disjoint set match (has all included, none excluded). Still available on the API (`/api/v1/animals?include=…`) but **not surfaced in the UI** — the Exact/Similar toggle was removed as redundant.
 - **Ingestion** — the offline pipeline that turns the source website into rows in the database: **scrape** (pull Dutch data from the SGV site) → **translate** (DeepL, nl→it/en) → **load** (upsert into the DB). Idempotent and re-runnable.
 - **Projection** — serving one language. The API stores all three languages but *projects* a single `lang` into each response so the frontend never ships data it won't show. A fetched animal is joined to its `translation` row for that language in the **same query** — one round-trip, not a second fetch.
 
@@ -141,9 +141,11 @@ API surface (small on purpose):
 | `GET /api/v1/animals?lang=it&q=lupo` | Filtered list (name / free-text) |
 | `GET /api/v1/animals?include=coraggioso,agile&exclude=solitario&lang=it` | Exact-filter mode |
 | `GET /api/v1/animals/{slug}?lang=it` | Single animal detail |
-| `GET /api/v1/animals/{slug}/similar?lang=it` | Similarity ranking |
+| `GET /api/v1/animals/{slug}/similar?lang=it` | Similarity to one animal |
+| `GET /api/v1/similar?include=…&exclude=…&lang=it` | Similarity to a chosen trait profile (Similarity mode) |
 | `GET /api/v1/traits?lang=it` | Trait cloud for the sidebar |
-| `GET /api/v1/animals/{slug}/image` | Animal image (planned — see [Images](#images)) |
+| `GET /api/v1/emoji` | `{slug: emoji}` map for the finder cards |
+| `GET /api/v1/animals/{slug}/image` | Animal image (see [Images](#images)) |
 | `GET /healthz` | Liveness (WAF / systemd) |
 
 ### Query layer, types & parametrization
@@ -301,11 +303,12 @@ The database is a single SQLite file, **encrypted at rest** with the Adiantum VF
 
 ## Images
 
-Planned near-term feature: a picture per animal. It slots in additively — no redesign.
+A picture per animal — **implemented** (444/471 scraped; smoke-tested live).
 
-- **Schema:** migration `0002_add_image.sql` adds a nullable `image_path TEXT NOT NULL DEFAULT ''` to `animal` (the first real use of the migration system beyond the initial schema).
-- **Serving:** `GET /api/v1/animals/{slug}/image` streams the file (or `404` when absent). The WAF can cache it.
-- **Where the files live:** a directory beside the DB (e.g. `/var/lib/totemd/images/<slug>.webp`), **not** embedded in the binary and **not** in git.
+- **Schema:** migration `0002_add_images.sql` adds `image_path` + credit columns (`image_author`, `image_license`, `image_source`) to `animal` — the first use of the migration system beyond the initial schema.
+- **Serving:** `GET /api/v1/animals/{slug}/image` streams `<slug>.webp` from `TOTEM_IMAGE_DIR` (`404` when absent; slug validated against `^[a-z0-9-]+$` to block path traversal; `Cache-Control` set so the WAF can cache it). The animal-detail payload carries an `image` object with the URL **and** the attribution to display.
+- **Where the files live:** `TOTEM_IMAGE_DIR` (dev `../data/images`, prod `/var/lib/totemd/images/`), **not** embedded in the binary and **not** in git. The deploy rsyncs `data/images/` to the box.
+- **Attribution:** loaded from `data/images/attributions.json` into the DB by `totem-seed --attributions`; shown on the detail page (CC-BY-SA requires author + licence).
 
 **Design Decision — images on disk, not in the binary or git.** Embedding ~471 images via `embed.FS` would bloat the binary and force a rebuild+redeploy to change a picture; committing them bloats the repo. A data directory keeps them updatable independently of releases, and `image_path` in the DB stays the single source of truth for which file belongs to which animal. WebP keeps them small; a future ingestion step can fetch/optimise them.
 
@@ -429,10 +432,14 @@ Work proceeds one layer at a time. Each phase is independently testable and leav
 | **1 — Database** | Normalised schema + migrations, seed from `data/animals.json`, data-integrity + query tests | SQL + Python (`sqlite3`, stdlib) | **Done — tests green** |
 | 1b — Encryption | Wrap DB access in `ncruces` + Adiantum (needs Go) | Go | **Done — encrypted store + tests green on the dev LXC** |
 | 2 — Backend | `Store` interface, queries, `chi` API, similarity/filter services, tests | Go | **Done — store/api/main + Go seeder; server smoke-tested on the box (all endpoints, encrypted DB)** |
-| 3 — Frontend | React SPA, embedded via `embed.FS` | React + Vite | Not started |
+| 3 — Frontend | React SPA, embedded via `embed.FS` | React + Vite | **In progress — `src/web` scaffolded (finder + detail, wired to the live API)** |
 | 4 — CI/CD & deploy | Workflows, vuln scanning, LXC/systemd deploy | GitHub Actions, Terraform | Not started |
 
 ### Running (dev)
+
+**Quickest (on the dev LXC):** `cd ~/totem-it && ./run-dev.sh` — builds the backend, seeds the DB if needed, and starts both the API and the React dev server; it prints a `http://<box-ip>:5173` URL to open. Ctrl-C stops both. To iterate: edit `src/web/` locally, `./infra/sync.sh root@<box>` from a second terminal, and the browser hot-reloads.
+
+Manual steps (what the script automates):
 
 ```bash
 cd src                                   # the Go module lives here
@@ -445,7 +452,7 @@ curl "localhost:8683/api/v1/animals/adder?lang=it"
 curl "localhost:8683/api/v1/animals/adder/similar?lang=it&limit=3"
 ```
 
-Config is env-only: `TOTEM_ADDR` (default `127.0.0.1:8683`), `TOTEM_DB_PATH`, and the key as either `TOTEM_DB_KEY` or `TOTEM_DB_KEY_FILE` (a path — used by the systemd credential in deploy).
+Config is env-only: `TOTEM_ADDR` (default `127.0.0.1:8683`), `TOTEM_DB_PATH`, `TOTEM_IMAGE_DIR` (default `../data/images`), and the key as either `TOTEM_DB_KEY` or `TOTEM_DB_KEY_FILE` (a path — used by the systemd credential in deploy).
 
 **Design Decision — schema-first in Python.** Go is not yet installed in the dev environment, and the schema/data are identical whether the file is later opened plain or through the Adiantum VFS. So Phase 1 nails the data model against the real 471-animal dataset using Python's built-in `sqlite3`, fully tested, before any Go exists. Encryption is a *how-you-open-it* concern layered on in Phase 1b once the Go toolchain is in place — it does not change a single table.
 
@@ -641,7 +648,64 @@ The repository currently ships the **v1 static site**: a single ~650 KB `index.h
 - musl-static build for a fully self-contained binary across glibc versions.
 - The [PostgreSQL migration](#migration-to-postgresql-later) when a trigger condition is met.
 
+## Issues & Roadmap
+
+Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEMENT]` improve existing · `[CHORE]` infra/cleanup.
+
+### Open
+- `[BUG]` 31 animals lack an `en`/`nl` description — the API now falls back to Italian so nothing is blank, but they should be properly translated per language (DeepL). (Reported example: Mink in English.)
+- `[BUG]` Italian animal names are largely unvalidated — Wikidata's Italian vernacular coverage is sparse (only 1 IT name could be fixed). Re-validate via it.wikipedia titles.
+- `[BUG]` A few emoji still approximate the species — hand-tune from `data/emoji-review.md` (28 🐾 fallbacks + category guesses remain).
+- `[FEATURE]` 27 animals have no image (names that are disambiguation pages in both nl+en) — manual sourcing, see `data/images/review.md`.
+- `[FEATURE]` Embed the built SPA into `totemd` via `embed.FS` + SPA-fallback routing → single-binary production (finishes Phase 3).
+- `[FEATURE]` Deploy: rsync `data/images/` to the box + systemd unit (`deploy/totemd.service`), behind the WAF (Phase 4).
+- `[FEATURE]` "Which animal are you?" quiz (reuses similarity); profiles & friends (auth delegated to [[AuthenticationServer]]) — see [Extensibility](#extensibility).
+- `[ENHANCEMENT]` Free-text search (`q`) matches names only; consider matching descriptions too.
+- `[ENHANCEMENT]` CI/CD workflows + vuln scanning designed but not yet wired — see [CI/CD](#cicd-testing--supply-chain).
+
+### Done
+- `[BUG]` Duplicate trait chips (synonyms collapsing in translation) → grouped by label (0.2.8).
+- `[BUG]` Similarity mode returned 0 → real trait-profile endpoint `/api/v1/similar` (0.2.8).
+- `[BUG]` 35 wrong/untranslated English names → Wikidata-validated corrections (0.2.9).
+- `[BUG]` Raccoon showed a bear emoji → `wasbeer` → 🦝 (0.2.11).
+- `[FEATURE]` "Similar totems" is now a vertical list with traits + description (0.2.11).
+- `[CHORE]` `run-dev.sh` hardened with a backend health-check after a silently-empty page (0.2.10).
+- Defaults set to English UI + dark theme (0.2.10).
+
 ## Changelog
+
+### 0.2.12 — 2026-10-01
+- `[FEATURE]` **% match** on similarity results — the Jaccard score is returned by the API (`score` on `/similar` and `/animals/{slug}/similar`) and shown as a badge on the cards (e.g. Similar Totems: Lynx 46%).
+- `[CHORE]` **Removed the Exact/Similar toggle** — similarity is the default and only finder mode (exact filter stays as an API-only capability). Dropped `mode` from the store and the Modalità panel.
+
+### 0.2.11 — 2026-10-01
+- `[BUG]` Raccoon (`wasbeer`) showed a bear emoji → fixed to 🦝 in `data/emoji.json`.
+- `[FEATURE]` **Similar totems** on the detail page is now a **vertical list** of full cards (emoji + name + trait chips + description preview), not a horizontal name-only strip.
+- `[BUG]` Missing-language descriptions (31 animals, e.g. Mink in English) no longer render blank — the API falls back to Italian then Dutch (`descProjection`). Underlying translation gap tracked under [Issues](#issues--roadmap).
+- Added the [Issues & Roadmap](#issues--roadmap) tracker.
+
+### 0.2.10 — 2026-10-01
+- **Default language → English**, **default theme → dark** (the toggle still switches to light; it initialises from `<html data-theme>`).
+- **`run-dev.sh` hardened:** kills any stale backend first, health-checks `totemd` before opening, and prints the backend log + exits if it failed — so a dead backend no longer shows up as a silently-empty page (which is what the "no animals" report was; the backend itself was fine — 471 animals / 281 traits verified).
+
+### 0.2.9 — 2026-10-01
+- **Animal name corrections applied:** 35 English + 1 Italian names fixed in `data/animals.json` from the Wikidata-validated `data/name_corrections.json` (e.g. *Owl*→Eurasian eagle-owl, *Pied Piper*→Pied avocet, *Wild duck*→Mallard, *Roadrunner*→Cream-coloured courser, *Wooly*→Woolly mammoth). DB re-seeded; corrections verified live. `scripts/validate_names.py` can re-run the check.
+
+### 0.2.8 — 2026-10-01
+- **Trait cloud deduplicated.** Distinct Dutch traits that translate to the same word (e.g. *rustig*+*stil* → "quiet", 31 such collisions in EN / 37 in IT) were showing as duplicate chips. `ListTraits` now groups by translated label; a chip's key is the synonym group (`stil|rustig`). Filtering is group-aware: **OR within a chip, AND across chips** (285 chips in EN, down from 321).
+- **Similarity mode now works.** New `GET /api/v1/similar?include=&exclude=` ranks animals by Jaccard overlap with the selected trait profile (`store.SimilarByTraits`); the finder calls it when Similarity mode has ≥1 included trait. (Previously the mode toggle did nothing and multi-trait similarity returned 0.)
+- **Name validation** running in the background (a sub-agent cross-checks every `en`/`it` animal name against Wikidata labels and proposes corrections — some names were left untranslated / mistranslated).
+
+### 0.2.7 — 2026-10-01
+- **React frontend scaffolded** (`src/web`): Vite + React + TypeScript, TanStack Query, Zustand (filter state), react-i18next (IT/EN/NL UI), playful/scouty CSS ported from the mockup. Finder page (horizontal cards w/ clamped preview, trait search with include ✓ / exclude ✗, mode toggle) + detail page (real photo via the image endpoint, credit, similar strip). Vite dev-proxies `/api` → `:8683`; `vite build` → `dist/` for Phase-3 `embed.FS`.
+- **Backend:** added `GET /api/v1/emoji` (serves the slug→emoji map from `TOTEM_EMOJI_FILE`, loaded once at startup) and a `description` field on the list/similar responses (for card previews).
+- **Emoji map:** corrected 13 bad auto-mappings (the "koe"→🐄 bug, sheep→monkey, seal→dog, a donkey-butterfly); `data/emoji.json` is 471/471.
+
+### 0.2.6 — 2026-10-01
+- **Real images wired into the backend** (migration `0002_add_images` + credit columns; `totem-seed --attributions` loads `attributions.json` for 444 animals; `GET /api/v1/animals/{slug}/image` serves from `TOTEM_IMAGE_DIR` with traversal-safe slug validation; detail payload carries `image{url,author,license}`). Smoke-tested: 200 WebP + 404 for missing.
+- **Frontend mockup:** characteristic search now supports **include ✓ / exclude ✗** per result (the v1 capability, fresh style).
+- **`main.go` slimmed:** `signal.NotifyContext` replaces the manual signal channel (drops the `errors` import); key-loading extracted to a `dbKey()` helper.
+- `.gitignore` hardened to cover all `*.tfvars` / env / tfstate files (`dev.tfvars` had been exposed).
 
 ### 0.2.5 — 2026-10-01
 - **Repo reorganised:** all application code now lives under `src/` (the Go module; `src/web/` reserved for the React app). The root keeps data, scripts, infra, deploy and docs — easier to navigate. Go runs from `src/`; the Python seeder's migration path updated accordingly. Re-verified green on the box.

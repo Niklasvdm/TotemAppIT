@@ -9,9 +9,23 @@ src/totem-seed
 # Scraped animal images + their attributions (fetched, not authored)
 data/images/
 
-# Secrets
+# Secrets · env files · terraform vars — never commit real ones (examples are kept)
 .env
+.env.*
+*.env
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
 *.key
+*.pem
+*.crt
+!*.example
+!*.tfvars.example
+!*.env.example
+
+# Scraper/validator caches (regenerable)
+data/.name_cache.json
 
 # Python
 __pycache__/
