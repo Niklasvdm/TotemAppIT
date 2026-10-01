@@ -1,0 +1,55 @@
+# systemd unit for totemd — the Totem Finder API.
+# Install: copy the binary to /usr/local/bin/totemd, this file to
+# /etc/systemd/system/totemd.service, then `systemctl enable --now totemd`.
+#
+# The Adiantum encryption key is injected via the ENVIRONMENT, never hardcoded
+# in the binary. Two ways to supply it — pick one:
+#
+#  (A) PRODUCTION — TPM-sealed systemd credential (recommended).
+#      Create it once on the host:
+#        printf '%s' "<your-key>" > /root/totem_db_key
+#        systemd-creds encrypt --name=totem_db_key /root/totem_db_key /etc/totemd/db_key.cred
+#        shred -u /root/totem_db_key
+#      The plaintext key then exists only in-memory for this one process.
+#      Uncomment the LoadCredentialEncrypted + the TOTEM_DB_KEY_FILE line below.
+#
+#  (B) DEV / simple — a root-only EnvironmentFile (quicker, less secure: the key
+#      sits in plaintext on disk at /etc/totemd/totemd.env, mode 0600).
+#      Use deploy/totemd.env.example as the template and uncomment EnvironmentFile.
+
+[Unit]
+Description=Totem Finder API (totemd)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=totemd
+Group=totemd
+ExecStart=/usr/local/bin/totemd
+Restart=on-failure
+RestartSec=2
+
+Environment=TOTEM_ADDR=127.0.0.1:8683
+Environment=TOTEM_DB_PATH=/var/lib/totemd/totem.db
+
+# --- (A) credential-based key (recommended) ---
+#LoadCredentialEncrypted=totem_db_key:/etc/totemd/db_key.cred
+#Environment=TOTEM_DB_KEY_FILE=%d/totem_db_key
+
+# --- (B) env-file key (dev/simple) ---
+#EnvironmentFile=/etc/totemd/totemd.env
+
+# Hardening — the app only needs its data dir and a localhost socket.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=/var/lib/totemd
+StateDirectory=totemd
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

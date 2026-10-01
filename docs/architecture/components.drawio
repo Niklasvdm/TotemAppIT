@@ -1,0 +1,81 @@
+<mxfile host="app.diagrams.net" agent="claude-code" version="24.7.0" type="device">
+  <diagram name="Component Breakdown" id="totems-components">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- grouping backgrounds (drawn first = behind) -->
+        <mxCell id="grp-fe" value="Frontend — Vue SPA (Vite build)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;fontStyle=1;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="40" width="320" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="grp-be" value="Backend — Go binary (single deploy artifact)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#d5e8d4;strokeColor=#82b366;dashed=1;fontStyle=1;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="40" width="320" height="340" as="geometry" />
+        </mxCell>
+
+        <!-- frontend inner components -->
+        <mxCell id="fe-views" value="vue-router + Views&#10;Home.vue (search / trait filter)&#10;AnimalDetail.vue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="90" y="90" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fe-api" value="API client (fetch wrapper)&#10;GET /api/animals&#10;GET /api/animals/{slug}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="90" y="180" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fe-i18n" value="i18n (it / en) + UI state&#10;search text, included / excluded traits" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="90" y="260" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- backend inner components -->
+        <mxCell id="be-router" value="HTTP router (e.g. chi / net-http)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="470" y="90" width="260" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="be-handlers" value="API handlers&#10;/api/animals*&#10;/api/admin/* (auth-gated CRUD)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="470" y="160" width="120" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="be-static" value="Embedded Vue build&#10;(go:embed)&#10;served at /" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="610" y="160" width="120" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="be-store" value="Store layer (database/sql)&#10;Animal repository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="470" y="270" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- external / shared -->
+        <mxCell id="db" value="animals.db (SQLite)&#10;animals table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="440" y="440" width="320" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="pipeline" value="Data Pipeline (Python)&#10;scrape_missing_animals.py, scrape_descriptions.py&#10;translate_descriptions.py (DeepL)&#10;apply_it_names.py, apply_trait_translations.py, apply_en_corrections.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- edges -->
+        <mxCell id="ce1" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="fe-views" target="fe-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce2" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="fe-views" target="fe-i18n">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce3" value="HTTP fetch (JSON)" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="fe-api" target="be-router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce4" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="be-router" target="be-handlers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce5" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="be-router" target="be-static">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce6" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="be-handlers" target="be-store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce7" value="reads / writes" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="be-store" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce8" value="writes (manual run)" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="pipeline" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce9" value="vite build&#10;embedded at compile time" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="grp-fe" target="be-static">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

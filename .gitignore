@@ -1,0 +1,23 @@
+# Build artifacts / generated databases (never commit)
+/build/
+*.db
+*.db-wal
+*.db-shm
+src/totemd
+src/totem-seed
+
+# Scraped animal images + their attributions (fetched, not authored)
+data/images/
+
+# Secrets
+.env
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node / React (Phase 3)
+node_modules/
+src/web/dist/

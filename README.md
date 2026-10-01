@@ -1,1 +1,692 @@
-# Italian translation of the Dutch TotemApp
+---
+link: https://github.com/Niklasvdm/TotemAppIT
+version: 0.2.5
+relate to:
+  - "[[ReverseProxyWAF]]"
+  - "[[AuthenticationServer]]"
+---
+
+```table-of-contents
+```
+
+# Totem Finder (IT)
+
+Italian translation of the Dutch **Scouts en Gidsen Vlaanderen** *Totemzoeker*. A searchable catalogue of ~471 animal totems, each with a set of character traits and a description in Italian, English and Dutch. Two search modes: **exact filter** (animals that have *all* included traits and *none* excluded) and **similarity** (animals closest to a chosen trait profile).
+
+This README describes the **target architecture** for the v2 rewrite — a Go backend + React frontend replacing the current single-file static site (see [Current state vs. target](#current-state-vs-target)). It is a living design document; the [Changelog](#changelog) tracks decisions. Work proceeds in [phases](#build-phases), one layer at a time — currently the **database**.
+
+## Concepts
+
+Domain terms used throughout this document, defined once here.
+
+- **Totem** — one animal. Identified by its **slug** (`aalscholver`), not its display name, because the same animal has three names (nl/it/en) and the slug is the stable key across all of them and across the individual detail pages.
+- **Trait** — a single character attribute (`coraggioso`, `solitario`). Traits are **shared** across animals and **deduplicated** — "coraggioso" is one row, referenced by every brave animal — which is what makes the trait cloud and similarity cheap to compute.
+- **Filter mode** — the exact-match search: return animals whose trait set is a *superset* of the included traits and *disjoint* from the excluded ones. A set operation, not a ranking.
+- **Similarity mode** — the fuzzy search: rank all animals by how close their trait set is to a target profile (Jaccard overlap). A ranking, not a filter — every animal gets a score.
+- **Ingestion** — the offline pipeline that turns the source website into rows in the database: **scrape** (pull Dutch data from the SGV site) → **translate** (DeepL, nl→it/en) → **load** (upsert into the DB). Idempotent and re-runnable.
+- **Projection** — serving one language. The API stores all three languages but *projects* a single `lang` into each response so the frontend never ships data it won't show. A fetched animal is joined to its `translation` row for that language in the **same query** — one round-trip, not a second fetch.
+
+## Architecture
+
+A three-tier application that slots in behind the existing edge (see [[ReverseProxyWAF]]): the WAF terminates TLS and rate-limits, then proxies to a **single Go binary** (`totemd`) that serves both the JSON API and the compiled React SPA (embedded via `embed.FS`). One artifact to build, one to deploy — a plain static binary dropped onto an LXC with a systemd unit (no Docker; see [Deployment](#deployment)).
+
+```plantuml
+@startuml totem-high-level
+title Totem Finder — High-Level Architecture
+skinparam componentStyle rectangle
+skinparam shadowing false
+left to right direction
+
+actor "Scout / Leader" as user
+actor "You (maintainer)" as admin
+
+cloud "SGV Totemzoeker\n(Dutch source site)" as sgv
+cloud "DeepL API" as deepl
+
+node "Edge (existing)" {
+  [NGINX + ModSecurity WAF\nTLS, rate-limit, headers] as waf
+}
+
+node "totemd — single Go binary\n(LXC + systemd)" {
+  [HTTP API  /api/v1/*] as api
+  [Embedded React SPA\nstatic assets] as spa
+  [Ingestion CLI\nscrape · translate · load] as ingest
+}
+
+database "SQLite\nAdiantum-encrypted VFS (pure Go)\nanimals · traits · translations" as db
+
+user --> waf : HTTPS
+waf --> spa : GET / (app shell)
+waf --> api : /api/v1/... (JSON)
+api --> db : SQL (read)
+admin ..> ingest : run on demand
+ingest --> sgv : scrape (nl)
+ingest --> deepl : translate nl->it/en
+ingest --> db : upsert
+@enduml
+```
+
+| Tier | Technology | Responsibility |
+| ---- | ---------- | -------------- |
+| Frontend | React + Vite + TypeScript · React Router · TanStack Query · Zustand · react-i18next | Finder UI, filter/similarity modes, animal detail pages, IT/EN/NL switching |
+| Backend | Go · `chi` router · `sqlc` · **`ncruces/go-sqlite3` (pure-Go, no CGO)** + **`vfs/adiantum`** | JSON API, search/filter/similarity, serve embedded SPA, ingestion |
+| Data | SQLite, **Adiantum-encrypted at rest** | Normalised catalogue; `LIKE` name/text search |
+| Ingestion | Python (v1) → Go (later) | scrape → translate → load; idempotent |
+
+**Design Decision — single binary vs. split hosting.** `totemd` embeds the built SPA rather than serving it from a separate static host. Reason: the WAF already does TLS/rate-limiting/headers, so the app needs neither; one binary means no CORS setup, no "frontend and API drifting out of sync", and a trivial deploy. If the frontend ever needs a CDN, splitting it out is a config change, not a rewrite.
+
+### Backend internals
+
+Layered, with dependencies pointing inward (transport → domain → data). This is the shape that teaches idiomatic Go: HTTP concerns never leak into the domain, and the domain never imports the router.
+
+```plantuml
+@startuml backend-layers
+title totemd — internal layers
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+package "cmd/totemd" {
+  [main.go\nconfig · wiring · graceful shutdown] as main
+}
+package "internal/api  (transport)" {
+  [router (chi)] as router
+  [handlers\nparse -> DTO -> response] as handlers
+  [middleware\nlog · recover · request-id] as mw
+}
+package "internal/catalog  (domain)" {
+  [SearchService\nfilter: all-incl / none-excl] as search
+  [SimilarityService\nJaccard over trait sets] as sim
+  [CatalogService\nlist · get by slug] as cat
+}
+package "internal/store  (data)" {
+  [Store interface\n(SQLite today, Postgres later)] as iface
+  [Queries (sqlc-generated)] as q
+  [ncruces driver + Adiantum VFS\n(pure Go)] as drv
+  [migrations (embedded)] as mig
+}
+package "internal/ingest" {
+  [scraper] as scr
+  [translator (DeepL)] as tr
+  [loader (upsert)] as load
+}
+package "web/  (embed.FS)" {
+  [dist/ — built React SPA] as dist
+}
+database "SQLite (encrypted)" as db
+
+main --> router
+main --> dist
+router --> mw
+mw --> handlers
+handlers --> search
+handlers --> sim
+handlers --> cat
+search --> iface
+sim --> iface
+cat --> iface
+iface --> q
+q --> drv
+drv --> db
+mig --> drv
+scr --> tr
+tr --> load
+load --> iface
+@enduml
+```
+
+API surface (small on purpose):
+
+| Method / path | Returns |
+| ------------- | ------- |
+| `GET /api/v1/animals?lang=it&q=lupo` | Filtered list (name / free-text) |
+| `GET /api/v1/animals?include=coraggioso,agile&exclude=solitario&lang=it` | Exact-filter mode |
+| `GET /api/v1/animals/{slug}?lang=it` | Single animal detail |
+| `GET /api/v1/animals/{slug}/similar?lang=it` | Similarity ranking |
+| `GET /api/v1/traits?lang=it` | Trait cloud for the sidebar |
+| `GET /api/v1/animals/{slug}/image` | Animal image (planned — see [Images](#images)) |
+| `GET /healthz` | Liveness (WAF / systemd) |
+
+### Query layer, types & parametrization
+
+The domain talks to a small interface; `*store.Store` implements it, so handlers are testable with a fake and the Postgres swap is additive.
+
+```go
+type Catalog interface {
+    ListAnimals(ctx, Filter) ([]Animal, error)
+    GetAnimal(ctx, slug, lang string) (*AnimalDetail, error)
+    Similar(ctx, slug, lang string, limit int) ([]Animal, error)
+    ListTraits(ctx, lang string) ([]Trait, error)
+}
+
+type Filter struct {
+    Lang    string   // it | en | nl (validated at the handler; default "it")
+    Query   string   // free-text name match (LIKE)
+    Include []string // trait keys the animal must ALL have
+    Exclude []string // trait keys the animal must NOT have
+}
+```
+
+**Design Decision — every SQL value is a bound parameter.** The only place SQL is assembled dynamically is the filter's `IN (…)` clause, where the *number* of placeholders varies: build the `?,?,?` string from `len(Include)`, but bind every trait value as an argument — never interpolate values into SQL. A `go vet` / `golangci-lint` gate in CI enforces this.
+
+### Similarity (Jaccard, in SQL)
+
+Similarity mode ranks animals by **Jaccard overlap** of trait sets:
+
+```
+Jaccard(A,B) = |A ∩ B| / |A ∪ B| = shared / (|A| + |B| − shared)
+```
+
+Computed in one SQL query (count shared traits via a join on `trait_id`, divide by the union) rather than loading every animal into Go. Dividing by the union normalises for set size, so a trait-heavy animal that happens to share a few traits does not outrank a tighter match. Identical trait sets score 1.0. Example: `adder` (7 traits) vs `schorpioen` (7, 3 shared) → 3 / (7+7−3) = **0.273**.
+
+### Data model
+
+The current JSON is denormalised (trait strings repeated per animal). Normalising deduplicates traits, which makes the trait cloud and similarity trivial and prevents the "same trait spelled two ways" class of bug. This schema is defined in [`internal/store/migrations/`](internal/store/migrations/) and is the single source of truth for both the Python seeder (Phase 1) and the Go store (Phase 2).
+
+```plantuml
+@startuml erd
+title Data model (SQLite; Postgres-portable)
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+entity animal {
+  * id : integer <<PK>>
+  --
+  slug : text <<unique>>
+  name_nl : text
+  alt_names : text
+  source_url : text
+}
+entity trait {
+  * id : integer <<PK>>
+  --
+  key_nl : text <<unique>>
+}
+entity animal_trait {
+  * animal_id : integer <<FK>>
+  * trait_id  : integer <<FK>>
+}
+entity translation {
+  * animal_id : integer <<FK>>
+  * lang      : text  (nl|it|en)
+  --
+  name : text
+  description : text
+}
+entity trait_translation {
+  * trait_id : integer <<FK>>
+  * lang     : text  (nl|it|en)
+  --
+  value : text
+}
+
+animal ||--o{ animal_trait
+trait  ||--o{ animal_trait
+animal ||--o{ translation
+trait  ||--o{ trait_translation
+@enduml
+```
+
+**Design Decision — normalised tables vs. JSON columns.** SQLite could store `traits`/`translations` as JSON columns (closer to today's shape, fewer tables). We normalise instead because it is the more instructive relational model, it makes the Postgres migration clean, and 471 rows makes the performance difference irrelevant. Fetching an animal with its localized text stays a single JOIN (see [Projection](#concepts)); an optional `animal_localized` VIEW can hide that join from the Go queries if desired.
+
+### Ingestion pipeline
+
+Replaces the `scripts/*.py` chain. Idempotent: re-running only fills gaps (skip already-translated), mirroring the discipline the current DeepL script already has (`--dry-run`, skip-existing).
+
+```plantuml
+@startuml ingest-seq
+title Ingestion — scrape -> translate -> load
+skinparam shadowing false
+actor You
+participant "ingest CLI" as cli
+participant "SGV site" as sgv
+participant "DeepL" as deepl
+database "SQLite (encrypted)" as db
+
+You -> cli : ingest --scrape
+cli -> sgv : fetch animal pages (nl)
+sgv --> cli : html
+cli -> cli : parse names, traits, desc_nl
+cli -> db : upsert animals + traits (nl)
+
+You -> cli : ingest --translate
+cli -> db : select rows missing it/en
+loop per missing translation
+  cli -> deepl : translate nl -> it / en
+  deepl --> cli : text
+  cli -> db : upsert translation
+end
+cli -> cli : apply manual overrides
+note right : keeps the apply_*.py correction\nlists (bad short-name translations)
+@enduml
+```
+
+### Runtime request flow
+
+```plantuml
+@startuml req-seq
+title Runtime — a filter query
+skinparam shadowing false
+actor Browser
+participant WAF
+participant "totemd (Go)" as go
+database "SQLite (encrypted)" as db
+
+Browser -> WAF : GET /api/v1/animals?include=agile,coraggioso&lang=it
+WAF -> go : proxied (localhost)
+go -> go : parse & validate params
+go -> db : SELECT animals having ALL included traits\n            AND NONE excluded (+ LIKE if q=)
+db --> go : rows
+go -> go : project lang -> JSON DTO
+go --> WAF : 200 application/json
+WAF --> Browser : JSON (+ security headers)
+@enduml
+```
+
+## Database & encryption
+
+The database is a single SQLite file, **encrypted at rest** with the Adiantum VFS from `ncruces/go-sqlite3` — a **pure-Go** driver (SQLite compiled to WASM, run via wazero; no CGO, so the build stays a static cross-compilable binary). Adiantum is a length-preserving cipher designed for storage encryption; the on-disk file is ciphertext, so a copied or leaked `.db` is unreadable without the key.
+
+**Design Decision — native Go + file-level encryption (not SQLCipher, not disk-only).** SQLCipher would also encrypt the file but requires **CGO**, losing Go's effortless cross-compilation and static binary. Disk-level encryption (LUKS/ZFS) keeps pure Go but the secret is the *disk*, not the file — a copied file off an unlocked host is plaintext. `ncruces` + `adiantum` is the only option that gives **both** properties: pure-Go build **and** the secret travelling with the file. Trade accepted: the WASM engine is marginally slower than native C SQLite — negligible at this data size.
+
+**Key management.** An encrypted DB whose key sits in plaintext beside it protects nothing. The key is supplied at open time from the `TOTEM_DB_KEY` environment variable, which in production is populated by a **systemd encrypted credential** (`LoadCredentialEncrypted=`, TPM-sealed on the host) — never written to disk next to the database, never committed. In development, an env var or a git-ignored `.env` is acceptable.
+
+| Concern | Handling |
+| ------- | -------- |
+| At-rest encryption | Adiantum VFS (`ncruces/go-sqlite3/vfs/adiantum`), pure Go |
+| Key source (prod) | systemd `LoadCredentialEncrypted=` → `TOTEM_DB_KEY` |
+| Key source (dev) | env var / git-ignored `.env` |
+| Network exposure | **None** — SQLite has no listener; only the local process (and root) can reach the file |
+| Free-text search | `LIKE` over names/translations — FTS5 isn't in the pure-Go WASM build, and a scan over ~471 rows is sub-millisecond |
+
+## Images
+
+Planned near-term feature: a picture per animal. It slots in additively — no redesign.
+
+- **Schema:** migration `0002_add_image.sql` adds a nullable `image_path TEXT NOT NULL DEFAULT ''` to `animal` (the first real use of the migration system beyond the initial schema).
+- **Serving:** `GET /api/v1/animals/{slug}/image` streams the file (or `404` when absent). The WAF can cache it.
+- **Where the files live:** a directory beside the DB (e.g. `/var/lib/totemd/images/<slug>.webp`), **not** embedded in the binary and **not** in git.
+
+**Design Decision — images on disk, not in the binary or git.** Embedding ~471 images via `embed.FS` would bloat the binary and force a rebuild+redeploy to change a picture; committing them bloats the repo. A data directory keeps them updatable independently of releases, and `image_path` in the DB stays the single source of truth for which file belongs to which animal. WebP keeps them small; a future ingestion step can fetch/optimise them.
+
+### Sourcing images (don't draw 471 by hand)
+
+The animals already have Dutch common names and slugs, which map cleanly to species — so images can be fetched automatically rather than created. Candidate sources, best-first:
+
+| Source | How to reach it | Licence | Notes |
+| ------ | --------------- | ------- | ----- |
+| **Wikidata → Wikimedia Commons** | nl.wikipedia article → Wikidata item → image property **`P18`** → Commons file | CC-BY-SA / public domain (per file) | **Best.** Structured, one image per species, machine-readable licence + author metadata for attribution |
+| **Wikipedia REST (page image)** | `GET nl.wikipedia.org/api/rest_v1/page/summary/<title>` → `originalimage`/`thumbnail` | same as Commons | Simplest single call; the lead image, usually the species photo |
+| **iNaturalist API** | `GET api.inaturalist.org/v1/taxa?q=<name>` → `default_photo` | often CC-BY / CC-BY-NC | Great fallback; check per-photo licence (some non-commercial) |
+| **GBIF** | occurrence media API by species | mixed | Scientific, but quality/framing varies |
+| SGV Totemzoeker site | same site the descriptions were scraped from | ⚠️ unclear/ToS | Most on-brand *if* it has images, but check their terms before scraping |
+| Pexels / Unsplash / Pixabay | stock-photo APIs | free | ❌ **not species-accurate** — a "wolf" search returns *a* wolf, not the right subspecies; avoid for the catalogue |
+
+**Recommended pipeline (an `ingest --images` step):**
+1. slug → Dutch name → **Wikidata `P18`** (fall back to the Wikipedia page summary, then iNaturalist).
+2. Download, **resize + convert to WebP**, write to the data dir as `<slug>.webp`, set `image_path`.
+3. **Record attribution** (author + licence) alongside — CC-BY-SA legally requires it; store it in a column or a sidecar file and surface it on the detail page.
+4. **Manual review pass** — the same short-/ambiguous-name trap that hit the DeepL translations applies here (a wrong Dutch name → wrong species photo), so flag low-confidence matches for a human glance.
+
+**Design Decision — Wikidata P18 as the primary source.** It gives one canonical image per species *with* structured licence + author data, which is exactly what CC-BY-SA attribution needs — scraping arbitrary search results doesn't. Licence compliance is the real work here, not the downloading.
+
+## Migration to PostgreSQL (later)
+
+SQLite is deliberate for the single-node, read-heavy, 471-row reality — no server to run, patch, or back up, and zero network attack surface. The design keeps a clean path to Postgres for when (if) it is warranted, so it is a swap, not a rewrite.
+
+**Triggers that would justify the move:**
+
+- More than one `totemd` node needs to write concurrently (SQLite is single-writer).
+- You want **DB-level authentication** (roles, SCRAM passwords, network ACLs) rather than file-key + filesystem permissions.
+- Write volume or dataset size grows well beyond a hobby catalogue.
+
+**What the migration touches — and what it doesn't:**
+
+| Layer | Change on moving to Postgres |
+| ----- | ---------------------------- |
+| `internal/store` interface | **No change** — services depend on the interface, not the driver. This abstraction exists precisely for this. |
+| Driver | `ncruces/go-sqlite3` → `pgx`; encryption becomes Postgres TDE/`pgcrypto` + TLS instead of Adiantum |
+| Schema (`animal`, `trait`, joins, `translation`) | Near-identical; `INTEGER PRIMARY KEY` → `GENERATED ALWAYS AS IDENTITY` |
+| Free-text search | Currently `LIKE` (portable as-is). If the corpus ever grows, upgrade to a `tsvector` column + GIN index on Postgres — isolated in one query, so small blast radius |
+| `sqlc` | Add a `postgresql` engine target alongside `sqlite`; regenerate |
+| Migrations | Keep the same ordered `.sql` files; port the one DB-specific bit (identity columns) |
+
+**Design Decision — Store interface from day one.** The domain talks to a `Store` interface, never to SQL or a driver directly. It costs a little indirection now and makes the Postgres swap (or an in-memory fake for tests) a matter of adding an implementation, not touching the services.
+
+## Why this stack
+
+### Why React
+
+The frontend is decoupled from the Go backend by the JSON API — **no JS framework pairs "better" with Go** at that boundary. The real fork was *JS SPA vs. Go-native hypermedia*; a SPA was chosen for the interactive quiz/social roadmap (see [Extensibility](#extensibility)), and within SPAs, React.
+
+| Option | Consideration | Verdict |
+| ------ | ------------- | ------- |
+| **React** | Dominant ecosystem and job market; largest library/support base; mature TS/JSX; you assemble router/state yourself (React Router · TanStack Query · Zustand chosen here) | **Chosen** — ecosystem/hireability + it comfortably handles the interactive roadmap |
+| Vue 3 | First-party router/state/i18n, HTML-like templates, fewer re-render footguns — marginally smoother to learn | Runner-up; edge was learning-smoothness, not capability |
+| Astro | Ships zero JS for static content | Would win if this stayed a pure catalogue; the quiz/accounts need real client state |
+| templ + HTMX (Go-native) | No JS build, no npm, zero JS vuln surface, one language | The interactive quiz strains HTMX's model |
+
+**Design Decision — React.** Chosen for the largest ecosystem and job-market leverage and because it handles the interactive quiz/profile features without ceiling. Trade accepted: more assembly than Vue (routing/state are third-party choices) and manual re-render tuning. The per-library picks (React Router, TanStack Query for server-cache, Zustand for filter state, react-i18next for the trilingual UI) keep the assembled stack small and conventional.
+
+### Why Go
+
+Explicit goal: learn Go. It fits — a single static binary (trivial to drop onto an LXC), `embed.FS` to bundle the SPA, a strong standard library, and `sqlc` (type-safe SQL from `.sql` files) which teaches Go *and* SQL rather than hiding both behind an ORM. Choosing the pure-Go `ncruces` SQLite driver keeps `CGO_ENABLED=0`, preserving effortless cross-compilation and a dependency-light static binary.
+
+**Design Decision — `sqlc` over an ORM (GORM).** `sqlc` generates Go from hand-written SQL, so you learn the queries you run. GORM is faster to write but hides the SQL. For a learning project at this scale, visibility beats convenience.
+
+## Extensibility
+
+The layered backend and normalised schema exist so that later features are **additive modules, not rewrites**. The `catalog` core (animals/traits/search) stays stable; each new capability is a new package + new tables + new `/api/v1` routes.
+
+Two features are already envisioned:
+
+1. **"Which animal are you?" questionnaire** — a quiz whose answers accumulate trait weights, then reuses `SimilarityService` to rank totems against that profile. Can start stateless (compute and return, store nothing).
+2. **Profiles & friends** — saved quiz results, sharing, "who you and your friends are". This introduces a *user* concept and therefore authentication.
+
+**Design Decision — delegate auth, don't build it.** The friends/profile feature needs identity, but this project will **not** implement its own login. It delegates to the existing [[AuthenticationServer]] (via the WAF's `auth_request` subrequest), so `totemd` only ever sees an authenticated subject id in a trusted header and stores app-specific data keyed to it. Reason: auth is a solved, security-sensitive concern already owned elsewhere in the stack — duplicating it would be both wasted effort and a second attack surface.
+
+```plantuml
+@startuml extended
+title Target architecture with future modules (dotted = later)
+skinparam componentStyle rectangle
+skinparam shadowing false
+left to right direction
+
+actor User as u
+node "Edge WAF" {
+  [NGINX + ModSecurity] as waf
+  [auth_request] as authreq
+}
+node "AuthenticationServer\n(existing, Flask+Argon2)" as auth
+
+node "totemd (Go)" {
+  [catalog\n(stable core)] as cat
+  [quiz\n(reuses similarity)] as quiz #LightYellow
+  [profile / social] as prof #LightYellow
+}
+database "SQLite (encrypted)" as db
+
+u --> waf
+waf --> cat
+waf ..> quiz
+waf ..> authreq
+authreq ..> auth : verify session
+waf ..> prof : + subject-id header
+cat --> db
+quiz --> db
+prof ..> db : quiz_result · friendship\n(new tables, additive)
+@enduml
+```
+
+The database grows by *adding* tables (`quiz_question`, `quiz_option`, `quiz_result`, `user_profile`, `friendship`) — the catalogue tables never change. The `/api/v1` prefix means the contract can evolve without breaking old clients.
+
+## Build phases
+
+Work proceeds one layer at a time. Each phase is independently testable and leaves the tree in a clean state.
+
+| Phase | Scope | Language / tools | Status |
+| ----- | ----- | ---------------- | ------ |
+| **1 — Database** | Normalised schema + migrations, seed from `data/animals.json`, data-integrity + query tests | SQL + Python (`sqlite3`, stdlib) | **Done — tests green** |
+| 1b — Encryption | Wrap DB access in `ncruces` + Adiantum (needs Go) | Go | **Done — encrypted store + tests green on the dev LXC** |
+| 2 — Backend | `Store` interface, queries, `chi` API, similarity/filter services, tests | Go | **Done — store/api/main + Go seeder; server smoke-tested on the box (all endpoints, encrypted DB)** |
+| 3 — Frontend | React SPA, embedded via `embed.FS` | React + Vite | Not started |
+| 4 — CI/CD & deploy | Workflows, vuln scanning, LXC/systemd deploy | GitHub Actions, Terraform | Not started |
+
+### Running (dev)
+
+```bash
+cd src                                   # the Go module lives here
+export TOTEM_DB_KEY=<your-key>           # the Adiantum encryption key
+go run ./cmd/totem-seed --db totem.db --force   # loads ../data/animals.json into the encrypted DB
+TOTEM_DB_PATH=totem.db go run ./cmd/totemd      # serve on 127.0.0.1:8683
+
+curl localhost:8683/healthz
+curl "localhost:8683/api/v1/animals/adder?lang=it"
+curl "localhost:8683/api/v1/animals/adder/similar?lang=it&limit=3"
+```
+
+Config is env-only: `TOTEM_ADDR` (default `127.0.0.1:8683`), `TOTEM_DB_PATH`, and the key as either `TOTEM_DB_KEY` or `TOTEM_DB_KEY_FILE` (a path — used by the systemd credential in deploy).
+
+**Design Decision — schema-first in Python.** Go is not yet installed in the dev environment, and the schema/data are identical whether the file is later opened plain or through the Adiantum VFS. So Phase 1 nails the data model against the real 471-animal dataset using Python's built-in `sqlite3`, fully tested, before any Go exists. Encryption is a *how-you-open-it* concern layered on in Phase 1b once the Go toolchain is in place — it does not change a single table.
+
+## Project structure
+
+Mirrors the conventions of [[ReverseProxyWAF]] and the other repos so it is instantly familiar.
+
+All application code lives under `src/` (the Go module now; the React app joins it at `src/web/` in Phase 3). Everything else at the root is data, tooling, infra and docs.
+
+```
+totem-it/
+├── src/                       # ── all application code ──
+│   ├── go.mod, go.sum         #    the Go module (run `go` commands from here)
+│   ├── cmd/
+│   │   ├── totemd/            #    the server binary (serves :8683 by default)
+│   │   └── totem-seed/        #    loads data/animals.json into the encrypted DB
+│   ├── internal/
+│   │   ├── api/               #    chi router, handlers, Catalog interface, DTOs
+│   │   ├── ingest/            #    load animals.json into the store (+ images later)
+│   │   ├── store/
+│   │   │   └── migrations/    #    *.sql schema — shared by Go and the Python seeder
+│   │   ├── quiz/              #    (later) questionnaire
+│   │   └── profile/           #    (later) saved results + friends
+│   └── web/                   #    (Phase 3) React app; dist/ embedded via embed.FS
+├── data/
+│   ├── animals.json           # canonical source-of-truth dataset (471 animals)
+│   └── images/                # scraped animal images + attributions (gitignored)
+├── scripts/
+│   ├── seed_db.py             # Phase 1: build & seed a plain SQLite DB (dev/testing)
+│   ├── db_test.py             # Phase 1: schema + data-integrity + query tests
+│   └── *.py                   # scrape/translate/image pipeline
+├── infra/                     # disposable dev/test LXC (Terraform + bootstrap + sync.sh)
+├── deploy/
+│   ├── totemd.service         # systemd unit (key injected via env/credential)
+│   └── totemd.env.example     # EnvironmentFile template (dev)
+├── hardening/                 # harden.sh
+├── .github/workflows/         # lint · test · scan · build · release (see CI/CD)
+└── README.md
+```
+
+No `Dockerfile` / `docker-compose.yaml` — this ships as a static binary + systemd unit (see [Deployment](#deployment)).
+
+## CI/CD, testing & supply chain
+
+Testing and dependency scanning are first-class requirements for this project, not afterthoughts — the pipeline **fails** on a missing test gate or a known-vulnerable dependency. Even Phase 1 ships with a runnable test suite ([`scripts/db_test.py`](scripts/db_test.py)).
+
+### Testing strategy
+
+```plantuml
+@startuml testpyramid
+title Testing pyramid
+skinparam shadowing false
+skinparam rectangle {
+  BackgroundColor #f4faf4
+  BorderColor #2c5f2e
+}
+rectangle "E2E (Playwright)\nfilter -> detail -> lang switch -> quiz\nfew, slow, high-confidence" as e2e #ffe8cc
+rectangle "Integration\nstore vs. real SQLite · API via httptest\nmoderate count" as integ #e8f4e8
+rectangle "Unit\nsearch filter · similarity math · React components\nmany, fast, cheap" as unit #d8ecd8
+rectangle "Data-integrity check\nevery slug has it/en/nl · no orphan traits · schema valid\n(guards ingestion — Phase 1 already has this)" as data #e8eef4
+
+unit -[hidden]up- integ
+integ -[hidden]up- e2e
+e2e -[hidden]up- data
+@enduml
+```
+
+| Layer | Tooling | What it covers | Why it matters here |
+| ----- | ------- | -------------- | ------------------- |
+| Data integrity (Phase 1) | Python `unittest`, in-memory DB | Every slug has all three languages; no orphan traits; `LIKE` name search returns known rows; filter/similarity match a brute-force oracle | Ingestion is the riskiest input — fails the build before bad data ships |
+| Unit (Go) | `go test`, table-driven | Filter set logic, Jaccard similarity, DTO projection | Pure functions, highest value per line |
+| Integration (Go) | `go test` + temp/in-memory SQLite | `sqlc` queries, migrations, encrypted-store round-trip | Catches SQL/schema mistakes a unit test can't |
+| API (Go) | `net/http/httptest` | Handlers end-to-end (params → JSON) | Verifies the contract the frontend depends on |
+| Unit/component (React) | Vitest + React Testing Library | Filter store, pill logic, rendering | Fast feedback on UI logic |
+| E2E | Playwright | Golden path in a real browser against the built binary | Proves the whole thing works |
+
+**Design Decision — tests use throwaway databases.** Every test opens an in-memory or temp-dir SQLite and drops it on teardown; no test writes to a checked-in file, and generated artifacts (`*.db`, `build/`) are git-ignored. Cleanup is a no-op — nothing to delete, nothing to reset.
+
+### Supply-chain / vulnerability scanning
+
+Third-party vulnerabilities are scanned on every PR — this was a deliberate addition, not an add-on.
+
+| Target | Tool | Catches |
+| ------ | ---- | ------- |
+| Go modules | **`govulncheck`** (official, call-graph-aware — flags only vulns you actually reach) | Vulnerable Go dependencies |
+| npm / React | **`osv-scanner`** (OSV DB, reads lockfiles) — stronger than bare `npm audit` | Vulnerable JS dependencies |
+| Go source | **`gosec`** (via `golangci-lint`) + optionally **CodeQL** | Insecure code patterns (SAST) |
+| Built binary | **Trivy** / **Grype** (filesystem scan of the release binary) | CVEs in transitive libs |
+| Repo | **gitleaks** | Committed secrets (`DEEPL_API_KEY`, `TOTEM_DB_KEY`) |
+| Ongoing | **Renovate** | Auto-PRs for dependency updates so vulns get patched fast |
+
+### Pipeline
+
+```plantuml
+@startuml cicd
+title CI/CD (GitHub Actions)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #e8f4e8
+  BorderColor #2c5f2e
+  DiamondBackgroundColor #f6f3ee
+}
+start
+:PR opened / push;
+partition "CI — every PR" {
+  :lint\ngofmt · go vet · golangci-lint (incl gosec)\neslint · prettier · tsc;
+  :test\ngo test -race -cover · vitest\nPython data-integrity suite;
+  :scan\ngovulncheck · osv-scanner\ngitleaks;
+  :build\nvite build -> embed -> go build (CGO_ENABLED=0)\nTrivy scan of the binary;
+  :E2E\nPlaywright vs. built binary;
+}
+if (main / tag?) then (yes)
+  partition "CD" {
+    :publish\nGitHub Release (static binary);
+    :deploy\nsystemd pull + restart on LXC/VPS\n(same pattern as update-waf.sh);
+    :smoke test /healthz;
+  }
+else (no)
+  :report coverage on PR;
+  stop
+endif
+stop
+@enduml
+```
+
+Workflow files, matching the [[ReverseProxyWAF]] naming convention:
+
+| Workflow | Trigger | Does |
+| -------- | ------- | ---- |
+| `lint.yml` | PR, push | Format + static analysis (Go + React) |
+| `test.yml` | PR, push | All test layers + coverage gate |
+| `scan.yml` | PR, push | `govulncheck`, `osv-scanner`, `gitleaks` |
+| `release.yml` | tags | Build static binary, Trivy scan, publish GitHub Release |
+| `deploy.yml` | after release | Fetch binary to LXC/VPS, restart systemd, smoke `/healthz` |
+| `renovate` | scheduled | Dependency PRs (Go modules + npm) |
+
+**Design Decision — coverage gate, not coverage worship.** The gate blocks a *drop* in coverage on the core packages (`catalog`, `store`), not an arbitrary global percentage. Chasing a global number rewards testing trivial getters; guarding the core rewards testing the logic that actually breaks.
+
+## Deployment
+
+Ships as a **static binary + systemd unit** on an LXC (or VPS), behind the WAF, TLS via certbot — no Docker. This is the payoff of a pure-Go single binary and matches the "no Docker, no unnecessary dependencies" aesthetic of the WireGuard repo; it also avoids the Docker-in-LXC nesting requirement. See [[ReverseProxyWAF]] for the edge configuration that fronts it.
+
+```plantuml
+@startuml deploy
+title Deployment topology
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+cloud Internet
+node "Edge WAF host" {
+  [NGINX + ModSecurity\ntotem.nvdm.eu] as waf
+}
+node "LXC / VPS (Debian)" {
+  [totemd binary\n:8683 localhost only] as bin
+  [systemd unit\nLoadCredentialEncrypted -> TOTEM_DB_KEY_FILE] as sysd
+  database "encrypted totem.db\n/var/lib/totemd/ (0600)" as vol
+  sysd --> bin
+  bin --> vol
+}
+Internet --> waf : HTTPS
+waf --> bin : proxy_pass (localhost / tunnel)
+@enduml
+```
+
+The unit is [`deploy/totemd.service`](deploy/totemd.service). The **encryption key is injected via the environment**, never baked into the binary: in production via a TPM-sealed systemd credential exposed as `TOTEM_DB_KEY_FILE` (the plaintext key lives only in-memory for the one process); for a dev box, a root-only `EnvironmentFile` ([`deploy/totemd.env.example`](deploy/totemd.env.example)) with `TOTEM_DB_KEY`. The unit also applies systemd hardening (`ProtectSystem=strict`, `NoNewPrivileges`, dropped capabilities, `StateDirectory`).
+
+**Design Decision — no Docker.** A static Go binary has no runtime dependencies, so a container adds registry/daemon/nesting overhead and an image-scanning surface for no benefit at this scale. Deploy is `scp` the binary + `systemctl restart`. (If a fully self-contained binary across differing glibc versions is ever needed, a musl-static build restores that — a build-flag change, not an architecture change.)
+
+## Current state vs. target
+
+The repository currently ships the **v1 static site**: a single ~650 KB `index.html` with the full dataset embedded as JSON in an inline `<script>`, plus 471 pre-generated `animals/<slug>.html` pages, built by the `scripts/*.py` pipeline. The v2 architecture above replaces the embedded-data/static-generation approach with the API + SPA described here. Migration is incremental (see [Build phases](#build-phases)): the same `data/animals.json` seeds the new database, so no data is lost.
+
+## Security Considerations
+
+| Concern | Design Decision / Risk / Mitigation |
+| ------- | ----------------------------------- |
+| At-rest encryption | **Decision:** Adiantum-encrypted SQLite (pure Go). **Risk:** key stored beside the DB defeats it. **Mitigation:** key from systemd encrypted credential → `TOTEM_DB_KEY`, never on disk in plaintext. |
+| DB network exposure | **Decision:** SQLite has no listener. **Benefit:** zero remote DB attack surface; only the local process/root can reach the file (`0600`, dedicated user). |
+| TLS & rate-limiting | **Decision:** not handled by `totemd`; the WAF does it; the app binds localhost only. **Risk:** direct access bypasses the WAF. **Mitigation:** never publish the app port. |
+| Authentication (future) | **Decision:** delegated to [[AuthenticationServer]] via WAF `auth_request`; `totemd` trusts a subject-id header. **Risk:** spoofed header if reachable directly. **Mitigation:** same localhost-only binding. |
+| Supply chain | **Risk:** vulnerable third-party deps. **Mitigation:** `govulncheck` + `osv-scanner` + Trivy in CI, Renovate for updates — build fails on a known-reachable vuln. |
+| Secrets | **Risk:** `DEEPL_API_KEY` / `TOTEM_DB_KEY` leaking into git. **Mitigation:** env/systemd-credential only; `gitleaks` in CI; `.gitignore` covers `.env` and `*.db`. |
+| SQL injection | **Mitigation:** `sqlc` parameterised queries (Go); parameterised queries in the Python seeder — no string-built SQL. |
+| Data integrity | **Risk:** ingestion writing partial/bad data. **Mitigation:** the Phase-1 data-integrity test gate blocks a build with missing languages or orphan traits. |
+
+## Potential Improvements
+
+- Port the Python ingestion to Go once the serving side is stable (single language, single toolchain).
+- Server-side caching / ETags for the (rarely-changing) catalogue responses.
+- The quiz and profile modules (see [Extensibility](#extensibility)).
+- Trait-level i18n search (search traits in any of the three languages).
+- Per-animal [images](#images) (migration `0002`, a data dir, and the image endpoint).
+- musl-static build for a fully self-contained binary across glibc versions.
+- The [PostgreSQL migration](#migration-to-postgresql-later) when a trigger condition is met.
+
+## Changelog
+
+### 0.2.5 — 2026-10-01
+- **Repo reorganised:** all application code now lives under `src/` (the Go module; `src/web/` reserved for the React app). The root keeps data, scripts, infra, deploy and docs — easier to navigate. Go runs from `src/`; the Python seeder's migration path updated accordingly. Re-verified green on the box.
+- **Deploy key handling:** `totemd` now reads the key from `TOTEM_DB_KEY` *or* `TOTEM_DB_KEY_FILE`. Added [`deploy/totemd.service`](deploy/totemd.service) (key via a TPM-sealed systemd credential in prod, or a root-only `EnvironmentFile` in dev) + hardening, and [`deploy/totemd.env.example`](deploy/totemd.env.example).
+- **Image scraping underway** — a background job builds `scripts/scrape_images.py` (Wikidata P18 → Commons) writing to `data/images/` with attribution; `data/images/` is git-ignored.
+
+### 0.2.4 — 2026-10-01
+- **Go seeder (`cmd/totem-seed` + `internal/ingest`)** loads `data/animals.json` into the **encrypted** DB (the Python seeder only makes an unencrypted one). Seeded 471 animals / 321 traits / 3814 links; transactional, idempotent (`--force` replaces).
+- **Server smoke-tested live on the dev LXC** — all endpoints return correct data against the encrypted DB: detail (projected to Italian), filter include/exclude, Jaccard `similar` (adder → scorpione), trait cloud (socievole ×96), `404` for unknown slug.
+- **Backend port set to the unusual `127.0.0.1:8683`** ("TOTE" on a keypad; below the ephemeral range to avoid listener clashes). Override with `TOTEM_ADDR`.
+
+### 0.2.3 — 2026-10-01
+- **Go backend scaffolded and tested on the dev LXC:** `internal/store` query layer (`GetAnimal` w/ translation join, `ListAnimals` filter include/exclude + `q` LIKE, `Similar` via Jaccard SQL, `ListTraits`), `internal/api` (`chi` router, consumer-side `Catalog` interface, DTOs, fake-backed handler tests), and `cmd/totemd/main.go` (env config, migrate, graceful shutdown). `go build/vet/test ./...` all clean.
+- **Image sourcing documented** — [where to scrape ~471 animal images](#sourcing-images-dont-draw-471-by-hand) (Wikidata `P18` → Commons primary; iNaturalist fallback) with licence/attribution notes.
+- **Added a Go standards note** to the Obsidian vault (`3. Programming Languages/Go`), matching the Rust note: idioms, pitfalls (`❌→✅`), and a review checklist, grounded in Effective Go + the Go Code Review Comments + Google/Uber style guides.
+
+### 0.2.2 — 2026-10-01
+- **Backend outline documented:** the `Catalog` interface + `Filter` type, the endpoint set, and the **parametrization rule** (every SQL value bound; only the `IN(…)` placeholder *count* is dynamic; enforced by a CI lint gate).
+- **Similarity defined as SQL Jaccard** — `shared / (|A| + |B| − shared)`, computed in one query; documented with a worked example.
+- **Planned the [Images](#images) feature** — nullable `image_path` via migration `0002`, images served from a data dir (not the binary, not git), `GET /…/image` endpoint.
+
+### 0.2.1 — 2026-10-01
+- **Phase 2 store foundation built and green on the dev LXC:** `internal/store` opens the Adiantum-encrypted DB (pure-Go `ncruces/go-sqlite3`) and runs the embedded migrations; a test proves the on-disk file contains no plaintext, a wrong key fails, and the right key reads it back.
+- **Dropped FTS5 for `LIKE` search.** FTS5 is not in ncruces' default pure-Go WASM build (`no such module: fts5`); at ~471 rows a `LIKE` scan is sub-millisecond, so the feature is unchanged for users and the schema got simpler and more Postgres-portable. `tsvector`/GIN remains the upgrade path on Postgres if the corpus ever grows.
+- **Pinned Go to 1.26** (dev LXC + `go.mod`): `ncruces/go-sqlite3` v0.35.6 requires Go ≥ 1.26, so the toolchain is installed directly instead of auto-downloaded on first build.
+- **Added `hardening/harden.sh`** (SSH key-only, idle timeout, fail2ban, unattended-upgrades, data-dir lockdown, iptables INPUT) — same pattern as the WireGuard/WAF repos.
+
+### 0.2.0 — 2026-09-30
+- **DB:** chose **pure-Go `ncruces/go-sqlite3` + Adiantum VFS** for file-level encryption at rest with no CGO — resolves "native Go *and* file-level encryption" (SQLCipher would force CGO; disk-only encryption doesn't travel with the file). Documented key management via systemd encrypted credentials.
+- **DB:** added a [PostgreSQL migration path](#migration-to-postgresql-later) and a `Store` interface so the swap is additive, not a rewrite.
+- **Frontend:** chose **React** (over Vue) for ecosystem/hireability, with React Router · TanStack Query · Zustand · react-i18next.
+- **Packaging:** dropped Docker in favour of a **static binary + systemd on LXC** (no nesting, smaller attack surface) — matches the WireGuard repo's aesthetic.
+- **CI:** added a **supply-chain / vulnerability-scanning** stage (`govulncheck`, `osv-scanner`, `gitleaks`, Trivy) that was previously missing.
+- **Process:** defined [build phases](#build-phases); Phase 1 (database) is schema-first in Python with a runnable data-integrity + query test suite (12 tests, green), since Go isn't yet installed and the schema is identical encrypted or not.
+- **Infra:** added a disposable dev/test LXC (`infra/`) — Terraform + `bootstrap-dev.sh` install the toolchain; `sync.sh` pushes the working tree for a fast edit loop.
+- Fixed PlantUML chained-arrow syntax errors in the backend-internals diagram (each relation on its own line).
+
+### 0.1.0 — 2026-09-30
+- Initial v2 architecture design: Go single-binary backend serving an embedded SPA, behind the existing ModSecurity WAF; normalised data model; extensibility plan (quiz, profiles with delegated auth); CI/testing strategy.
+
+## References
+
+- [Scouts en Gidsen Vlaanderen — Totemzoeker](https://www.scoutsengidsenvlaanderen.be/) (source data)
+- [React](https://react.dev/) · [Vite](https://vitejs.dev/) · [TanStack Query](https://tanstack.com/query) · [Zustand](https://zustand-demo.pmnd.rs/) · [react-i18next](https://react.i18next.com/)
+- [chi router](https://github.com/go-chi/chi) · [sqlc](https://sqlc.dev/) · [ncruces/go-sqlite3](https://github.com/ncruces/go-sqlite3) · [Adiantum VFS](https://pkg.go.dev/github.com/ncruces/go-sqlite3/vfs/adiantum)
+- [Playwright](https://playwright.dev/) · [Vitest](https://vitest.dev/)
+- [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) · [osv-scanner](https://github.com/google/osv-scanner) · [gitleaks](https://github.com/gitleaks/gitleaks) · [Trivy](https://trivy.dev/)
+- [DeepL API](https://www.deepl.com/docs-api)

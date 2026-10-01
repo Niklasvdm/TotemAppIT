@@ -1,0 +1,9 @@
+# Terraform runtime files — never commit these
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+
+# Variable files with real values — only the .example is committed
+*.tfvars
+!*.tfvars.example
