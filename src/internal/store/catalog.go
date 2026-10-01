@@ -275,12 +275,20 @@ func splitGroups(entries []string) []string {
 	return out
 }
 
-// splitTraits unpacks a group_concat column into a sorted slice (nil when empty).
+// splitTraits unpacks a group_concat column into a sorted, de-duplicated slice
+// (nil when empty). Dedup matters because one animal can hold two Dutch traits
+// that share a translated label (e.g. trots + fier → "proud") — show it once.
 func splitTraits(packed string) []string {
 	if packed == "" {
 		return nil
 	}
 	parts := strings.Split(packed, traitSep)
 	sort.Strings(parts)
-	return parts
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if len(out) == 0 || out[len(out)-1] != p {
+			out = append(out, p)
+		}
+	}
+	return out
 }

@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.2.12
+version: 0.2.14
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -625,6 +625,20 @@ The unit is [`deploy/totemd.service`](deploy/totemd.service). The **encryption k
 
 The repository currently ships the **v1 static site**: a single ~650 KB `index.html` with the full dataset embedded as JSON in an inline `<script>`, plus 471 pre-generated `animals/<slug>.html` pages, built by the `scripts/*.py` pipeline. The v2 architecture above replaces the embedded-data/static-generation approach with the API + SPA described here. Migration is incremental (see [Build phases](#build-phases)): the same `data/animals.json` seeds the new database, so no data is lost.
 
+## Data provenance & licensing
+
+The catalogue originates from the **Scouts en Gidsen Vlaanderen** *Totemzoeker*: the Dutch descriptions were scraped from there and machine-translated to IT/EN. This has a copyright dimension *(not legal advice)*:
+
+- **Animal names and trait lists are facts** — not copyrightable; reusing them is fine.
+- **The descriptions are copyrightable expression.** Scraping + translating + republishing them is a **derivative work**, so there is real copyright risk for a public app — translating and attributing them does **not** remove it.
+
+Mitigations, best-first:
+1. **Ask SGV for permission / a licence.** This is an on-mission use (a tool for Italian scouts) — they may well agree, or even collaborate.
+2. **Rewrite the descriptions in original wording.** Facts are free to reuse; original expression sidesteps the derivative-work issue — and doubles as the quality cleanup (tracked below).
+3. Keep a clear source attribution + link regardless (good faith; doesn't cure copyright).
+
+Until (1) or (2) is settled, treat the shipped descriptions as **placeholder**.
+
 ## Security Considerations
 
 | Concern | Design Decision / Risk / Mitigation |
@@ -662,6 +676,10 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[FEATURE]` "Which animal are you?" quiz (reuses similarity); profiles & friends (auth delegated to [[AuthenticationServer]]) — see [Extensibility](#extensibility).
 - `[ENHANCEMENT]` Free-text search (`q`) matches names only; consider matching descriptions too.
 - `[ENHANCEMENT]` CI/CD workflows + vuln scanning designed but not yet wired — see [CI/CD](#cicd-testing--supply-chain).
+- `[CHORE]` Trait-translation + Italian-name quality pass — **done** (0.2.14); descriptions remain (see legal item).
+- `[LEGAL]` **Descriptions**: resolve copyright — obtain SGV permission and/or rewrite in original wording. See [Data provenance](#data-provenance--licensing). Until then descriptions are placeholder, and a rewrite also raises their quality.
+- `[FEATURE]` **German (DE) translation** — a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the "Which animal are you?" quiz ships.
+- `[FEATURE]` **User requests**: a way for users to *request adding an animal* and to *request adding a trait/adjective*.
 
 ### Done
 - `[BUG]` Duplicate trait chips (synonyms collapsing in translation) → grouped by label (0.2.8).
@@ -671,8 +689,18 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[FEATURE]` "Similar totems" is now a vertical list with traits + description (0.2.11).
 - `[CHORE]` `run-dev.sh` hardened with a backend health-check after a silently-empty page (0.2.10).
 - Defaults set to English UI + dark theme (0.2.10).
+- `[BUG]` An animal could show the same translated trait twice (e.g. lion: *trots*+*fier* → "proud" ×2) → per-animal trait labels de-duplicated (0.2.13).
 
 ## Changelog
+
+### 0.2.14 — 2026-10-01
+- `[CHORE]` **Trait-translation quality pass:** fixed 29 English + 7 Italian distinct traits (394 `traits_en` + 45 `traits_it` cells) — MT homonyms and clunk like *druk* "print"→busy, *plantrekker* "plant puller"→resourceful, *beweeglijk* "movable"→agile, `flamboyant` "flamboyante"→sgargiante. Dutch untouched. Backup at `data/animals.json.bak`; scripts in `scripts/fix_traits.py` / `fix_names_it.py`; full list in `data/cleanup-review.md`.
+- `[CHORE]` **Italian names:** 4 confident fixes (geep→Aguglia, gibbon→Gibbone, manoel→Gatto di Pallas, serval→Servalo); most it-names are legitimate international forms.
+
+### 0.2.13 — 2026-10-01
+- `[BUG]` De-duplicated per-animal trait labels (the lion no longer shows "proud" twice when it holds two Dutch synonyms).
+- Added a [Data provenance & licensing](#data-provenance--licensing) section (SGV source + copyright assessment of the descriptions).
+- Roadmap: trait/IT-name quality pass (delegated), description rewrite/permission (legal), German translation (deferred), and user "request an animal/adjective" features.
 
 ### 0.2.12 — 2026-10-01
 - `[FEATURE]` **% match** on similarity results — the Jaccard score is returned by the API (`score` on `/similar` and `/animals/{slug}/similar`) and shown as a badge on the cards (e.g. Similar Totems: Lynx 46%).

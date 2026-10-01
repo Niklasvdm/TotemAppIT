@@ -35,3 +35,4 @@ __pycache__/
 # Node / React (Phase 3)
 node_modules/
 src/web/dist/
+/data/animals.json.bak

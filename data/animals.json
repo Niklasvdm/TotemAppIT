@@ -66,11 +66,11 @@
     "desc_en": "The monkey is sensible, yet often lets itself be fooled. They are very lively and enormously agile. A monkey is potty-mouthed, cheerful and courageous. A female monkey takes good care of her young.",
     "en": "Monkey",
     "traits_en": [
-      "movable",
+      "agile",
       "vivid",
       "brave",
       "naive",
-      "ludicrous",
+      "comical",
       "sensible",
       "merry",
       "caring"
@@ -90,7 +90,7 @@
     "traits_it": [
       "indaffarato",
       "abile",
-      "costruttivo",
+      "costruttore",
       "esigente",
       "lungimirante"
     ],
@@ -102,7 +102,7 @@
     "traits_en": [
       "bustling",
       "deft",
-      "building",
+      "builder",
       "fussy",
       "forward-looking"
     ]
@@ -135,9 +135,9 @@
     "desc_en": "The viper is a thick snake with hard scales that can withstand living in cold regions. They have a fixed habitat and live solitary lives. Adders are inventive hunters and very purposeful. They are not aggressive, but when in danger they can appear threatening.",
     "en": "Adder",
     "traits_en": [
-      "targeted",
+      "goal-oriented",
       "hardened",
-      "base",
+      "home-loving",
       "impressive",
       "inventive",
       "solitary",
@@ -178,7 +178,7 @@
     "desc_en": "This lizard is a scrapper. They are funny, mischievous, curious and challenging. The agame adapts readily. They are very fast, sometimes curious, but harmless. The agame is fond of sun and warmth and intimidates their enemies by grandstanding.",
     "en": "Agama",
     "traits_en": [
-      "customising",
+      "adaptable",
       "enjoyer",
       "funny",
       "greedy",
@@ -355,7 +355,7 @@
     "desc_en": "These wild dogs have great adaptability. They are slender, fast and have great stamina. Their sense of smell and hearing are especially highly developed. Alpine dogs lead a close community life and are very social, but can react fiercely to strangers.",
     "en": "Dhole",
     "traits_en": [
-      "customising",
+      "adaptable",
       "perceptive",
       "fast",
       "social",
@@ -389,7 +389,7 @@
     "desc_en": "An American bald eagle mainly eats fish. This bird is very flexible and adapts their hunting methods to circumstances. American bald eagles can sit dead still for long periods, with no movement in the environment escaping them. American sea eagles are loyal to their mates and attached to their roost.",
     "en": "American bald eagle",
     "traits_en": [
-      "customising",
+      "adaptable",
       "flexible",
       "patient",
       "attached",
@@ -498,7 +498,7 @@
     "desc_en": "This cuckoo is among the most unusual birds in the world. The ani is extremely social and lives in groups that behave like a close-knit family. They always stay close to the group. They work together to defend their common territory. If one of the birds is injured, the other birds protect the animal full of compassion.",
     "en": "Ani",
     "traits_en": [
-      "family",
+      "family-oriented",
       "compassionate",
       "unusual",
       "social",
@@ -588,7 +588,7 @@
     "desc_en": "Compared to other parrots, macaws are calm and serious. They quickly get used to a new environment and are docile and loyal if treated well. This intelligent bird is curious by nature. The macaw lives on good terms with conspecifics but can be petulant towards strangers.",
     "en": "Macaw",
     "traits_en": [
-      "customising",
+      "adaptable",
       "serious",
       "flexible",
       "intelligent",
@@ -640,7 +640,7 @@
       "combative",
       "spirited",
       "merry",
-      "heady",
+      "impetuous",
       "active",
       "helpful",
       "social animal",
@@ -684,9 +684,9 @@
       "protective",
       "cheeky",
       "brave",
-      "print",
+      "busy",
       "social animal",
-      "monter",
+      "chipper",
       "cheerful",
       "teasing",
       "playful"
@@ -787,7 +787,7 @@
       "shy",
       "resourceful",
       "observing",
-      "customising",
+      "adaptable",
       "convivial",
       "playful",
       "energetic"
@@ -821,7 +821,7 @@
     "traits_en": [
       "deft",
       "patient",
-      "base",
+      "home-loving",
       "observant",
       "reckless",
       "fast"
@@ -946,7 +946,7 @@
     "desc_en": "This ground-dwelling monkey is solidly built and lives in close-knit groups within which a strict hierarchy prevails. The baboon is anxious, courageous and highly adaptable. They can sometimes have a temper. A baboon is farsighted and a good copycat.",
     "en": "Baboon",
     "traits_en": [
-      "customising",
+      "adaptable",
       "concerned",
       "social animal",
       "hierarchical",
@@ -1023,12 +1023,12 @@
     "desc_en": "A bear is a big and strong animal. They are not very nippy, but compensate with fantastic stamina. They can swim and climb well. A bear is intelligent and has great adaptability and talent for improvisation. They are amiable and sociable, but also unpredictable, which can make them dangerous.",
     "en": "Bear",
     "traits_en": [
-      "customising",
+      "adaptable",
       "convivial",
-      "cozy",
+      "convivial",
       "intelligent",
       "inventive",
-      "unaccountable",
+      "unpredictable",
       "strong",
       "enduring"
     ]
@@ -1121,7 +1121,7 @@
       "playful",
       "social",
       "calm",
-      "dull",
+      "placid",
       "muscular"
     ]
   },
@@ -1244,7 +1244,7 @@
     "en": "Mountain Beaver",
     "traits_en": [
       "active",
-      "base",
+      "home-loving",
       "inventive",
       "orderly",
       "quiet",
@@ -1282,7 +1282,7 @@
     "desc_en": "This small rodent lives on the tundra and mountain pastures. The mountain lemming is hardy and active both day and night. When in danger, they do not abandon their conspecifics. They are social and adapt easily. The mountain lemming is adventurous and somewhat reckless.",
     "en": "Norway lemming",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
       "adventurous",
       "protective",
@@ -1330,14 +1330,14 @@
     "en": "Bernese mountain dog",
     "traits_en": [
       "affectionate",
-      "customising",
+      "adaptable",
       "stubborn",
       "obedient",
       "powerful",
       "inquisitive",
       "observant",
       "tolerant",
-      "liberal",
+      "free-spirited",
       "watchful",
       "meek",
       "independent"
@@ -1361,7 +1361,7 @@
       "zwijgzaam"
     ],
     "traits_it": [
-      "costruttivo",
+      "costruttore",
       "familiare",
       "laborioso",
       "diligente",
@@ -1379,15 +1379,15 @@
     "desc_en": "The beaver is an active, forward-looking and cautious rodent. This good swimmer and diver lives in colonies. They resist coercion. The beaver is social but rather taciturn and has few enemies. They are ingenious and have a huge appetite for building. A beaver is loyal and stays with their mate all their lives.",
     "en": "Beaver",
     "traits_en": [
-      "building",
-      "family",
+      "builder",
+      "family-oriented",
       "hardworking",
       "diligent",
       "ingenious",
       "loyal",
       "forward-looking",
       "careful",
-      "liberal",
+      "free-spirited",
       "independent",
       "silent"
     ]
@@ -1427,7 +1427,7 @@
       "altruistic",
       "bustling",
       "helpful",
-      "targeted",
+      "goal-oriented",
       "experiential",
       "hardworking",
       "inquisitive",
@@ -1518,7 +1518,7 @@
       "quiet",
       "enjoyer",
       "fascinating",
-      "dull",
+      "placid",
       "ingenious",
       "tactical",
       "enduring"
@@ -1554,7 +1554,7 @@
     "desc_en": "This bird has a long strong bill and a black band through the eye that continues into the crest. They are cautious and rather shy. The blue heron is very patient and unfussy. Their movement is graceful, subdued, slow and thoughtful. The grey heron lives in colonies during the breeding season, but usually in small groups or alone during the rest of the year.",
     "en": "Grey heron",
     "traits_en": [
-      "subdued",
+      "composed",
       "thoughtful",
       "cautious",
       "patient",
@@ -1580,7 +1580,7 @@
       "elegante",
       "perseverante",
       "pacifico",
-      "melodioso"
+      "canterino"
     ],
     "slug": "blauwe-vinvis",
     "desc_nl": "Dit zeezoogdier is het grootste dier dat op aarde leeft. Ondanks hun omvang heeft het een elegant voorkomen. De blauwe vinvis is een doorzetter en legt trektochten van duizenden kilometers af. Ze zijn vreedzaam en hebben geen natuurlijke vijanden. De blauwe vinvis leeft vaak alleen, maar ook in paren of kleine groepen en soms in grote groepen. Ze zijn zeer communicatief en staan bekend om hun gezang.",
@@ -1592,7 +1592,7 @@
       "elegant",
       "persistent",
       "peaceful",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -1625,7 +1625,7 @@
     "desc_en": "The blue sea slug is a unique inhabitant of the tropical oceans. They are docile and drift with the currents. When it catches sight of their goal, it calmly works towards it. The blue sea slug is curious and learns new things by doing. They are fussy and versatile.",
     "en": "Blue sea slug",
     "traits_en": [
-      "targeted",
+      "goal-oriented",
       "experiential",
       "fussy",
       "curious",
@@ -1705,7 +1705,7 @@
     "traits_en": [
       "active",
       "dependent",
-      "cozy",
+      "convivial",
       "social animal (small group)",
       "stubborn",
       "loud",
@@ -1746,7 +1746,7 @@
     "desc_en": "This small antelope has highly developed senses and can make very large jumps. They live alone, in pairs or small family groups. The bushbuck is active and can adapt well to changing conditions. They are tolerant of conspecifics. The bushbuck is somewhat timid, but also brave. Since it resists fiercely, attackers do not find easy prey in them.",
     "en": "Bushbuck",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
       "brave",
       "observant",
@@ -1795,7 +1795,7 @@
       "deft",
       "sharing",
       "attached",
-      "base",
+      "home-loving",
       "shy",
       "fast",
       "solitary",
@@ -1837,7 +1837,7 @@
     "en": "Boxer",
     "traits_en": [
       "pleasant",
-      "movable",
+      "agile",
       "joyful",
       "brave",
       "benign",
@@ -1874,7 +1874,7 @@
       "good memory",
       "good sense of orientation",
       "intelligent",
-      "movable",
+      "agile",
       "fearless"
     ]
   },
@@ -1910,7 +1910,7 @@
     "desc_en": "When the howler monkey wakes up in the morning, it usually marks their territory immediately with their characteristic roar. This monkey lives in groups and moves slowly and sedately, except when playing or excited. The howler monkey hardly has any enemies. They are sometimes touchy but also surprisingly sensitive, well-behaved and sweet.",
     "en": "Howler monkey",
     "traits_en": [
-      "subdued",
+      "composed",
       "social animal",
       "slow",
       "touchy",
@@ -1947,7 +1947,7 @@
     "desc_en": "This tame animal is sociable in nature but is often misjudged. The buffalo is rarely noisy. They live very closely with the rest of the herd. The buffalo is very caring and cooperates well. Buffalo defend other group members if they are in danger. A herd has no real leadership. Buffalo decide together or take turns where to go.",
     "en": "Buffalo",
     "traits_en": [
-      "cozy",
+      "convivial",
       "social animal",
       "collaborative",
       "defensive",
@@ -1985,8 +1985,8 @@
     "desc_en": "This bird of prey is a slow flyer, but can suddenly make lightning-fast diving flights. The buzzard acts thoughtfully, using the rising warm air to soar without much energy. They often have a wait-and-see attitude and then sit on the lookout. The buzzard is flexible and has good adaptability. Buzzards groom their young well and teach them for a long time.",
     "en": "Buzzard",
     "traits_en": [
-      "customising",
-      "waiting",
+      "adaptable",
+      "wait-and-see",
       "thoughtful",
       "flexible",
       "inventive",
@@ -2019,7 +2019,7 @@
       "curioso",
       "cooperativo",
       "socievole",
-      "melodioso"
+      "canterino"
     ],
     "slug": "bultrug",
     "desc_nl": "Deze indrukwekkende walvis is zowel een mysterie als een bron van fascinatie. Hun afmetingen en acrobatisch gedrag maken hen populair. De bultrug is heel communicatief en zingt complexe, betoverende liederen. Ze zijn sociaal en nieuwsgierig. De bultrug is actief en werkt samen om te jagen.",
@@ -2035,7 +2035,7 @@
       "curious",
       "collaborative",
       "social",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -2072,15 +2072,15 @@
     "desc_en": "The polecat is agile, swift and cunning. And also: cautious, shrewd and courageous. The polecat is indifferent to pain or discomfort and can adapt well to their environment. They are mostly active at night. The polecat is far-sighted: it stockpiles food.",
     "en": "Polecat",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "cautious",
       "persistent",
       "crafty",
       "brave",
-      "night",
+      "nocturnal",
       "perceptive",
-      "Quick",
+      "quick",
       "forward-looking"
     ]
   },
@@ -2114,7 +2114,7 @@
     "desc_en": "This perky bird is a scavenger and very curious. They are very social and intelligent. The caracara dares a lot, is fast and always manages to escape a threat. This bird has great adaptability, which enables it to choose the easiest solution when faced with challenges. The caracara rarely allows itself to be deterred.",
     "en": "Caracara",
     "traits_en": [
-      "customising",
+      "adaptable",
       "daredevil",
       "intelligent",
       "curious",
@@ -2155,7 +2155,7 @@
     "en": "Guinea pig",
     "traits_en": [
       "communicative",
-      "cozy",
+      "convivial",
       "funny",
       "social animal",
       "intelligent",
@@ -2200,11 +2200,11 @@
     "desc_en": "The chimpanzee is a big, strong great ape. Like all apes, it can be called wise and yet it allows itself to be outsmarted in a silly way. They are the liveliest and most agile of mammals, potty-mouthed and merry tassels. The chimpanzee is brave and mother monkey takes good care of her young.",
     "en": "Chimpanzee",
     "traits_en": [
-      "customising",
+      "adaptable",
       "communicative",
       "creative",
       "empathetic",
-      "family",
+      "family-oriented",
       "social animal",
       "hierarchical",
       "intelligent",
@@ -2254,10 +2254,10 @@
       "graceful",
       "enjoyer",
       "social animal",
-      "instinctively",
+      "instinctive",
       "lovely",
       "compassionate",
-      "monter",
+      "chipper",
       "curious",
       "sensible"
     ]
@@ -2294,7 +2294,7 @@
     "traits_en": [
       "bustling",
       "energetic",
-      "appetising",
+      "hearty eater",
       "loving",
       "undemanding",
       "territorial",
@@ -2343,7 +2343,7 @@
       "powerful",
       "crafty",
       "loud",
-      "night",
+      "nocturnal",
       "social",
       "trusting"
     ]
@@ -2372,7 +2372,7 @@
     "desc_en": "This snake is known for their typical menacing posture, where it erects itself up to a metre. The cobra quickly gets used to a new environment. On its own, it is not aggressive, but if it has to, it defends itself fiercely. The cobra does not engage in brood care but does stay nearby to watch over the nest.",
     "en": "Cobra",
     "traits_en": [
-      "customising",
+      "adaptable",
       "impressive",
       "defensive",
       "watchful",
@@ -2532,7 +2532,7 @@
     "desc_en": "This little swan got their name from the sound it makes. They are delicate and gentle birds, not very conspicuous as they adapt well to their surroundings. The coscoroba live closely with their conspecifics. They take good care of their young and protect conspecifics. The coscoroba stays in constant contact with others.",
     "en": "Coscoroba",
     "traits_en": [
-      "customising",
+      "adaptable",
       "protective",
       "inconspicuous",
       "collaborative",
@@ -2605,7 +2605,7 @@
     "desc_it": "La nutria è un roditore acquatico socievole e adattabile. È sempre indaffarata nella costruzione di rifugi lungo le rive. Vive in piccoli gruppi familiari. È ingegnosa nell'adattarsi a nuovi ambienti.",
     "en": "Coypu",
     "traits_en": [
-      "customising",
+      "adaptable",
       "bustling",
       "social",
       "resourceful"
@@ -2635,9 +2635,9 @@
     "desc_en": "The day peacock is a hugely popular butterfly that stands out with their vibrant colour. Yet the day peacock can also camouflage itself amazingly well. This flexible butterfly is loyal to their environment, but quickly adapts to new terrain and unforeseen circumstances.",
     "en": "Peacock butterfly",
     "traits_en": [
-      "customising",
+      "adaptable",
       "flexible",
-      "base",
+      "home-loving",
       "inventive",
       "colourful"
     ]
@@ -2750,8 +2750,8 @@
     "en": "Badger",
     "traits_en": [
       "cautious",
-      "family",
-      "base",
+      "family-oriented",
+      "home-loving",
       "slow",
       "neat",
       "apprehensive",
@@ -2853,7 +2853,7 @@
       "amorevole",
       "appariscente",
       "tollerante",
-      "melodioso"
+      "canterino"
     ],
     "slug": "diksnavelmees",
     "desc_nl": "Deze meesachtige zangvogel is een behendige acrobaat die vaak klautert in bamboestengels en takken. De diksnavelmees is een groepsdier. Door hun constante gekwetter verraadt die ze hun aanwezigheid. De diksnavelmees leeft liefdevol samen met anderen.",
@@ -2867,7 +2867,7 @@
       "loving",
       "striking",
       "tolerant",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -2898,7 +2898,7 @@
     "desc_en": "This wild Australian dog does not bark, but communicates via a wolf-like howl. The dingo is intelligent, highly independent and therefore difficult to tame. They live in small, close-knit families. They are real go-getters when hunting. The dingo is alternately active and calm.",
     "en": "Dingo",
     "traits_en": [
-      "customising",
+      "adaptable",
       "alert",
       "social animal (small group)",
       "hierarchical",
@@ -2935,7 +2935,7 @@
       "socievole",
       "giocoso",
       "saggio",
-      "melodioso"
+      "canterino"
     ],
     "slug": "distelvink",
     "desc_nl": "Deze bekoorlijke zangvogel staat bekend om hun magische combinatie van rijke kleuren, klaterend, tinkelend gezang en dansende vluchten. De distelvink is verstandig, behendig, ijverig en onrustig. Het is een sociale en praatgrage vogel die vrijwel altijd in groepen leeft en gezellig met elkaar kwettert.",
@@ -2944,7 +2944,7 @@
     "en": "Goldfinch",
     "traits_en": [
       "deft",
-      "cozy",
+      "convivial",
       "social animal",
       "diligent",
       "colourful",
@@ -2953,7 +2953,7 @@
       "social",
       "playful",
       "sensible",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -2990,7 +2990,7 @@
     "traits_en": [
       "communicative",
       "enthusiastic",
-      "cozy",
+      "convivial",
       "intelligent",
       "vivid",
       "cheerful",
@@ -3013,12 +3013,12 @@
       "zorgzaam"
     ],
     "traits_it": [
-      "costruttivo",
+      "costruttore",
       "imitatore",
       "discreto",
       "veloce",
       "diligente",
-      "melodioso",
+      "canterino",
       "premuroso"
     ],
     "slug": "doornkruiper",
@@ -3027,12 +3027,12 @@
     "desc_en": "The thorned warbler is a very rare songbird that lives in the bush. They have brown, inconspicuous plumage, but regularly make themselves clearly heard. They run fast and are handsome imitators. They build a solid nest and are caring for their young.",
     "en": "Treecreeper",
     "traits_en": [
-      "building",
+      "builder",
       "imitative",
       "inconspicuous",
       "fast",
       "industrious",
-      "vocal",
+      "songful",
       "caring"
     ]
   },
@@ -3049,7 +3049,7 @@
     ],
     "traits_it": [
       "acrobatico",
-      "costruttivo",
+      "costruttore",
       "comunicativo",
       "animale di gruppo",
       "imitatore"
@@ -3061,7 +3061,7 @@
     "en": "Thornbill",
     "traits_en": [
       "acrobatic",
-      "building",
+      "builder",
       "communicative",
       "social animal",
       "imitative"
@@ -3136,7 +3136,7 @@
     "desc_it": "Il dromedario è un animale tenace e resistente del deserto. È capace di sopportare il caldo più feroce e di andare giorni senza bere. Può essere cocciuto ma è molto utile come animale da lavoro. Si adatta perfettamente alle condizioni più dure.",
     "en": "Dromedary",
     "traits_en": [
-      "customising",
+      "adaptable",
       "persistent",
       "patient",
       "hardened",
@@ -3172,7 +3172,7 @@
       "impavido",
       "appariscente",
       "difensivo",
-      "melodioso"
+      "canterino"
     ],
     "slug": "drongo",
     "desc_nl": "De drongo is een mooie, opvallende zangvogel die vooral in dichte bossen leeft. Ze zijn actief en nieuwsgierig en vallen dikwijls op door hun aantrekkelijk gezang. De drongo is luidruchtig en een goede imitator die zijn nest onverschrokken en fel verdedigt, ook tegen indringers die veel groter zijn, zoals roofvogels.",
@@ -3189,7 +3189,7 @@
       "fearless",
       "striking",
       "defensive",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -3220,7 +3220,7 @@
     "desc_en": "The pigeon is graceful in their movements. This friendly bird has a graceful posture. They fly fast and have great endurance and strong orientation skills. The pigeon puts little energy into building their nest and is therefore quickly satisfied.",
     "en": "Pigeon",
     "traits_en": [
-      "family",
+      "family-oriented",
       "good sense of orientation",
       "loving",
       "loyal",
@@ -3265,7 +3265,7 @@
       "withdrawn",
       "playful",
       "quiet",
-      "night",
+      "nocturnal",
       "funny",
       "cautious",
       "bustling",
@@ -3334,7 +3334,7 @@
     "desc_it": "Il rinoceronte di Sumatra è il più piccolo dei rinoceronti, ma non per questo meno forte. È solitario e territoriale, preferisce vivere nelle foreste dense. È cauto e adattabile, ma può essere aggressivo se minacciato. È uno degli animali più rari al mondo.",
     "en": "Dwarf Rhinoceros",
     "traits_en": [
-      "customising",
+      "adaptable",
       "cautious",
       "solitary",
       "strong",
@@ -3380,9 +3380,9 @@
     "traits_en": [
       "alert",
       "talented",
-      "movable",
+      "agile",
       "creature of habit",
-      "cozy",
+      "convivial",
       "social animal",
       "vivid",
       "observant",
@@ -3459,7 +3459,7 @@
     "traits_en": [
       "active",
       "alert",
-      "movable",
+      "agile",
       "energetic",
       "vivid",
       "curious",
@@ -3498,9 +3498,9 @@
     "desc_en": "The hedgehog searches for food mainly at night. They are undemanding, industrious, observant and vigilant. The hedgehog is not territorial and tolerates conspecifics in their territory. The hedgehog quickly adopts a defensive posture when danger threatens.",
     "en": "Hedgehog",
     "traits_en": [
-      "customising",
+      "adaptable",
       "curious",
-      "night",
+      "nocturnal",
       "independent",
       "quiet",
       "shy",
@@ -3540,15 +3540,15 @@
     "desc_en": "This burly sea duck can fly remarkably fast and dive very well. They are hardened and well adapted to Arctic life. They are sociable, tolerant and social. The eider duck lives together in flocks of thousands of birds. They like to work well together and have a strong bond with their peers. The eider duck always returns to their birthplace to build a nest.",
     "en": "Eider duck",
     "traits_en": [
-      "customising",
+      "adaptable",
       "hardened",
-      "cozy",
-      "base",
+      "convivial",
+      "home-loving",
       "collaborative",
       "fast",
       "social",
       "tolerant",
-      "custom"
+      "adapted"
     ]
   },
   {
@@ -3662,7 +3662,7 @@
     "desc_en": "This Australian bird cannot fly. They migrate throughout regions and are very active. On hot summer days, the emu is often the only active animal. They can run for long periods of time thanks to their great stamina. They can also reach explosive speed if necessary. The emu is very curious and rarely aggressive.",
     "en": "Emu",
     "traits_en": [
-      "customising",
+      "adaptable",
       "adventurous",
       "persistent",
       "social animal",
@@ -3701,7 +3701,7 @@
     "desc_en": "The ever adapts quickly to any terrain. They move swiftly and can swim well. With their sensitive snout, they search the ground for small valuables of nature. The ever defends itself when injured and protects their young very fiercely. The ever lives in small groups, is powerful and helpful.",
     "en": "Boar",
     "traits_en": [
-      "customising",
+      "adaptable",
       "protective",
       "social animal (small group)",
       "helpful",
@@ -3824,7 +3824,7 @@
     "traits_en": [
       "alert",
       "deft",
-      "night",
+      "nocturnal",
       "curious",
       "shy",
       "smart",
@@ -3851,7 +3851,7 @@
       "vivace",
       "territoriale",
       "allegro",
-      "melodioso"
+      "canterino"
     ],
     "slug": "fitis",
     "desc_nl": "Deze levendige zangvogel vrolijkt de wouden op, maar duldt geen soortgenoten in het broedgebied. Hun bewegingen tonen een grenzeloze blijmoedigheid. De fitis is altijd in beweging en hun zang is aantrekkelijk.",
@@ -3860,12 +3860,12 @@
     "en": "Willow warbler",
     "traits_en": [
       "attractive",
-      "movable",
+      "agile",
       "joyful",
       "vivid",
       "territorial",
       "merry",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -3897,7 +3897,7 @@
     "en": "Flamingo",
     "traits_en": [
       "elegant",
-      "cozy",
+      "convivial",
       "social animal (large group)",
       "colourful",
       "striking",
@@ -3926,7 +3926,7 @@
       "epicureo",
       "chiacchierone",
       "veloce",
-      "melodioso",
+      "canterino",
       "attivo"
     ],
     "slug": "fluithaas",
@@ -3941,7 +3941,7 @@
       "enjoyer",
       "chatty",
       "fast",
-      "vocal",
+      "songful",
       "active"
     ]
   },
@@ -4008,7 +4008,7 @@
     "en": "Fossa",
     "traits_en": [
       "deft",
-      "night",
+      "nocturnal",
       "independent",
       "solitary",
       "strong",
@@ -4043,7 +4043,7 @@
     "traits_en": [
       "social animal",
       "relaxed",
-      "respectfully",
+      "respectful",
       "social",
       "tolerant",
       "friendly"
@@ -4141,7 +4141,7 @@
     "desc_en": "This pheasant-like bird lives on grasslands and in the bush. This bird adapts to all living conditions. The frankolin is quiet, but can surprise with their busy call. They are loyal and caring to their offspring.",
     "en": "Francolin",
     "traits_en": [
-      "customising",
+      "adaptable",
       "quiet",
       "loyal",
       "surprising",
@@ -4183,7 +4183,7 @@
       "affectionate",
       "balanced",
       "affectionate",
-      "cozy",
+      "convivial",
       "intelligent",
       "brave",
       "quiet",
@@ -4268,11 +4268,11 @@
     "desc_en": "The ferret is a domesticated polecat. They are frantic hunters who like to make themselves useful in catching rabbits. The ferret is comical, playful and agile. They are sociable and need company. The ferret is reliable and tolerant and adapts quickly.",
     "en": "Ferret",
     "traits_en": [
-      "customising",
+      "adaptable",
       "reliable",
-      "movable",
+      "agile",
       "affectionate",
-      "cozy",
+      "convivial",
       "funny",
       "social animal",
       "useful",
@@ -4310,8 +4310,8 @@
     "desc_en": "This wader has long legs and a short tail. They live in loyal pairs in a territory they rarely leave. The grebe is rather clumsy on the mainland and therefore does not venture out much. They are strict parents and good educators. The grebe is a persistent, cautious, agile and graceful bird.",
     "en": "Grebe",
     "traits_en": [
-      "movable",
-      "base",
+      "agile",
+      "home-loving",
       "clumsy",
       "educational",
       "graceful",
@@ -4384,7 +4384,7 @@
     "desc_en": "This intelligent mockingbird is a cunning, restless and lively predator. They can faithfully mimic all kinds of sounds. Gifted and entertaining, the jay adapts easily.",
     "en": "Jay",
     "traits_en": [
-      "customising",
+      "adaptable",
       "talented",
       "imitative",
       "intelligent",
@@ -4464,12 +4464,12 @@
     "desc_en": "This small, nocturnal monkey has a distinctive appearance. They have a round head, large eyes and a long bushy tail. The galago lives in groups and is tolerant. They crawl deftly and with leaps through the trees. The galago is not fussy. They call out to conspecifics in a loud voice.",
     "en": "Galago",
     "traits_en": [
-      "separate",
+      "distinctive",
       "deft",
       "communicative",
       "social animal",
       "loud",
-      "night",
+      "nocturnal",
       "unfussy",
       "tolerant"
     ]
@@ -4501,7 +4501,7 @@
     "desc_it": "La tartaruga delle Galápagos è uno degli animali più longevi del pianeta. Si muove lentamente e senza fretta, con grande tranquillità. È imperturbabile di fronte alle difficoltà. La sua resistenza e la sua pazienza sono leggendarie.",
     "en": "Galapagos tortoise",
     "traits_en": [
-      "subdued",
+      "composed",
       "patient",
       "slow",
       "imperturbable",
@@ -4642,10 +4642,10 @@
     "desc_it": "Il geco è una piccola lucertola adattabile e notturna. Grazie alle ventose sui piedi, si arrampica su qualsiasi superficie. È veloce e curioso, sempre in cerca di insetti. Vive in molti ambienti diversi, dai deserti alle foreste tropicali.",
     "en": "Gecko",
     "traits_en": [
-      "customising",
+      "adaptable",
       "alert",
       "nimble",
-      "night",
+      "nocturnal",
       "curious",
       "fast",
       "resourceful"
@@ -4653,7 +4653,7 @@
   },
   {
     "nl": "Geep",
-    "it": "Geep",
+    "it": "Aguglia",
     "alt": "Belone",
     "traits_nl": [
       "acrobatisch",
@@ -4717,7 +4717,7 @@
     "desc_en": "The goat lives in small groups in inhospitable, rocky regions. They are agile climbers. The goat is restless, lively and playful. As well as curious and inquisitive. Although it gnaws on everything and likes everything, it is picky about what it eats. The goat has good adaptability.",
     "en": "Goat",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "social animal (small group)",
       "fussy",
@@ -4755,9 +4755,9 @@
     "en": "Gecko",
     "traits_en": [
       "deft",
-      "cozy",
+      "convivial",
       "domestic",
-      "night",
+      "nocturnal",
       "fast",
       "surprising"
     ]
@@ -4800,7 +4800,7 @@
       "competitive",
       "flexible",
       "patient",
-      "cozy",
+      "convivial",
       "diligent",
       "unfussy",
       "educational",
@@ -4882,7 +4882,7 @@
       "deft",
       "thoughtful",
       "intelligent",
-      "night",
+      "nocturnal",
       "curious",
       "observant",
       "graceful",
@@ -4892,7 +4892,7 @@
   },
   {
     "nl": "Gibbon",
-    "it": "Gibbon",
+    "it": "Gibbone",
     "alt": "Hoelok, Lar, Oenka, Siamang, Wau-wau",
     "traits_nl": [
       "behendig",
@@ -5170,9 +5170,9 @@
     "desc_it": "L'armadillo è un mammifero notturno che si protegge con la sua corazza ossea. È cauto e tranquillo, evita i conflitti arrotolando su sé stesso. Vive da solo e scava tane elaborate. Si adatta a molti tipi di ambiente.",
     "en": "Armadillo",
     "traits_en": [
-      "customising",
+      "adaptable",
       "cautious",
-      "night",
+      "nocturnal",
       "quiet",
       "shy",
       "solitary"
@@ -5211,7 +5211,7 @@
     "en": "Gorilla",
     "traits_en": [
       "protective",
-      "family",
+      "family-oriented",
       "hierarchical",
       "intelligent",
       "powerful",
@@ -5243,7 +5243,7 @@
       "resistente",
       "ingegnoso",
       "svelto",
-      "melodioso"
+      "canterino"
     ],
     "slug": "goudhaan",
     "desc_nl": "Deze zangvogel is Europa’s kleinste vogeltje. Actief en vlug fladdert deze rusteloze vogel van boom naar boom. Hoewel het goudhaantje klein is, is dit geharde dier in staat tot grote prestaties. Tijdens de trek legt die vaak enorme afstanden af. Het vindingrijke goudhaantje is altijd op jacht naar insecten.",
@@ -5257,8 +5257,8 @@
       "restless",
       "enduring",
       "resourceful",
-      "Quick",
-      "vocal"
+      "quick",
+      "songful"
     ]
   },
   {
@@ -5373,7 +5373,7 @@
     "traits_en": [
       "altruistic",
       "deft",
-      "cozy",
+      "convivial",
       "roguish",
       "helpful",
       "vivid",
@@ -5411,7 +5411,7 @@
     "en": "Greylag goose",
     "traits_en": [
       "cautious",
-      "appetising",
+      "hearty eater",
       "social",
       "loyal",
       "defensive",
@@ -5442,7 +5442,7 @@
       "perspicace",
       "amante della quiete",
       "vigile",
-      "melodioso"
+      "canterino"
     ],
     "slug": "griel",
     "desc_nl": "Deze steltloper verkiest rustige broed- en jaaggronden. Het is een onopvallende vogel, behalve in hun krachtige vlucht. In die vlucht hebben de vleugels een opvallend patroon. De griel leeft in groep en is ‘s nachts actief. Overdag is die stil, maar ‘s nachts zingt die. De griel is erg waakzaam en opmerkzaam en slaat bij het minste gerucht alarm.",
@@ -5453,12 +5453,12 @@
       "protective",
       "social animal",
       "powerful",
-      "night",
+      "nocturnal",
       "inconspicuous",
       "observant",
       "peace seeker",
       "watchful",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -5663,7 +5663,7 @@
     "traits_en": [
       "acrobatic",
       "communicative",
-      "cozy",
+      "convivial",
       "social animal (large group)",
       "imitative",
       "colourful",
@@ -5779,7 +5779,7 @@
     "traits_en": [
       "alert",
       "intelligent",
-      "night",
+      "nocturnal",
       "observing",
       "independent",
       "perceptive",
@@ -5803,7 +5803,7 @@
     ],
     "traits_it": [
       "adattabile",
-      "flamboyante",
+      "sgargiante",
       "animale di gruppo",
       "colorato",
       "senza pretese",
@@ -5816,7 +5816,7 @@
     "desc_en": "This small, unpretentious fish has bright colours that constantly change in the light. The guppy is well-loved. They are peaceful and eminently group animals that do not like to live alone. The guppy is flamboyant and shows off their large fan tail. They have great adaptability: as freshwater fish, they can also get used to seawater.",
     "en": "Guppy",
     "traits_en": [
-      "customising",
+      "adaptable",
       "flamboyant",
       "social animal",
       "colourful",
@@ -5858,12 +5858,12 @@
     "en": "Shark",
     "traits_en": [
       "alert",
-      "targeted",
+      "goal-oriented",
       "incisive",
       "persistent",
       "efficient",
       "formidable",
-      "instinctively",
+      "instinctive",
       "powerful",
       "fast"
     ]
@@ -5933,7 +5933,7 @@
     "desc_en": "The hare is cheerful and clever. By alternating different jumps, it fools its pursuers. The hare never goes straight to its army, which uses detours and ruses to reach their goal. They are cautious, observant and honourable. The hare is not territorial and is tolerant of conspecifics.",
     "en": "Hare",
     "traits_en": [
-      "base",
+      "home-loving",
       "crafty",
       "observant",
       "smart",
@@ -5970,13 +5970,13 @@
     "desc_en": "This small and slender reptile is swift. It is a good plant-eater and from an early age it seeks out their own food. The lizard is purposeful and perfectly adapted to their environment. They can very much enjoy the sun.",
     "en": "Lizard",
     "traits_en": [
-      "customising",
-      "targeted",
+      "adaptable",
+      "goal-oriented",
       "enjoyer",
-      "plant puller",
+      "resourceful",
       "enduring",
-      "Quick",
-      "custom"
+      "quick",
+      "adapted"
     ]
   },
   {
@@ -6048,7 +6048,7 @@
     "en": "Hawk",
     "traits_en": [
       "alert",
-      "targeted",
+      "goal-oriented",
       "incisive",
       "independent",
       "perceptive",
@@ -6083,9 +6083,9 @@
     "en": "Hazel dormouse",
     "traits_en": [
       "active",
-      "movable",
-      "base",
-      "night",
+      "agile",
+      "home-loving",
+      "nocturnal",
       "perceptive",
       "loyal"
     ]
@@ -6166,10 +6166,10 @@
     "en": "Grey wolf",
     "traits_en": [
       "brave",
-      "family",
+      "family-oriented",
       "social animal (small group)",
       "hierarchical",
-      "instinctively",
+      "instinctive",
       "intelligent",
       "territorial",
       "loyal"
@@ -6211,7 +6211,7 @@
       "social animal",
       "impulsive",
       "inquisitive",
-      "plant puller",
+      "resourceful",
       "exemplary"
     ]
   },
@@ -6248,7 +6248,7 @@
       "persistent",
       "brave",
       "brave",
-      "night",
+      "nocturnal",
       "fast"
     ]
   },
@@ -6296,7 +6296,7 @@
     "traits_en": [
       "protective",
       "competitive",
-      "adrift",
+      "irascible",
       "proud",
       "sensitive",
       "perceptive",
@@ -6304,7 +6304,7 @@
       "social",
       "combative",
       "trusting",
-      "Quick",
+      "quick",
       "careful",
       "watchful",
       "worthy"
@@ -6482,7 +6482,7 @@
     "traits_it": [
       "coraggioso",
       "tenace",
-      "eigenwijze",
+      "testardo",
       "coraggioso",
       "impavido",
       "indomito",
@@ -6528,7 +6528,7 @@
       "prudente",
       "pauroso",
       "allegro",
-      "melodioso"
+      "canterino"
     ],
     "slug": "hop",
     "desc_nl": "Deze vogel heeft een roodbruin verenkleed met een lange, gepunte zwarte kuif. Het is een vrolijke zangvogel die veel en graag zingt. Een hop is tamelijk fier, maar slordig in het onderhouden van hun nest. Ze zijn voorzichtig, vreesachtig en altijd trouw aan hun familie. Ze zoeken alleen gezelschap voor de trek.",
@@ -6536,14 +6536,14 @@
     "desc_en": "This bird has a reddish-brown plumage with a long, pointed black crest. It is a cheerful songbird that sings a lot and loves to sing. A hoopoe is quite proud, but careless in maintaining their nest. They are cautious, fearful and always loyal to their family. They only seek company for migration.",
     "en": "Hoopoe",
     "traits_en": [
-      "family",
+      "family-oriented",
       "proud",
       "sloppy",
       "loyal",
       "careful",
       "apprehensive",
       "merry",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -6578,9 +6578,9 @@
     "desc_en": "The wood pigeon likes to seek out company. They are highly adaptable and so are found in cities. In the open field, it remains rather shy. At the slightest disturbance, it flies away loudly. On the ground, the pigeon struts jauntily around and drinks with greedy gulps. The pigeon can enjoy a water hole as well as the sun. Once it has marked out a territory, it sometimes defends it by adopting an aggressive attitude.",
     "en": "Wood pigeon",
     "traits_en": [
-      "customising",
+      "adaptable",
       "enjoyer",
-      "cozy",
+      "convivial",
       "social animal",
       "greedy",
       "perky",
@@ -6619,7 +6619,7 @@
     "desc_en": "The hyena lives and hunts in large groups. They are taciturn, but have a distinctive smile. The hyena is cautious, affectionate and loyal, as well as cunning and ruthless. They have great stamina and are strong.",
     "en": "Hyena",
     "traits_en": [
-      "customising",
+      "adaptable",
       "persistent",
       "social animal",
       "intelligent",
@@ -6689,7 +6689,7 @@
     "desc_en": "The polar bear roams alone or in small family groups. When living in groups, it is quite tolerant of others. They swim excellently but slowly and are active both day and night. The polar bear is generally harmless, but is unpredictable when hungry. It is an opportunistic hunter.",
     "en": "Polar bear",
     "traits_en": [
-      "customising",
+      "adaptable",
       "brave",
       "persistent",
       "patient",
@@ -6726,12 +6726,12 @@
     "desc_en": "This bird can dive to great depths and thus escape when under siege. The ice diver has adapted to life on water. However, they are awkward in new environments, where they move only out of necessity. The polar diver lives in small troops and has a loud call. The young occasionally hitchhike on the backs of adults.",
     "en": "Common loon",
     "traits_en": [
-      "customising",
+      "adaptable",
       "creature of habit",
       "social animal (small group)",
       "loud",
       "supporting",
-      "custom"
+      "adapted"
     ]
   },
   {
@@ -6841,7 +6841,7 @@
     "traits_en": [
       "grateful",
       "social animal (large group)",
-      "base",
+      "home-loving",
       "loyal",
       "tolerant",
       "careful",
@@ -6875,7 +6875,7 @@
       "protective",
       "social animal (large group)",
       "graceful",
-      "careful",
+      "meticulous",
       "silent"
     ]
   },
@@ -6952,7 +6952,7 @@
     "desc_en": "This predator is the strongest of the felines. Nothing stops a jaguar. When it hunts, it is extremely cautious and patient. They are strong and have well-developed senses. The jaguar is not picky and is flexible: if it does not find prey, it moves. They are farsighted: sometimes they hide their prey for later. The jaguar loves water and is a good swimmer.",
     "en": "Jaguar",
     "traits_en": [
-      "customising",
+      "adaptable",
       "flexible",
       "patient",
       "unfussy",
@@ -6989,7 +6989,7 @@
     "en": "Jaguarundi",
     "traits_en": [
       "active",
-      "cozy",
+      "convivial",
       "vivid",
       "solitary",
       "spirited",
@@ -7066,10 +7066,10 @@
     "desc_en": "The jackal is a slender canine with a graceful posture. They live in groups and have a good community life. They are fast and lively and especially active at night. The jackal has great stamina and is not picky about what it eats.",
     "en": "Jackal",
     "traits_en": [
-      "customising",
+      "adaptable",
       "alert",
       "crafty",
-      "night",
+      "nocturnal",
       "opportunistic",
       "perceptive",
       "smart",
@@ -7251,7 +7251,7 @@
       "domestic",
       "droll",
       "curious",
-      "night",
+      "nocturnal",
       "fearless",
       "solitary",
       "unique"
@@ -7331,7 +7331,7 @@
     "traits_en": [
       "proud",
       "benign",
-      "plant puller",
+      "resourceful",
       "graceful",
       "economical",
       "tough",
@@ -7370,7 +7370,7 @@
     "desc_en": "This lizard is very thoughtful. Their eyes move separately from each other. With the change in colour of their skin - an excellent camouflage - it also expresses their mood. The chameleon is amiable, calm and slow, but can sometimes be explosive.",
     "en": "Chameleon",
     "traits_en": [
-      "customising",
+      "adaptable",
       "thoughtful",
       "expressive",
       "convivial",
@@ -7413,7 +7413,7 @@
       "hardened",
       "impressive",
       "unique",
-      "base",
+      "home-loving",
       "fast",
       "alert",
       "cautious",
@@ -7435,13 +7435,13 @@
       "zorgzaam"
     ],
     "traits_it": [
-      "costruttivo",
+      "costruttore",
       "imitatore",
       "vivace",
       "curato",
       "diligente",
       "prudente",
-      "melodioso",
+      "canterino",
       "premuroso"
     ],
     "slug": "kanarie",
@@ -7450,13 +7450,13 @@
     "desc_en": "The canary is a small songbird. They are industrious and lively and generally not shy, but cautious. The canary takes great care in building their nest and is a good imitator. They can learn the songs of other birds.",
     "en": "Canary",
     "traits_en": [
-      "building",
+      "builder",
       "imitative",
       "vivid",
       "neat",
       "industrious",
       "careful",
-      "vocal",
+      "songful",
       "caring"
     ]
   },
@@ -7493,7 +7493,7 @@
       "active",
       "alert",
       "protective",
-      "family",
+      "family-oriented",
       "powerful",
       "brave",
       "fast",
@@ -7516,7 +7516,7 @@
       "creativo",
       "animale di gruppo",
       "intelligente",
-      "risoluto"
+      "risolutivo"
     ],
     "slug": "kapucijnaap",
     "desc_nl": "Dit aapje hadden de orgeldraaiers vroeger bij zich om geld op te halen. De kapucijnaap leeft in groep. Ze zijn heel intelligent en proberen problemen op te lossen door na te denken. Ze vinden het leuk om met iets bezig te zijn, vooral omdat ze graag iets moois maken. De kapucijnaap is snel volwassen en heeft weinig vijanden.",
@@ -7557,7 +7557,7 @@
     "desc_en": "The caracol is a patient, native coastal animal. It can thrive expectantly even in difficult natural conditions. Its curved shell has a simple elegance. When growing up, the caracol goes through a true transformation, with this marine animal first swimming around freely and later settling in a quiet place. Ever modest, this sea snail shows tolerance. The caracol can only develop fully in a suitable environment.",
     "en": "Caracal",
     "traits_en": [
-      "waiting",
+      "wait-and-see",
       "modest",
       "elegant",
       "patient",
@@ -7586,7 +7586,7 @@
       "artistico",
       "chiacchierone",
       "allegro",
-      "melodioso",
+      "canterino",
       "premuroso"
     ],
     "slug": "karekiet",
@@ -7597,11 +7597,11 @@
     "traits_en": [
       "active",
       "deft",
-      "cozy",
+      "convivial",
       "artful",
       "chatty",
       "merry",
-      "vocal",
+      "songful",
       "caring"
     ]
   },
@@ -7631,7 +7631,7 @@
     "desc_en": "This familiar fish has two bearded threads under their mouth. They like to move around, but are nevertheless stationary. In winter, the carp return to deep water, where they overwinter in large schools. It is a true group animal. The carp is hardy and tough. Some carp burrow to survive.",
     "en": "Carp",
     "traits_en": [
-      "customising",
+      "adaptable",
       "persistent",
       "patient",
       "smart",
@@ -7710,7 +7710,7 @@
       "enjoyer",
       "imitative",
       "inventive",
-      "night",
+      "nocturnal",
       "inconspicuous",
       "graceful",
       "fast"
@@ -7734,7 +7734,7 @@
       "adattabile",
       "abile",
       "vivace",
-      "rallegra gli altri",
+      "rallegrante",
       "furbo",
       "socievole",
       "amichevole",
@@ -7746,7 +7746,7 @@
     "desc_en": "This small crow-like bird is known for its call \"Chew-chew\". They are lively, agile and clever. The jackdaw knows how to keep their cheerful mood and brighten up their surroundings under all circumstances. They have an exceptionally strong sense of community and generally have many friends.",
     "en": "Jackdaw",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "vivid",
       "cheering",
@@ -7919,7 +7919,7 @@
       "alert",
       "elegant",
       "noiseless",
-      "night",
+      "nocturnal",
       "accurate",
       "observing",
       "solitary",
@@ -8023,10 +8023,10 @@
     "desc_en": "The frog is sociable. It is a generally lively and alert animal. The frog possesses good discernment. This fantastic jumper is cautious, shy and crafty.",
     "en": "Frog",
     "traits_en": [
-      "cozy",
+      "convivial",
       "vivid",
       "crafty",
-      "monter",
+      "chipper",
       "observant",
       "shy",
       "careful"
@@ -8062,7 +8062,7 @@
     "traits_en": [
       "domestic",
       "curious",
-      "night",
+      "nocturnal",
       "shy",
       "solitary",
       "tough",
@@ -8192,7 +8192,7 @@
     "traits_en": [
       "bustling",
       "protective",
-      "movable",
+      "agile",
       "social animal (large group)",
       "brave",
       "beautiful",
@@ -8235,7 +8235,7 @@
     "traits_en": [
       "active",
       "altruistic",
-      "family",
+      "family-oriented",
       "fearless",
       "social",
       "tolerant",
@@ -8264,7 +8264,7 @@
       "tranquillo",
       "tranquillo",
       "schivo",
-      "pigro",
+      "dormiglione",
       "solitario",
       "prudente"
     ],
@@ -8274,9 +8274,9 @@
     "desc_en": "This marsupial is quiet. The koala takes care of their young. They are funny, tolerant and affectionate. The koala bonds easily.",
     "en": "Koala",
     "traits_en": [
-      "subdued",
+      "composed",
       "enjoyer",
-      "dull",
+      "placid",
       "quiet",
       "shy",
       "sleepy",
@@ -8355,7 +8355,7 @@
       "useful",
       "restless",
       "opportunistic",
-      "custom"
+      "adapted"
     ]
   },
   {
@@ -8463,7 +8463,7 @@
       "coraggioso",
       "rumoroso",
       "cooperativo",
-      "melodioso"
+      "canterino"
     ],
     "slug": "kokako",
     "desc_nl": "Deze zangvogel heeft een opmerkelijke lel onder de snavel. Ze zijn van ver te horen en hebben een mooi gezang. De kokako is heel actief, maar vliegt zelden. Deze zeldzame vogel is dapper en werkt goed samen.",
@@ -8475,7 +8475,7 @@
       "brave",
       "loud",
       "collaborative",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -8514,7 +8514,7 @@
     "traits_en": [
       "deft",
       "brave",
-      "bright",
+      "fierce",
       "enjoyer",
       "graceful",
       "passionate",
@@ -8554,10 +8554,10 @@
     "en": "Komodovaran",
     "traits_en": [
       "alert",
-      "targeted",
+      "goal-oriented",
       "persistent",
       "patient",
-      "instinctively",
+      "instinctive",
       "strong",
       "territorial",
       "watchful"
@@ -8645,9 +8645,9 @@
     "en": "Rabbit",
     "traits_en": [
       "pleasant",
-      "customising",
+      "adaptable",
       "active",
-      "cozy",
+      "convivial",
       "social animal (large group)",
       "intelligent",
       "vivid",
@@ -8689,7 +8689,7 @@
     "en": "Kookaburra",
     "traits_en": [
       "helpful",
-      "family",
+      "family-oriented",
       "patient",
       "observant",
       "loyal",
@@ -8737,7 +8737,7 @@
       "talented",
       "deft",
       "competitive",
-      "family",
+      "family-oriented",
       "curious",
       "cheerful",
       "social",
@@ -8772,7 +8772,7 @@
     "desc_en": "With colourful fins and venomous spines, the lionfish has a telling appearance. Lionfish are always wary, it is best to approach them with caution and control. The lionfish is mostly active at night, during the day it keeps itself hidden. When challenged, it engages in collaborations, otherwise it keeps well to itself.",
     "en": "Lionfish",
     "traits_en": [
-      "night",
+      "nocturnal",
       "solitary",
       "collaborative",
       "striking",
@@ -8810,7 +8810,7 @@
       "fast",
       "agile",
       "colourful",
-      "base",
+      "home-loving",
       "caring",
       "entertaining"
     ]
@@ -8841,7 +8841,7 @@
     "desc_en": "This songbird has predominantly black plumage. A crow is intelligent and has a strong sense of community. They trust only those who are sympathetic to them. The crow has great stamina and adaptability.",
     "en": "Crow",
     "traits_en": [
-      "customising",
+      "adaptable",
       "suspicious",
       "community spirit",
       "intelligent",
@@ -8887,7 +8887,7 @@
     "traits_en": [
       "active",
       "cautious",
-      "cozy",
+      "convivial",
       "affectionate",
       "fussy",
       "quiet",
@@ -8968,10 +8968,10 @@
       "resourceful",
       "quiet",
       "shy",
-      "night",
+      "nocturnal",
       "independent",
       "unfussy",
-      "customising",
+      "adaptable",
       "spirited"
     ]
   },
@@ -9053,9 +9053,9 @@
       "persistent",
       "patient",
       "formidable",
-      "instinctively",
+      "instinctive",
       "powerful",
-      "night",
+      "nocturnal",
       "strong",
       "territorial",
       "watchful"
@@ -9086,7 +9086,7 @@
     "desc_it": "La medusa è un animale marino misterioso e lento. Galleggia in mare aperto seguendo le correnti, senza una vera direzione. È unica nel suo genere: non ha né cervello né cuore. La sua trasparenza e i suoi tentacoli la rendono un essere affascinante e sorprendente.",
     "en": "Jellyfish",
     "traits_en": [
-      "customising",
+      "adaptable",
       "mysterious",
       "quiet",
       "slow",
@@ -9192,8 +9192,8 @@
     "en": "Wagtail",
     "traits_en": [
       "active",
-      "movable",
-      "cozy",
+      "agile",
+      "convivial",
       "diligent",
       "restless",
       "cheerful",
@@ -9236,7 +9236,7 @@
     "desc_en": "The llama lives on good terms with conspecifics. Towards strangers, it can be moody and irritable. In general, the llama is a gentle animal. The llama is also very curious, calm and quiet. They have great adaptability and can run fast.",
     "en": "Lama",
     "traits_en": [
-      "customising",
+      "adaptable",
       "moody",
       "calm",
       "curious",
@@ -9317,7 +9317,7 @@
     "traits_en": [
       "protective",
       "brave",
-      "family",
+      "family-oriented",
       "proud",
       "social animal (small group)",
       "hierarchical",
@@ -9354,7 +9354,7 @@
     "desc_en": "This little monkey has long, silky fur with manes on its head. The lion monkey is sociable, cheerful and very lively throughout the day. They are handy and fast climbers. The vervet monkey lives in family groups and takes good care of its young, even if they are not their own.",
     "en": "Lion tamarin",
     "traits_en": [
-      "family",
+      "family-oriented",
       "handy",
       "vivid",
       "cheerful",
@@ -9376,7 +9376,7 @@
       "vivace",
       "agitato",
       "perseverante",
-      "melodioso"
+      "canterino"
     ],
     "slug": "leeuwerik",
     "desc_nl": "De leeuwerik is levendig van aard. Ze zitten zelden stil en zijn onrustig. De leeuwerik zingt onophoudelijk en met volharding. Tijdens de paartijd vecht die moedig, maar zonder veel schade aan te brengen.",
@@ -9387,7 +9387,7 @@
       "vivid",
       "restless",
       "persistent",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -9419,9 +9419,9 @@
     "desc_it": "Il lemure del Madagascar è un primate curioso e socievole. Vive in gruppi familiari rumorosi e comunicativi. È desideroso di imparare e si adatta bene ai cambiamenti. È giocoso e vivace, sempre in movimento tra gli alberi.",
     "en": "Lemur",
     "traits_en": [
-      "customising",
+      "adaptable",
       "communicative",
-      "family",
+      "family-oriented",
       "social animal",
       "inquisitive",
       "curious",
@@ -9499,7 +9499,7 @@
     "desc_en": "The dragonfly is a graceful insect with brilliant wings. They catch their food in flight. It is a fast, incisive and very agile hunter. The dragonfly notices everything and is very focused. They make the most of the opportunities the environment offers them.",
     "en": "Dragonfly",
     "traits_en": [
-      "targeted",
+      "goal-oriented",
       "incisive",
       "nimble",
       "observant",
@@ -9580,8 +9580,8 @@
     "traits_en": [
       "talented",
       "deft",
-      "movable",
-      "cozy",
+      "agile",
+      "convivial",
       "vivid",
       "loud",
       "restless",
@@ -9614,7 +9614,7 @@
     "en": "Linsang",
     "traits_en": [
       "deft",
-      "movable",
+      "agile",
       "mysterious",
       "observant",
       "graceful"
@@ -9764,7 +9764,7 @@
       "epicureo",
       "pigro",
       "tranquillo",
-      "pigro",
+      "dormiglione",
       "lento",
       "resistente"
     ],
@@ -9774,7 +9774,7 @@
     "desc_en": "This medium-sized nocturnal mammal climbs and hangs out in trees most of the time and barely gets on the ground. Sloths prefer to be alone and quickly go their own way. The sloth is cautious, calm and quiet and that pulls off the trick well. This animal is tactical in deceiving predators.",
     "en": "Sloth",
     "traits_en": [
-      "subdued",
+      "composed",
       "enjoyer",
       "lazy",
       "quiet",
@@ -9825,16 +9825,16 @@
     "desc_en": "This beautiful, powerful predator is agile and swift. It is a good swimmer and climber. The leopard spends the day sunbathing and resting. At night, it hunts cautiously and very alertly. The leopard can hide well. This animal is wise and courageous.",
     "en": "Leopard",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "cautious",
-      "targeted",
+      "goal-oriented",
       "persistent",
       "patient",
       "noiseless",
-      "instinctively",
+      "instinctive",
       "nimble",
-      "night",
+      "nocturnal",
       "independent",
       "perceptive",
       "solitary",
@@ -9882,7 +9882,7 @@
       "patient",
       "noiseless",
       "accurate",
-      "night",
+      "nocturnal",
       "independent",
       "perceptive",
       "shy",
@@ -9919,7 +9919,7 @@
     "en": "Lemur",
     "traits_en": [
       "communicative",
-      "family",
+      "family-oriented",
       "social animal",
       "curious",
       "social",
@@ -10080,8 +10080,8 @@
     "desc_en": "These large monkeys have distinctive blue, purple and red markings on their heads and a bright orange chin. The mandrill is agile. This animal is social and lives in groups where a strict hierarchy prevails. The mandrill is anxious, courageous and has great adaptability. It is farsighted. The mandrill always stays in touch with conspecifics.",
     "en": "Mandrill",
     "traits_en": [
-      "customising",
-      "movable",
+      "adaptable",
+      "agile",
       "concerned",
       "hierarchical",
       "brave",
@@ -10116,7 +10116,7 @@
     "desc_en": "The maned wolf is a brownish-red wild dog-like animal with long legs. This animal is called 'fox on stilts' by the Indians. It is a remarkable appearance. Maned wolves are loyal and social. They are agile, cover long distances and have great stamina. Maned wolves are caring for their offspring.",
     "en": "Maned wolf",
     "traits_en": [
-      "movable",
+      "agile",
       "remarkable",
       "social",
       "loyal",
@@ -10169,7 +10169,7 @@
   },
   {
     "nl": "Manoel",
-    "it": "Manoel",
+    "it": "Gatto di Pallas",
     "alt": "Pallaskat",
     "traits_nl": [
       "fel",
@@ -10193,11 +10193,11 @@
     "desc_en": "This feline feeds on small rodents. The manoel is intelligent and hunts by setting up ambushes. They are picky about their food and meticulous in the care of their fur. The manoel can be a fierce fighter. This animal takes good care of their young.",
     "en": "Pallas's cat",
     "traits_en": [
-      "bright",
+      "fierce",
       "intelligent",
       "fussy",
       "neat",
-      "careful",
+      "meticulous",
       "caring"
     ]
   },
@@ -10227,7 +10227,7 @@
     "desc_en": "Manta rays are the largest known rays. Despite their size, they are harmless. They are slow and graceful, but when in danger, they can swim away at lightning speed. The manta ray is a secretive animal. It swims purposefully and in a straight line. Near land, it swims around enjoyably.",
     "en": "Manta",
     "traits_en": [
-      "targeted",
+      "goal-oriented",
       "enjoyer",
       "impressive",
       "mysterious",
@@ -10265,7 +10265,7 @@
     "en": "Mantis lobster",
     "traits_en": [
       "alert",
-      "targeted",
+      "goal-oriented",
       "incisive",
       "powerful",
       "accurate",
@@ -10542,12 +10542,12 @@
     "traits_en": [
       "deft",
       "cautious",
-      "movable",
-      "cozy",
+      "agile",
+      "convivial",
       "crafty",
       "brave",
       "sagacious",
-      "Quick",
+      "quick",
       "caring"
     ]
   },
@@ -10647,7 +10647,7 @@
     "en": "Coot",
     "traits_en": [
       "protective",
-      "targeted",
+      "goal-oriented",
       "persistent",
       "collaborative",
       "enduring"
@@ -10679,7 +10679,7 @@
     "desc_en": "This fish is the largest freshwater fish in Europe. Strong, tolerant and adaptable, the catfish feels at home in rivers with varying water levels, as well as in lakes with shallow edges. At night, the catfish is active and goes hunting. This predator has a lot of guts and courage, as it even attacks waterfowl and small mammals.",
     "en": "Catfish",
     "traits_en": [
-      "customising",
+      "adaptable",
       "daredevil",
       "flexible",
       "brave",
@@ -10754,7 +10754,7 @@
     "traits_en": [
       "grateful",
       "flexible",
-      "cozy",
+      "convivial",
       "funny",
       "unfussy",
       "striking",
@@ -10795,7 +10795,7 @@
       "social",
       "strong",
       "quiet",
-      "Quick"
+      "quick"
     ]
   },
   {
@@ -10827,7 +10827,7 @@
     "en": "Anteater",
     "traits_en": [
       "cautious",
-      "night",
+      "nocturnal",
       "independent",
       "quiet",
       "solitary",
@@ -10867,7 +10867,7 @@
       "alert",
       "deft",
       "persistent",
-      "night",
+      "nocturnal",
       "independent",
       "perceptive",
       "smart",
@@ -10949,7 +10949,7 @@
       "deft",
       "bustling",
       "ingenious",
-      "night",
+      "nocturnal",
       "independent",
       "quiet",
       "solitary",
@@ -11024,7 +11024,7 @@
     "en": "Mouse",
     "traits_en": [
       "unsuspecting",
-      "appetising",
+      "hearty eater",
       "energetic",
       "greedy",
       "restless",
@@ -11065,7 +11065,7 @@
     "desc_en": "The moray eel has the ability to adapt to both fresh and salt water and likes to cooperate with other species. This crafty hunter waits for prey vigilantly and patiently in cavities or rock crevices. Once prey is in sight, the moray eel proceeds assertively and efficiently. This fish is independent and learns from experience.",
     "en": "Moray eel",
     "traits_en": [
-      "customising",
+      "adaptable",
       "collaborative",
       "crafty",
       "watchful",
@@ -11144,13 +11144,13 @@
     "en": "Mustang",
     "traits_en": [
       "concerned",
-      "adrift",
+      "irascible",
       "social animal",
       "vivid",
       "brave",
       "sacrificial",
       "caring",
-      "heady"
+      "impetuous"
     ]
   },
   {
@@ -11181,11 +11181,11 @@
     "desc_en": "This noisy monkey lives in the rainforests. Night monkeys have a good memory and are very handy: when searching for food, they use their tails to slow down. The night monkey is a dignified and loyal animal. It attaches great importance to family.",
     "en": "Owl monkey",
     "traits_en": [
-      "family",
+      "family-oriented",
       "good memory",
       "handy",
       "loud",
-      "night",
+      "nocturnal",
       "worthy",
       "loyal"
     ]
@@ -11212,7 +11212,7 @@
       "fiducioso",
       "pacifico",
       "dignitoso",
-      "melodioso"
+      "canterino"
     ],
     "slug": "nachtegaal",
     "desc_nl": "Deze zangvogels bewegen zich op een doordachte manier voort. Hun houding is waardig en getuigt van een zekere trots. De nachtegaal is bedaard en eerder stil, maar in de schemering zingt die adembenemend mooi. Tegenover andere vogels zijn nachtegalen vreedzaam en zullen ze zelden ruziën. De nachtegaal stelt vertrouwen in anderen.",
@@ -11220,14 +11220,14 @@
     "desc_en": "These songbirds move in a thoughtful manner. Their posture is dignified and shows a certain pride. The nightingale is sedate and rather quiet, but at dusk it sings breathtakingly beautiful. Towards other birds, nightingales are peaceful and will rarely quarrel. The nightingale puts its trust in others.",
     "en": "Nightingale",
     "traits_en": [
-      "subdued",
+      "composed",
       "thoughtful",
-      "night",
+      "nocturnal",
       "proud",
       "trusting",
       "peaceful",
       "worthy",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -11456,7 +11456,7 @@
     "traits_en": [
       "protective",
       "dominant",
-      "family",
+      "family-oriented",
       "benign",
       "social animal",
       "powerful",
@@ -11578,7 +11578,7 @@
       "intelligent",
       "majestic",
       "mysterious",
-      "night",
+      "nocturnal",
       "observing",
       "independent",
       "perceptive",
@@ -11660,7 +11660,7 @@
     "traits_en": [
       "protective",
       "empathetic",
-      "family",
+      "family-oriented",
       "good memory",
       "social animal",
       "intelligent",
@@ -11699,7 +11699,7 @@
     "en": "Stork",
     "traits_en": [
       "persistent",
-      "family",
+      "family-oriented",
       "good sense of orientation",
       "loyal",
       "enduring",
@@ -11737,7 +11737,7 @@
     "desc_en": "This possum has exceptionally sharp hearing and lives predominantly at night. The opossum is very resilient: snakes cannot poison them. This omnivore and agile climber easily maintains itself under all conditions and is tolerant. The opossum has a good memory and is resourceful when attacked.",
     "en": "Opossum",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "good memory",
       "unfussy",
@@ -11854,7 +11854,7 @@
     "en": "Orca",
     "traits_en": [
       "communicative",
-      "family",
+      "family-oriented",
       "social animal (small group)",
       "hierarchical",
       "intelligent",
@@ -11892,9 +11892,9 @@
     "en": "Oribi",
     "traits_en": [
       "active",
-      "waiting",
+      "wait-and-see",
       "creature of habit",
-      "base",
+      "home-loving",
       "curious",
       "careful",
       "watchful"
@@ -11932,9 +11932,9 @@
     "desc_en": "The orca is an imposing aquatic mammal. It is a lightning-fast swimmer, vigilant and a formidable hunter. The orca is sensible, thoughtful and a true group animal. It works smoothly together to achieve its intended result. The orca lives in families with a clear leader. The orca also knows how to live well with others and can adapt when necessary.",
     "en": "Orca",
     "traits_en": [
-      "customising",
+      "adaptable",
       "thoughtful",
-      "family",
+      "family-oriented",
       "formidable",
       "social animal",
       "impressive",
@@ -11969,7 +11969,7 @@
       "cooperativo",
       "fedele",
       "difensivo",
-      "melodioso"
+      "canterino"
     ],
     "slug": "ornaatelfje",
     "desc_nl": "Deze zangvogel bouwt een overdekt nest van gras en spinrag. Het ornaatelfje is een goede zanger en imitator. Dit dier is actief en rusteloos. Het leeft in groep, is trouw en werkt goed samen. Ornaatelfjes onderhouden en verdedigen hun territorium samen met anderen. Ze kunnen zich aanpassen aan een veranderende omgeving en leren vlot bij.",
@@ -11977,7 +11977,7 @@
     "desc_en": "This songbird builds a covered nest of grass and cobwebs. The ornate elf is a good singer and imitator. This animal is active and restless. It lives in groups, is loyal and cooperates well. Ornate elves maintain and defend their territory together with others. They can adapt to a changing environment and learn quickly.",
     "en": "Superb fairywren",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
       "social animal",
       "imitative",
@@ -11986,7 +11986,7 @@
       "collaborative",
       "loyal",
       "defensive",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -12003,13 +12003,13 @@
       "zanglustig"
     ],
     "traits_it": [
-      "costruttivo",
+      "costruttore",
       "creativo",
       "familiare",
       "epicureo",
       "colorato",
       "socievole",
-      "melodioso"
+      "canterino"
     ],
     "slug": "oropendola",
     "desc_nl": "Deze felgekleurde zangvogel zingt het hele jaar door. De oropendola is sociaal en broedt in dicht bevolkte kolonies waarbij de nesten soms tegen elkaar zijn gebouwd. Dit dier is creatief en bouwlustig en bouwt erg mooie, hangende nesten. Oropendola&#039;s maken zich nuttig als insecteneter en genieten ook graag van lekkers. Ze zijn meestal zwijgzaam, maar als ze zich laten horen, zijn ze duidelijk te herkennen.",
@@ -12017,13 +12017,13 @@
     "desc_en": "This brightly coloured songbird sings all year round. The oropendola is social and breeds in densely populated colonies where nests are sometimes built against each other. This animal is creative and builder-friendly and builds very beautiful, hanging nests. Oropendolas make themselves useful as insect eaters and also enjoy treats. They are usually silent, but when they make themselves heard, they are clearly recognisable.",
     "en": "Oropendola",
     "traits_en": [
-      "building",
+      "builder",
       "creative",
-      "family",
+      "family-oriented",
       "enjoyer",
       "colourful",
       "social",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -12061,7 +12061,7 @@
       "deft",
       "creative",
       "enthusiastic",
-      "cozy",
+      "convivial",
       "intelligent",
       "vivid",
       "social",
@@ -12104,7 +12104,7 @@
     "en": "Horse",
     "traits_en": [
       "graceful",
-      "movable",
+      "agile",
       "communicative",
       "benign",
       "powerful",
@@ -12141,7 +12141,7 @@
     "desc_en": "Pacas are rodents recognised by the stripes on their backs. The paca is fast and agile and moves around walking, climbing, swimming and jumping. It is little active during the day, all the more so at night. It has great adaptability and stamina. The paca has extremely sharp senses. Despite their small stature, they can be noisy.",
     "en": "Paca",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "loud",
       "perceptive",
@@ -12179,11 +12179,11 @@
     "desc_en": "Sociability is perhaps the toad's most important trait. It usually has a lively, monty nature and likes to hear itself croaking. Sometimes the toad also blends in completely with its surroundings and is almost invisible. This animal is cautious. Toads are opportunistic hunters, grabbing anything that fits in their mouths. They have great discernment and adaptability.",
     "en": "Toad",
     "traits_en": [
-      "customising",
-      "cozy",
+      "adaptable",
+      "convivial",
       "vivid",
       "loud",
-      "monter",
+      "chipper",
       "opportunistic",
       "perceptive",
       "careful"
@@ -12220,7 +12220,7 @@
       "pleasant",
       "deft",
       "protective",
-      "cozy",
+      "convivial",
       "careful",
       "watchful",
       "caring"
@@ -12331,7 +12331,7 @@
     "desc_en": "The panda is very rare and therefore not well known. They also live in inaccessible areas. The panda is playful in nature and has an unusual appearance. This animal is spontaneous, cheerful, agile and affectionate. It adapts quickly and remains in good spirits.",
     "en": "Panda",
     "traits_en": [
-      "subdued",
+      "composed",
       "enjoyer",
       "benign",
       "imperturbable",
@@ -12376,12 +12376,12 @@
     "en": "Panther",
     "traits_en": [
       "deft",
-      "targeted",
+      "goal-oriented",
       "elegant",
       "noiseless",
       "nimble",
       "mysterious",
-      "night",
+      "nocturnal",
       "independent",
       "perceptive",
       "solitary",
@@ -12523,7 +12523,7 @@
     "desc_en": "This feline has long legs and beautifully coloured fur. The animal is very active and an excellent climber. The pardel cat is very agile and capable of catching a bird in flight. Pardel cats are true nocturnal animals. During the day, they sleep in the trees, almost inconspicuous due to their good camouflage. The pardel cat defends itself fiercely. It has great adaptability and dwells in different habitats.",
     "en": "Ocelot",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
       "deft",
       "inconspicuous",
@@ -12558,13 +12558,13 @@
     "desc_en": "This bird is hardy and particularly well adapted to hot, dry regions. The guinea fowl has a good memory. It is very noisy. Guinea fowl are not shy, but they are wary. They are very passionate.",
     "en": "Guinea fowl",
     "traits_en": [
-      "customising",
+      "adaptable",
       "cautious",
       "hardened",
       "good memory",
       "passionate",
       "loud",
-      "custom"
+      "adapted"
     ]
   },
   {
@@ -12601,7 +12601,7 @@
       "social animal (large group)",
       "docile",
       "generous",
-      "bright",
+      "fierce",
       "expressive",
       "spirited",
       "attached"
@@ -12683,7 +12683,7 @@
     "desc_en": "The partridge is a steadfast and calm field bird, clever, wise and teachable. This bird adapts to all living conditions. The partridge has a good sense of community and is peace-loving. It is self-sacrificing and particularly tender and loyal towards its mate and offspring. The partridge displays these traits only with their family. The animal enlivens its surroundings. The partridge is calm, cautious and contented.",
     "en": "Partridge",
     "traits_en": [
-      "customising",
+      "adaptable",
       "community spirit",
       "social animal",
       "inquisitive",
@@ -12802,7 +12802,7 @@
       "active",
       "protective",
       "creature of habit",
-      "cozy",
+      "convivial",
       "collaborative",
       "social"
     ]
@@ -12912,8 +12912,8 @@
     "traits_en": [
       "withdrawn",
       "collecting",
-      "monter",
-      "customising",
+      "chipper",
+      "adaptable",
       "elegant",
       "careful"
     ]
@@ -12993,7 +12993,7 @@
     "desc_en": "This bird has incomparable plumage, with bluish head, tail and wings and a yellow body. With their strong claws, it climbs very well. The Blue Tit is a smart, cheerful, agile bird with vibrant colours. This animal has a fine lure call.",
     "en": "Blue tit",
     "traits_en": [
-      "movable",
+      "agile",
       "communicative",
       "colourful",
       "smart",
@@ -13036,7 +13036,7 @@
       "unsuspecting",
       "deft",
       "creature of habit",
-      "cozy",
+      "convivial",
       "diligent",
       "vivid",
       "loud",
@@ -13078,7 +13078,7 @@
     "traits_en": [
       "protective",
       "persistent",
-      "family",
+      "family-oriented",
       "social animal (large group)",
       "social",
       "tough",
@@ -13230,9 +13230,9 @@
     "desc_en": "This large powerful cat moves about gracefully and with great ease. Rather solitary, this animal is tolerant and not aggressive towards conspecifics. Pumas show their courage in the face of danger. They have great vitality. Even when pumas are mortally wounded, they fight frantically on. The puma is farsighted.",
     "en": "Cougar",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
-      "targeted",
+      "goal-oriented",
       "persistent",
       "patient",
       "nimble",
@@ -13279,7 +13279,7 @@
     "traits_en": [
       "alert",
       "graceful",
-      "movable",
+      "agile",
       "stubborn",
       "benign",
       "powerful",
@@ -13304,7 +13304,7 @@
       "aangepast"
     ],
     "traits_it": [
-      "costruttivo",
+      "costruttore",
       "casalingo",
       "non esigente",
       "socievole",
@@ -13318,13 +13318,13 @@
     "desc_en": "The arctic fox has beautiful, lush, white fur. This animal lives in small hordes and builds complex fortresses. Arctic foxes are honourable, hardy, adapt to their surroundings and are content with what they find there. They are social and tolerant of other animals in their territory. The arctic fox is farsighted and saves excess food for periods of scarcity.",
     "en": "Arctic fox",
     "traits_en": [
-      "building",
-      "base",
+      "builder",
+      "home-loving",
       "unfussy",
       "social",
       "tolerant",
       "forward-looking",
-      "custom"
+      "adapted"
     ]
   },
   {
@@ -13434,11 +13434,11 @@
     "desc_en": "This large strangling snake is very sensitive to ground vibrations. The python is fast and a good climber, swimmer and diver. It is calm, quiet and rather passive, but can also be lively. The python acts thoughtfully and hunts by setting up ambushes. Pythons protect their own nest belligerently and devour their prey voraciously.",
     "en": "Python",
     "traits_en": [
-      "subdued",
+      "composed",
       "persistent",
       "patient",
       "noiseless",
-      "instinctively",
+      "instinctive",
       "imperturbable",
       "quiet",
       "strong"
@@ -13518,7 +13518,7 @@
     "desc_it": "Il ratto è un mammifero adattabile e straordinariamente intelligente. Vive in gruppi sociali complessi con grande senso comunitario. È curioso e inventivo, capace di trovare soluzioni nuove ai problemi. È furbo e ingegnoso, sopravvive in quasi ogni ambiente.",
     "en": "Rat",
     "traits_en": [
-      "customising",
+      "adaptable",
       "bustling",
       "creative",
       "intelligent",
@@ -13560,7 +13560,7 @@
     "en": "Roe deer",
     "traits_en": [
       "deft",
-      "cozy",
+      "convivial",
       "lovely",
       "perceptive",
       "quiet",
@@ -13599,9 +13599,9 @@
     "desc_en": "The reindeer is sagacious and has a beautiful appearance. It is useful and rather taciturn. This tough trekker has great stamina. Reindeer live in herds and find their way everywhere.",
     "en": "Reindeer",
     "traits_en": [
-      "customising",
+      "adaptable",
       "persistent",
-      "family",
+      "family-oriented",
       "social animal (large group)",
       "powerful",
       "tough",
@@ -13631,7 +13631,7 @@
     "desc_en": "This stilt-walker has a distinctive erect posture and relatively long legs. This animal is energetic and a good runner, but it can also stop suddenly and does not often fly. The racebird is cautious and has great adaptability.",
     "en": "Cream-coloured courser",
     "traits_en": [
-      "customising",
+      "adaptable",
       "cautious",
       "energetic",
       "striking"
@@ -13731,7 +13731,7 @@
     "desc_en": "The red lynx owes their English name 'Bobcat' to their short tail. This cat is a powerful and fearless predator. The red lynx hunts mainly at night and usually follows the same hunting paths. Nevertheless, it can also respond well to different situations. The red lynx is fond of their territory and has great stamina.",
     "en": "Red Lynx",
     "traits_en": [
-      "customising",
+      "adaptable",
       "creature of habit",
       "powerful",
       "fearless",
@@ -13814,7 +13814,7 @@
       "dispettoso",
       "prudente",
       "allegro",
-      "melodioso"
+      "canterino"
     ],
     "slug": "roodborstje",
     "desc_nl": "Deze zangvogels tonen hun vrolijke en opgewekte aard bij iedere gelegenheid. Het roodborstje is voorzichtig. In de omgang met anderen toont die Roodborstje soms plagerige neigingen. Hun zang is melodieus en heeft een melancholieke toon.",
@@ -13826,7 +13826,7 @@
       "teasing",
       "careful",
       "merry",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -13861,7 +13861,7 @@
     "en": "Bird of prey",
     "traits_en": [
       "alert",
-      "targeted",
+      "goal-oriented",
       "proud",
       "patient",
       "powerful",
@@ -13990,7 +13990,7 @@
     "desc_en": "This bird is a lively and restless acrobat. The salangan is humorous, creative and artistic. The animal has strong adaptability and orientation skills that enable them to quickly ground themselves in a new environment. The salangan is a distinct group animal, living in large colonies. Being swift and sensible, it easily escapes their attackers.",
     "en": "Swiftlet",
     "traits_en": [
-      "customising",
+      "adaptable",
       "acrobatic",
       "creative",
       "good sense of orientation",
@@ -14031,13 +14031,13 @@
     "en": "Satyr grouse",
     "traits_en": [
       "affectionate",
-      "waiting",
+      "wait-and-see",
       "persistent",
       "patient",
       "calm",
       "brave",
       "loyal",
-      "custom"
+      "adapted"
     ]
   },
   {
@@ -14075,7 +14075,7 @@
       "social animal",
       "calm",
       "curious",
-      "respectfully",
+      "respectful",
       "quiet",
       "tolerant",
       "sensible",
@@ -14194,7 +14194,7 @@
       "protective",
       "curious",
       "social",
-      "customising"
+      "adaptable"
     ]
   },
   {
@@ -14229,7 +14229,7 @@
     "desc_en": "The shoebill is an unusual animal. They live quiet and solitary lives, sometimes in small groups in territory inaccessible to many animals. The shoebill has exceptional stamina and perseverance. They are sensible animals. They are always ready to react to danger: caution is their second nature. Once the shoebill has formed a friendship, it is very loyal.",
     "en": "Shoebill",
     "traits_en": [
-      "customising",
+      "adaptable",
       "cautious",
       "persistent",
       "solitary",
@@ -14319,7 +14319,7 @@
     "traits_en": [
       "thoughtful",
       "hardened",
-      "base",
+      "home-loving",
       "impressive",
       "defensive",
       "forward-looking",
@@ -14394,7 +14394,7 @@
     "desc_en": "The screwhorn goat feels most comfortable in small, close-knit groups. They are not hostile to other animals, but do not readily seek contact with them. These animals are handsome, sensible, curious, cautious and agile. The screwhorn goat is hardened by life in inhospitable regions. A young screwhorn goat is quickly independent and likes to explore. This one is remarkably inquisitive.",
     "en": "Markhor",
     "traits_en": [
-      "family",
+      "family-oriented",
       "beautiful",
       "hardened",
       "inquisitive",
@@ -14442,7 +14442,7 @@
     "desc_en": "The secretary bird is rather taciturn. Nevertheless, it can be very enthusiastic and show this clearly. The animal is helpful, industrious and especially protective of weaker conspecifics. This proud bird reacts quickly in case of danger. The secretary bird is sensible and insightful. These birds are rather closed towards strangers, but all the more friendly towards acquaintances.",
     "en": "Secretary bird",
     "traits_en": [
-      "waiting",
+      "wait-and-see",
       "helpful",
       "protective",
       "enthusiastic",
@@ -14494,7 +14494,7 @@
   },
   {
     "nl": "Serval",
-    "it": "Serval",
+    "it": "Servalo",
     "alt": "Wolvenhert",
     "traits_nl": [
       "aanpassend",
@@ -14528,7 +14528,7 @@
     "desc_en": "This feline is powerful, agile and feels at home in wild grasslands. The serval is usually remarkably friendly. When attacked, however, it defends itself stubbornly and relentlessly. The serval does not seek out company very often. It hunts assiduously and cunningly and behaves proudly. With their caution and calmness, the serval endures very diverse living conditions.",
     "en": "Serval",
     "traits_en": [
-      "customising",
+      "adaptable",
       "calm",
       "powerful",
       "nimble",
@@ -14583,7 +14583,7 @@
       "helpful",
       "protective",
       "enthusiastic",
-      "family",
+      "family-oriented",
       "sensitive",
       "naughty",
       "perceptive",
@@ -14624,7 +14624,7 @@
     "en": "Siskin",
     "traits_en": [
       "unsuspecting",
-      "cozy",
+      "convivial",
       "inquisitive",
       "striking",
       "sensible",
@@ -14670,7 +14670,7 @@
     "en": "Sika deer",
     "traits_en": [
       "deft",
-      "family",
+      "family-oriented",
       "flexible",
       "vivid",
       "cheerful",
@@ -14715,7 +14715,7 @@
     "en": "Saint Bernard",
     "traits_en": [
       "helpful",
-      "cozy",
+      "convivial",
       "good sense of orientation",
       "benign",
       "brave",
@@ -14752,7 +14752,7 @@
       "curioso",
       "impavido",
       "notevole",
-      "pigro",
+      "dormiglione",
       "saggio",
       "ingegnoso",
       "pauroso"
@@ -14765,7 +14765,7 @@
     "traits_en": [
       "acrobatic",
       "bustling",
-      "movable",
+      "agile",
       "brave",
       "roguish",
       "curious",
@@ -14806,12 +14806,12 @@
     "desc_it": "Il serpente è un rettile discreto e adattabile. Si muove in silenzio sfruttando il calore dell'ambiente. È paziente e istintivo nella caccia. Vive in quasi ogni parte del mondo, adattandosi a condizioni molto diverse.",
     "en": "Snake",
     "traits_en": [
-      "customising",
-      "subdued",
+      "adaptable",
+      "composed",
       "cautious",
       "patient",
       "noiseless",
-      "instinctively",
+      "instinctive",
       "inconspicuous",
       "perceptive"
     ]
@@ -14857,7 +14857,7 @@
       "grateful",
       "incisive",
       "patient",
-      "base",
+      "home-loving",
       "orderly",
       "fast",
       "social",
@@ -14995,7 +14995,7 @@
       "economical",
       "territorial",
       "sensible",
-      "Quick",
+      "quick",
       "gentle",
       "caring"
     ]
@@ -15030,8 +15030,8 @@
     "desc_en": "The snow grouse is very hardy. They grow up in a rather hostile environment, but their strong adaptability allows them to get through it. Sometimes anxious, this bird remains vigilant and controlled and will never panic. The snow grouse feels best in small groups. The animal appreciates peace and quiet and is sacrificial.",
     "en": "Snow grouse",
     "traits_en": [
-      "customising",
-      "family",
+      "adaptable",
+      "family-oriented",
       "hardened",
       "calm",
       "sacrificial",
@@ -15172,7 +15172,7 @@
     "desc_en": "This powerful bird is strong and not easily upset. The snowy owl responds quietly and calmly. This animal is certainly not afraid and able to defend itself against much larger animals. The snowy owl is not loud, often appears absent-minded, but can come up with thoughtful ideas. Their appearance rarely goes unnoticed.",
     "en": "Snowy owl",
     "traits_en": [
-      "subdued",
+      "composed",
       "thoughtful",
       "powerful",
       "brave",
@@ -15338,7 +15338,7 @@
     "traits_en": [
       "alert",
       "deft",
-      "targeted",
+      "goal-oriented",
       "patient",
       "accurate",
       "perceptive",
@@ -15409,7 +15409,7 @@
     "desc_en": "These monkeys are known for their agility. They move smoothly across every conceivable terrain and feel at home everywhere. The spider monkey lives in groups. Rank order is important but not strictly enforced. The spider monkey is a true enjoyer. The animal is playful, sensible and quick to excite, but equally quick to scatter.",
     "en": "Spider monkey",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "enthusiastic",
       "enjoyer",
@@ -15417,7 +15417,7 @@
       "hierarchical",
       "playful",
       "sensible",
-      "scattered"
+      "absent-minded"
     ]
   },
   {
@@ -15456,10 +15456,10 @@
     "traits_en": [
       "active",
       "protective",
-      "appetising",
+      "hearty eater",
       "formidable",
       "nervous",
-      "plant puller",
+      "resourceful",
       "fast",
       "strong",
       "territorial",
@@ -15557,12 +15557,12 @@
     "traits_en": [
       "altruistic",
       "energetic",
-      "cozy",
+      "convivial",
       "social animal",
       "helpful",
       "vivid",
       "naughty",
-      "plant puller",
+      "resourceful",
       "social",
       "persistent",
       "merry",
@@ -15606,7 +15606,7 @@
       "organised",
       "vivid",
       "candid",
-      "careful",
+      "meticulous",
       "caring"
     ]
   },
@@ -15644,7 +15644,7 @@
     "desc_en": "These songbirds attract attention because of their qualities as imitators. The mockingbird has a cheerful nature and likes to cooperate. They defend their territory fiercely, but once the mockingbird knows others, it leaves them alone. Once the mockingbird has started a task, it works feverishly and restlessly on it. The mockingbird is orderly and fairly sedentary.",
     "en": "Mockingbird",
     "traits_en": [
-      "base",
+      "home-loving",
       "imitative",
       "orderly",
       "restless",
@@ -15653,7 +15653,7 @@
       "defensive",
       "merry",
       "working",
-      "carefully"
+      "meticulous"
     ]
   },
   {
@@ -15696,11 +15696,11 @@
     "desc_en": "There is no more cheerful, cheerful and upbeat bird than the starling. The starling regards all circumstances with calmness, joviality and a worldly gaze. This bird never loses their good mood. The starling is modest, clever and playful. They learn something easily and have great adaptability. The starling has a close-knit family life and defends itself bravely against enemies.",
     "en": "Starling",
     "traits_en": [
-      "customising",
+      "adaptable",
       "modest",
       "joyful",
       "brave",
-      "family",
+      "family-oriented",
       "good-humoured",
       "jovial",
       "inquisitive",
@@ -15764,7 +15764,7 @@
     ],
     "traits_it": [
       "abile",
-      "costruttivo",
+      "costruttore",
       "animale di piccolo branco",
       "casalingo",
       "ingegnoso",
@@ -15779,9 +15779,9 @@
     "en": "Springhare",
     "traits_en": [
       "deft",
-      "building",
+      "builder",
       "social animal (small group)",
-      "base",
+      "home-loving",
       "ingenious",
       "observant",
       "fast",
@@ -15814,7 +15814,7 @@
     "desc_en": "This epicurean likes to linger on sunny grasslands. The grasshopper has long hind legs that allow it to jump far to escape danger. They have few enemies, are cautious and patient. The grasshopper is highly adaptable. With their strikingly coloured wings, the grasshopper makes a special sound.",
     "en": "Grasshopper",
     "traits_en": [
-      "customising",
+      "adaptable",
       "patient",
       "epicurean",
       "loud",
@@ -15841,7 +15841,7 @@
       "adattabile",
       "acrobatico",
       "attivo",
-      "costruttivo",
+      "costruttore",
       "comunicativo",
       "curioso",
       "irrequieto",
@@ -15854,10 +15854,10 @@
     "desc_en": "This small black-and-white-pink songbird has a long tail. The long-tailed tit is acrobatic, very active and restless. Tail tits constantly make themselves heard. They are curious and feel at home everywhere. The long-tailed tit is caring, social and a great nest-builder.",
     "en": "Long-tailed tit",
     "traits_en": [
-      "customising",
+      "adaptable",
       "acrobatic",
       "active",
-      "building",
+      "builder",
       "communicative",
       "curious",
       "restless",
@@ -15906,7 +15906,7 @@
       "deft",
       "protective",
       "noble",
-      "family",
+      "family-oriented",
       "proud",
       "quiet",
       "fast",
@@ -15955,7 +15955,7 @@
     "desc_en": "Capricorns are best known for their agility and sense of balance. This mountain dweller lives in groups and attaches importance to rank within the group. The ibex is friendly and curious, but sometimes a bit stubborn. This one learns a lot from elders. The ibex is strong but will not easily use their strength against others. They are playful, live at peace with their environment and adapt quickly.",
     "en": "Ibex",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "balanced",
       "social animal",
@@ -16073,7 +16073,7 @@
     ],
     "traits_it": [
       "protettivo",
-      "costruttivo",
+      "costruttore",
       "artistico",
       "desideroso di imparare",
       "ordinato",
@@ -16087,7 +16087,7 @@
     "en": "Spiny-tailed duck",
     "traits_en": [
       "protective",
-      "building",
+      "builder",
       "artful",
       "inquisitive",
       "orderly",
@@ -16129,7 +16129,7 @@
     "desc_en": "This swallow's speed and agility are particularly phenomenal. This bird has great adaptability for new breeding sites. The spiny-tailed swallow likes to live in large groups. Occasionally, it seems very hurried, acts a bit nervous and pays less attention to its surroundings. The porcupine swallow is helpful, grateful and usually honest and frank.",
     "en": "Spiny-tailed swallow",
     "traits_en": [
-      "customising",
+      "adaptable",
       "helpful",
       "grateful",
       "fair",
@@ -16213,8 +16213,8 @@
     "desc_en": "This bird is a graceful and lovely stilt-walker. The wader has a noble posture and is honourable. They build an ingenious and well-kept nest. The wader is mild-mannered, freedom-loving and clever. In unfamiliar surroundings, it adopts a wait-and-see attitude. Nevertheless, the black-necked stilts often seek out new habitats, largely out of curiosity. The wader adapts well.",
     "en": "Black-winged stilt",
     "traits_en": [
-      "customising",
-      "waiting",
+      "adaptable",
+      "wait-and-see",
       "noble",
       "honourable",
       "graceful",
@@ -16285,7 +16285,7 @@
       "vrolijk"
     ],
     "traits_it": [
-      "costruttivo",
+      "costruttore",
       "coraggioso",
       "empirico",
       "curioso",
@@ -16303,7 +16303,7 @@
     "desc_en": "This rodent has a long, dense coat. The steppermint is farsighted and proceeds with deliberation. They are small, but certainly not fragile. The steppelemming is cheerful, playful and happy. This rodent does not show aggressive behaviour, including towards other animals. It is extremely curious. The steppelemming is buildable, but not always active. A steppelemming learns quickly, especially through experience.",
     "en": "Steppe lemming",
     "traits_en": [
-      "building",
+      "builder",
       "brave",
       "experiential",
       "curious",
@@ -16361,7 +16361,7 @@
       "striking",
       "hot-tempered",
       "chatty",
-      "Quick",
+      "quick",
       "merry",
       "gentle",
       "carefree",
@@ -16431,7 +16431,7 @@
     "traits_en": [
       "alert",
       "cautious",
-      "night",
+      "nocturnal",
       "quiet",
       "shy",
       "solitary",
@@ -16473,7 +16473,7 @@
       "alert",
       "protective",
       "communicative",
-      "family",
+      "family-oriented",
       "social animal",
       "observing",
       "social",
@@ -16521,7 +16521,7 @@
       "generous",
       "good sense of orientation",
       "social animal (large group)",
-      "base",
+      "home-loving",
       "social",
       "sensible",
       "watchful"
@@ -16553,7 +16553,7 @@
     "desc_en": "This bird is not easily noticed. The sandpiper is sacrificial and will take great risks for conspecifics. The sandpiper is active and has remarkable stamina. This animal adapts well to all living conditions.",
     "en": "Sandpiper",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
       "daredevil",
       "inconspicuous",
@@ -16695,7 +16695,7 @@
       "vivid",
       "sprightly",
       "brave",
-      "night",
+      "nocturnal",
       "observant",
       "striking",
       "fast",
@@ -16732,7 +16732,7 @@
     "desc_en": "The taipan is a highly venomous coral snake. However, it only bites when cornered. Then it fiercely defends itself. The taipan is strong and powerful and has very good eyesight. This animal is alert and scans its surroundings very carefully. When hunting, they are very strategic. The taipan has great adaptability.",
     "en": "Taipan",
     "traits_en": [
-      "customising",
+      "adaptable",
       "alert",
       "powerful",
       "observant",
@@ -16777,7 +16777,7 @@
       "sensitive",
       "creature of habit",
       "benign",
-      "base",
+      "home-loving",
       "curious",
       "peaceful"
     ]
@@ -16812,7 +16812,7 @@
     "desc_en": "This hefty, powerful fish has large, silvery scales and large eyes. The tarpon swims very fast and impresses with spectacular jumps. This hardened fish is unique and sometimes elusive. The tarpon has great stamina and adapts to the most difficult conditions.",
     "en": "Tarpon",
     "traits_en": [
-      "customising",
+      "adaptable",
       "hardened",
       "impressive",
       "powerful",
@@ -16877,7 +16877,7 @@
     ],
     "traits_it": [
       "indaffarato",
-      "costruttivo",
+      "costruttore",
       "organizzato",
       "animale di grande branco",
       "coscienzioso",
@@ -16892,7 +16892,7 @@
     "en": "Termite",
     "traits_en": [
       "bustling",
-      "building",
+      "builder",
       "organised",
       "social animal (large group)",
       "dutiful",
@@ -16944,15 +16944,15 @@
     "en": "Tiger",
     "traits_en": [
       "deft",
-      "targeted",
+      "goal-oriented",
       "incisive",
       "elegant",
       "patient",
       "noiseless",
-      "instinctively",
+      "instinctive",
       "powerful",
       "nimble",
-      "night",
+      "nocturnal",
       "independent",
       "perceptive",
       "solitary",
@@ -16995,7 +16995,7 @@
       "energetic",
       "naughty",
       "intelligent",
-      "instinctively",
+      "instinctive",
       "perceptive"
     ]
   },
@@ -17023,7 +17023,7 @@
       "appariscente",
       "territoriale",
       "curato",
-      "melodioso"
+      "canterino"
     ],
     "slug": "tjiftjaf",
     "desc_nl": "Deze kleine insecteneter en zangvogel heeft een opmerkelijke roep. Die roep gebruikt de tjiftjaf om aan andere dieren duidelijk te maken dat men hun territorium betreedt. De tjiftjaf is blijmoedig. Door hun constante zoektocht naar eten zijn ze onrustig en beweeglijk. Hun nest is mooi onderhouden. De tjiftjaf is dapper en vreest geen rovers.",
@@ -17031,7 +17031,7 @@
     "desc_en": "This small insectivore and songbird has a remarkable call. It uses that call to signal to other animals that one is entering their territory. The chiffchaff is cheerful. Their constant search for food makes them restless and agile. Their nest is beautifully maintained. The chiffchaff is brave and does not fear predators.",
     "en": "Chiffchaff",
     "traits_en": [
-      "movable",
+      "agile",
       "joyful",
       "communicative",
       "brave",
@@ -17039,7 +17039,7 @@
       "striking",
       "territorial",
       "neat",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -17154,7 +17154,7 @@
     "desc_en": "The touako is an active and beautifully coloured bird. They can climb and clamber very well. The touako is beautiful and fast. This bird adapts well to changing conditions. The touako is interesting, curious and very social. The toerako is protective and alerts not only their conspecifics but also other animals in case of danger.",
     "en": "Turaco",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
       "deft",
       "protective",
@@ -17204,7 +17204,7 @@
       "acrobatic",
       "deft",
       "formidable",
-      "cozy",
+      "convivial",
       "powerful",
       "brave",
       "observant",
@@ -17255,7 +17255,7 @@
       "alert",
       "intelligent",
       "mysterious",
-      "night",
+      "nocturnal",
       "accurate",
       "observing",
       "independent",
@@ -17303,7 +17303,7 @@
       "fast",
       "deft",
       "undemanding",
-      "night"
+      "nocturnal"
     ]
   },
   {
@@ -17376,7 +17376,7 @@
       "prudente",
       "pacifico",
       "allegro",
-      "melodioso"
+      "canterino"
     ],
     "slug": "vink",
     "desc_nl": "Deze vlijtige en levendige zangvogel is gezellig, vreedzaam en vrolijk. In het algemeen is de vink niet schuw, maar wel voorzichtig. Ze besteden veel zorg aan de bouw van het nest en onderhouden het regelmatig. De vink is opgewekt en trouw. Zij leren hun typische zang van de oudere vogels.",
@@ -17384,7 +17384,7 @@
     "desc_en": "This industrious and lively songbird is sociable, peaceful and cheerful. In general, the finch is not shy but cautious. They take great care in building the nest and maintain it regularly. The finch is cheerful and loyal. They learn their typical song from the older birds.",
     "en": "Finch",
     "traits_en": [
-      "cozy",
+      "convivial",
       "inquisitive",
       "vivid",
       "cheerful",
@@ -17395,7 +17395,7 @@
       "careful",
       "peaceful",
       "merry",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -17431,7 +17431,7 @@
       "alert",
       "deft",
       "communicative",
-      "night",
+      "nocturnal",
       "perceptive",
       "social",
       "watchful",
@@ -17464,7 +17464,7 @@
     "desc_en": "The butterfly has a characteristic flapping flight and very distinctive wing colours. Despite their colourfulness, they can also behave inconspicuously when resting. The butterfly is a very lovely flyer and a real bon vivant. This animal occasionally undergoes a metamorphosis. This is when the butterfly looks for new challenges.",
     "en": "Butterfly",
     "traits_en": [
-      "customising",
+      "adaptable",
       "adventurous",
       "colourful",
       "epicurean",
@@ -17547,12 +17547,12 @@
     "desc_en": "The fox is a slender and graceful predator. This animal realises danger but does not fear it. They are bold and cunning. The fox is wise and resourceful. It is an opportunist. The fox is able to constantly adapt to a new situation and has a great urge to survive.",
     "en": "Fox",
     "traits_en": [
-      "customising",
+      "adaptable",
       "alert",
       "deft",
       "inventive",
       "crafty",
-      "night",
+      "nocturnal",
       "curious",
       "independent",
       "perceptive",
@@ -17595,9 +17595,9 @@
     "traits_en": [
       "active",
       "good sense of orientation",
-      "base",
+      "home-loving",
       "colourful",
-      "night",
+      "nocturnal",
       "striking",
       "playful",
       "steadfast",
@@ -17670,7 +17670,7 @@
     "desc_en": "This large, strong and impressive marine mammal with long tusks lives in the polar regions. The walrus is a social diurnal animal and is very sociable. It prefers large groups, likes to be close to others and has few enemies. The walrus is an epicurean and is sensitive.",
     "en": "Walrus",
     "traits_en": [
-      "family",
+      "family-oriented",
       "social animal",
       "powerful",
       "social",
@@ -17719,7 +17719,7 @@
     "en": "Raccoon",
     "traits_en": [
       "pleasant",
-      "customising",
+      "adaptable",
       "deft",
       "helpful",
       "graceful",
@@ -17750,7 +17750,7 @@
     ],
     "traits_it": [
       "indaffarato",
-      "costruttivo",
+      "costruttore",
       "comunicativo",
       "chiacchierone",
       "vanitoso",
@@ -17766,14 +17766,14 @@
     "en": "Weaver",
     "traits_en": [
       "bustling",
-      "building",
+      "builder",
       "communicative",
       "chatty",
       "showy",
       "perceptive",
       "smart",
       "social",
-      "careful"
+      "meticulous"
     ]
   },
   {
@@ -17811,7 +17811,7 @@
       "persistent",
       "nimble",
       "brave",
-      "night",
+      "nocturnal",
       "fearless",
       "fast"
     ]
@@ -17833,7 +17833,7 @@
       "artistico",
       "coraggioso",
       "agitato",
-      "melodioso",
+      "canterino",
       "premuroso"
     ],
     "slug": "wielewaal",
@@ -17846,7 +17846,7 @@
       "artful",
       "brave",
       "restless",
-      "vocal",
+      "songful",
       "caring"
     ]
   },
@@ -17882,11 +17882,11 @@
     "desc_en": "The mallard duck lives in ponds, marshes, lakes and ditches. This water bird eats small fish, snails and worms, but is very flexible in their choice of food. The mallard duck is social, sociable, tolerant and very tolerant. The mallard has great adaptability. This animal is active, agile and cautious.",
     "en": "Mallard",
     "traits_en": [
-      "customising",
+      "adaptable",
       "active",
-      "movable",
+      "agile",
       "flexible",
-      "cozy",
+      "convivial",
       "unfussy",
       "tolerant",
       "tolerant",
@@ -17921,7 +17921,7 @@
       "audace",
       "amichevole",
       "allegro",
-      "melodioso"
+      "canterino"
     ],
     "slug": "winterkoninkje",
     "desc_nl": "Het winterkoninkje is een opgewekte en blijmoedige zangvogel. Dit dier is erg vitaal, behendig, snel en handelt stoutmoedig. Bij gevaar verliezen ze hun stoutmoedigheid, maar die keert snel terug. Het winterkoninkje verliest zelden hun vrolijke stemming en zelfs in volle winter zingt het alsof het lente is. Het winterkoninkje hecht veel belang aan een goede verstandhouding met hun naaste omgeving.",
@@ -17939,7 +17939,7 @@
       "bold",
       "friendly",
       "merry",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -17978,10 +17978,10 @@
     "traits_en": [
       "protective",
       "brave",
-      "family",
+      "family-oriented",
       "social animal (small group)",
       "hierarchical",
-      "instinctively",
+      "instinctive",
       "intelligent",
       "territorial",
       "loyal",
@@ -18016,7 +18016,7 @@
     "en": "Woolly mammoth",
     "traits_en": [
       "persistent",
-      "family",
+      "family-oriented",
       "social animal",
       "powerful",
       "strong",
@@ -18045,7 +18045,7 @@
     "traits_it": [
       "attaccato",
       "adattabile",
-      "costruttivo",
+      "costruttore",
       "temprato",
       "buffo",
       "ingegnoso",
@@ -18063,8 +18063,8 @@
     "en": "Wombat",
     "traits_en": [
       "affectionate",
-      "customising",
-      "building",
+      "adaptable",
+      "builder",
       "hardened",
       "funny",
       "ingenious",
@@ -18108,7 +18108,7 @@
     "desc_en": "This large bird of prey has great stamina and calm flight. The kite is sensible. The animal is capable of playing comedy to outwit their prey and is an opportunist. The kite is social, loyal and sociable.",
     "en": "Red kite",
     "traits_en": [
-      "cozy",
+      "convivial",
       "inventive",
       "crafty",
       "opportunistic",
@@ -18149,10 +18149,10 @@
     "desc_en": "This North Sea house snail adapts to all conditions, but is most at home in still waters. The whelk has been foaming proudly over the seabed for millions of years. This purebred plant-eater contributes to a healthy environment. The whelk is useful and patient. This mollusc cautiously assesses the situation before giving its all.",
     "en": "Whelk",
     "traits_en": [
-      "customising",
+      "adaptable",
       "calm",
       "proud",
-      "plant puller",
+      "resourceful",
       "entertaining",
       "useful",
       "patient",
@@ -18181,7 +18181,7 @@
       "perspicace",
       "sagace",
       "prudente",
-      "melodioso"
+      "canterino"
     ],
     "slug": "wulp",
     "desc_nl": "Deze snipachtige, grote steltlopers zijn opvallend door hun lange, gebogen snavel. De wulp is voorzichtig, scherpzinnig, schrander en leeft in groep. Het dier is gemeenzaam, liefdevol en gehoorzaam. Tijdens de vlucht is de Wulp op het gehoor te volgen door hun prachtige, mysterieuze, jodelende zang.",
@@ -18196,7 +18196,7 @@
       "perceptive",
       "sagacious",
       "careful",
-      "vocal"
+      "songful"
     ]
   },
   {
@@ -18232,7 +18232,7 @@
       "persistent",
       "quirky",
       "energetic",
-      "bright",
+      "fierce",
       "powerful",
       "perceptive",
       "graceful",
@@ -18268,7 +18268,7 @@
     "en": "Zebra",
     "traits_en": [
       "alert",
-      "family",
+      "family-oriented",
       "social animal",
       "powerful",
       "social",
@@ -18308,7 +18308,7 @@
     "traits_en": [
       "alert",
       "communicative",
-      "family",
+      "family-oriented",
       "benign",
       "cheerful",
       "collaborative",
@@ -18450,10 +18450,10 @@
     "desc_en": "The seal is a fairly small aquatic predator. This agile, good swimmer and diver only comes out of the water to rest or sunbathe. They live in small herds and are social. The seal is teachable, industrious and nippy. The animal is friendly, but can be witty.",
     "en": "Seal",
     "traits_en": [
-      "customising",
+      "adaptable",
       "deft",
       "communicative",
-      "cozy",
+      "convivial",
       "intelligent",
       "nimble",
       "curious",
@@ -18566,7 +18566,7 @@
     "traits_en": [
       "creative",
       "enthusiastic",
-      "cozy",
+      "convivial",
       "intelligent",
       "vivid",
       "social",
@@ -18606,11 +18606,11 @@
     "desc_en": "This cute and graceful saltwater fish lives in water with rich vegetation. They are active throughout the day, but can also linger motionless. The seahorse always moves quietly, feels best in small groups and is reliable. The seahorse is friendly and appreciates a firm bond of friendship. This little fish prefers a familiar environment, but can adapt to new surroundings.",
     "en": "Seahorse",
     "traits_en": [
-      "customising",
+      "adaptable",
       "reliable",
       "graceful",
       "social animal (small group)",
-      "base",
+      "home-loving",
       "quiet",
       "cute",
       "friendly",
@@ -18690,13 +18690,13 @@
     "en": "Starfish",
     "traits_en": [
       "creative",
-      "waiting",
+      "wait-and-see",
       "funny",
       "collaborative",
       "resilient",
       "helpful",
       "unpretentious",
-      "cozy",
+      "convivial",
       "entertaining"
     ]
   },
@@ -18847,7 +18847,7 @@
     "en": "Swan",
     "traits_en": [
       "elegant",
-      "family",
+      "family-oriented",
       "proud",
       "majestic",
       "graceful",
