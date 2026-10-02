@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/coder/websocket"
 
@@ -44,7 +47,7 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "unknown room code")
 		return
 	}
-	name, ok := cleanName(q.Get("name"))
+	name, ok := cleanNick(q.Get("name"))
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "invalid player name")
 		return
@@ -69,10 +72,12 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// AcceptOptions is left empty on purpose: the library's default Origin check
-	// (Origin host must equal Host) is the protection against a hostile page
-	// driving someone's game session, and nothing here should relax it.
-	conn, err := websocket.Accept(w, r, nil)
+	// The Origin check is what stops a hostile page from driving someone's game
+	// session. Same-origin always passes; OriginPatterns only adds the explicit
+	// extras from config (empty in production).
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		OriginPatterns: s.gameOrigins,
+	})
 	if err != nil {
 		return // Accept has already written the error response
 	}
@@ -161,6 +166,31 @@ func writeWSJSON(ctx context.Context, conn *websocket.Conn, v any) error {
 	wctx, cancel := context.WithTimeout(ctx, gameWriteTimeout)
 	defer cancel()
 	return conn.Write(wctx, websocket.MessageText, b)
+}
+
+// NickMaxLen bounds a player nickname. It is drawn as a label above the
+// player's sprite, so a long one would cover the board.
+const NickMaxLen = 16
+
+// cleanNick validates a game nickname. Unlike cleanName (which vets submitted
+// animal names) digits are allowed, because "Niklas2" is a perfectly ordinary
+// thing to call yourself. Everything else is kept tight: the nickname is
+// broadcast to every other player in the room.
+func cleanNick(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	n := utf8.RuneCountInString(s)
+	if n < 1 || n > NickMaxLen {
+		return "", false
+	}
+	for _, r := range s {
+		switch {
+		case unicode.IsLetter(r), unicode.IsMark(r), unicode.IsDigit(r), r == ' ':
+		case r == '-' || r == '_' || r == '\'' || r == '’' || r == '.':
+		default:
+			return "", false
+		}
+	}
+	return s, true
 }
 
 // msgLimiter is a fixed-window frame counter for one connection. It is touched

@@ -110,6 +110,31 @@ func TestBombIsEdgeTriggered(t *testing.T) {
 	}
 }
 
+func TestBombTapShorterThanATickStillCounts(t *testing.T) {
+	m := openMatch(t, 1)
+
+	// Press and release between two ticks. Sampling the key level at tick time
+	// would see Bomb=false and lose the press entirely.
+	m.SetInput(0, Input{Bomb: true})
+	m.SetInput(0, Input{Bomb: false})
+	m.Step()
+
+	if len(m.Bombs) != 1 {
+		t.Fatalf("a quick tap dropped %d bombs, want 1", len(m.Bombs))
+	}
+
+	// The release already happened, so the next press must drop another.
+	m.Players[0].Bombs = 2
+	stepN(m, 3, 0, Input{DX: 1})
+	m.SetInput(0, Input{DX: 1, Bomb: true})
+	m.SetInput(0, Input{DX: 1, Bomb: false})
+	m.Step()
+
+	if len(m.Bombs) != 2 {
+		t.Fatalf("second tap left %d bombs, want 2", len(m.Bombs))
+	}
+}
+
 func TestBombStockLimitsConcurrentBombs(t *testing.T) {
 	m := openMatch(t, 1)
 	m.Players[0].Bombs = 2

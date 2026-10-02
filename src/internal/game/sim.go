@@ -220,16 +220,20 @@ func (m *Match) liveBombs(slot int) int {
 }
 
 // tryBomb drops a bomb on the rising edge of the bomb key, so holding it does
-// not empty the player's whole stock in four ticks.
+// not empty the player's whole stock in four ticks. The request comes from the
+// latch rather than the sampled level, so a tap too short to span a tick still
+// counts; releasing the key is what re-arms the edge.
 func (m *Match) tryBomb(p *Player) {
+	requested := p.bombLatch
+	p.bombLatch = false
+
 	if !p.Alive {
 		return
 	}
 	if !p.in.Bomb {
 		p.bombHeld = false
-		return
 	}
-	if p.bombHeld {
+	if !requested || p.bombHeld {
 		return
 	}
 	p.bombHeld = true

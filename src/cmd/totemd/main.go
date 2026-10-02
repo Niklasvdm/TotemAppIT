@@ -36,7 +36,7 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	apiSrv := api.New(st, cfg.Images, cfg.Emoji)
+	apiSrv := api.New(st, cfg.Images, cfg.Emoji, api.WithGameOrigins(cfg.GameOrigins))
 	defer apiSrv.Close()
 
 	// The read/write timeouts suit the JSON API. The WebSocket game route

@@ -26,6 +26,19 @@ export TOTEM_ADDR="127.0.0.1:8683"
 [ -f /etc/totem-web.env ] && . /etc/totem-web.env
 export VITE_ALLOWED_HOSTS="${VITE_ALLOWED_HOSTS:-}"
 
+IP="$(hostname -I | awk '{print $1}')"
+
+# The game WebSocket only accepts an Origin matching the Host the backend sees.
+# In production that holds (the WAF forwards its own Host), but Vite's dev proxy
+# rewrites Host to 127.0.0.1:8683 while the browser's Origin stays the dev
+# server — so the dev origins are allowlisted explicitly here. This is a
+# DEV-ONLY widening: totemd defaults to same-origin when the variable is unset.
+DEV_ORIGINS="localhost:5173,127.0.0.1:5173,${IP}:5173"
+for host in ${VITE_ALLOWED_HOSTS//,/ }; do
+  DEV_ORIGINS="$DEV_ORIGINS,$host,$host:5173"
+done
+export TOTEM_ALLOWED_ORIGINS="$DEV_ORIGINS"
+
 echo "→ stopping any old backend / dev server…"
 pkill -x totemd 2>/dev/null || true
 pkill -f "node_modules/.bin/vite" 2>/dev/null || true   # clear stale Vite servers (5173, 5174…)
@@ -56,7 +69,6 @@ echo "✓ backend healthy"
 cd src/web
 [ -d node_modules ] || { echo "→ installing frontend deps (first run, ~1 min)…"; npm install; }
 
-IP="$(hostname -I | awk '{print $1}')"
 echo
 echo "=================================================================="
 echo "  Open this in your browser:   http://$IP:5173"

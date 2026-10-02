@@ -26,6 +26,11 @@ const (
 	// crateDensity is the share of free interior cells seeded with a
 	// destructible crate. Spawn pockets are always excluded.
 	crateDensity = 0.72
+
+	// spawnClearDepth is how far the crate-free pocket reaches along each axis
+	// from a spawn. It must exceed the starting blast radius, or a player's
+	// very first bomb could have no survivable tile to retreat to.
+	spawnClearDepth = 2
 )
 
 // MaxPlayers is the number of spawn corners the arena provides.
@@ -67,8 +72,8 @@ func NewGrid(seed uint64) *Grid {
 		}
 	}
 
-	// Keep each spawn and its two outward neighbours clear, so nobody starts
-	// walled in and every player has a first move in two directions.
+	// Clear an L-shaped pocket running inward from each spawn, so nobody starts
+	// walled in and everyone can retreat out of their own opening blast.
 	keep := map[int]bool{}
 	for _, s := range g.spawns {
 		sx, sy := s[0], s[1]
@@ -80,8 +85,10 @@ func NewGrid(seed uint64) *Grid {
 			dy = -1
 		}
 		keep[idx(sx, sy)] = true
-		keep[idx(sx+dx, sy)] = true
-		keep[idx(sx, sy+dy)] = true
+		for step := 1; step <= spawnClearDepth; step++ {
+			keep[idx(sx+dx*step, sy)] = true
+			keep[idx(sx, sy+dy*step)] = true
+		}
 	}
 
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))

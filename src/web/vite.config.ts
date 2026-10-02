@@ -23,7 +23,10 @@ export default defineConfig({
   server: {
     allowedHosts,
     proxy: {
-      "/api": "http://127.0.0.1:8683",
+      // ws: true also upgrades /api/v1/games/ws to the Go backend. The Host
+      // header is passed through unchanged, which is what lets the server's
+      // same-origin WebSocket check pass in dev.
+      "/api": { target: "http://127.0.0.1:8683", ws: true },
     },
   },
   build: { outDir: "dist" },

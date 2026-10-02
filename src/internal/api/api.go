@@ -47,6 +47,23 @@ type Server struct {
 	emoji  map[string]string // slug -> emoji, served at /api/v1/emoji
 	games  *game.Registry    // live multiplayer game rooms
 	Router http.Handler
+
+	// gameOrigins are extra host patterns allowed to open a game WebSocket, on
+	// top of the always-permitted same-origin case. See WithGameOrigins.
+	gameOrigins []string
+}
+
+// Option adjusts a Server at construction. Options keep New's signature stable
+// as the server grows optional dependencies.
+type Option func(*Server)
+
+// WithGameOrigins authorises extra Origin host patterns for the game
+// WebSocket (e.g. "127.0.0.1:5173" for the Vite dev proxy, which forwards its
+// own Host so the browser's Origin no longer matches). Same-origin requests are
+// always allowed, so this only ever widens access — leave it empty in
+// production.
+func WithGameOrigins(patterns []string) Option {
+	return func(s *Server) { s.gameOrigins = patterns }
 }
 
 // New wires the routes and middleware. images is the filesystem of animal images
@@ -54,8 +71,11 @@ type Server struct {
 //
 // The returned Server owns a game registry with background goroutines; callers
 // that outlive a single request should Close it.
-func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
+func New(cat Catalog, images fs.FS, emoji map[string]string, opts ...Option) *Server {
 	s := &Server{cat: cat, images: images, emoji: emoji, games: game.NewRegistry()}
+	for _, opt := range opts {
+		opt(s)
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)

@@ -21,7 +21,7 @@ const (
 	playerRadius = 0.34 // half-extent of the player's collision box, in tiles
 
 	baseBombs = 1
-	basePower = 2
+	basePower = 1 // classic opening reach; fire pickups grow it
 	maxBombs  = 6
 	maxPower  = 8
 )
@@ -81,6 +81,11 @@ type Player struct {
 
 	in       Input
 	bombHeld bool // edge detection: holding the key must not spam bombs
+
+	// bombLatch remembers a bomb request that arrived between two ticks. The
+	// key is otherwise sampled once per tick, so a tap shorter than 1/TickHz
+	// would land and clear before the tick ever saw it.
+	bombLatch bool
 }
 
 // Bomb is a placed bomb occupying exactly one tile.
@@ -163,10 +168,17 @@ func (m *Match) RemovePlayer(slot int) {
 	delete(m.Players, slot)
 }
 
-// SetInput records a client's intent for the next tick.
+// SetInput records a client's intent for the next tick. Direction is a level
+// (whatever is held when the tick runs), but a bomb press latches, so a quick
+// tap between two ticks still drops a bomb.
 func (m *Match) SetInput(slot int, in Input) {
-	if p, ok := m.Players[slot]; ok {
-		p.in = in.clamp()
+	p, ok := m.Players[slot]
+	if !ok {
+		return
+	}
+	p.in = in.clamp()
+	if p.in.Bomb {
+		p.bombLatch = true
 	}
 }
 
@@ -179,6 +191,7 @@ func (m *Match) resetPlayer(p *Player) {
 	p.Speed = baseSpeed
 	p.in = Input{}
 	p.bombHeld = false
+	p.bombLatch = false
 }
 
 // Start begins a round: a fresh map, everyone back to their corner with base

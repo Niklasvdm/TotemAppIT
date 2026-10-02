@@ -52,6 +52,49 @@ func TestSpawnsAreOpenWithAnEscape(t *testing.T) {
 	}
 }
 
+// A player's first bomb is dropped on their own spawn. If every tile they can
+// reach is inside that blast, the opening move is unavoidably fatal — so every
+// spawn must have a standable tile outside it.
+func TestSpawnHasARetreatFromTheOpeningBomb(t *testing.T) {
+	for seed := uint64(0); seed < 200; seed++ {
+		g := NewGrid(seed)
+		for slot := 0; slot < MaxPlayers; slot++ {
+			sx, sy := g.Spawn(slot)
+
+			blast := map[[2]int]bool{{sx, sy}: true}
+			for _, d := range blastDirs {
+				for i := 1; i <= basePower; i++ {
+					x, y := sx+d[0]*i, sy+d[1]*i
+					if g.Solid(x, y) {
+						break
+					}
+					blast[[2]int{x, y}] = true
+					if g.Crate(x, y) {
+						break
+					}
+				}
+			}
+
+			safe := 0
+			for _, d := range blastDirs {
+				for i := 1; i <= spawnClearDepth; i++ {
+					tile := [2]int{sx + d[0]*i, sy + d[1]*i}
+					if g.Blocked(tile[0], tile[1]) {
+						break // can't walk past a wall or crate to reach it
+					}
+					if !blast[tile] {
+						safe++
+					}
+				}
+			}
+			if safe == 0 {
+				t.Fatalf("seed %d slot %d: spawn (%d,%d) has no tile outside its own opening blast",
+					seed, slot, sx, sy)
+			}
+		}
+	}
+}
+
 func TestGridIsSeedDeterministic(t *testing.T) {
 	a, b, c := NewGrid(99), NewGrid(99), NewGrid(100)
 	if a.CrateString() != b.CrateString() {
