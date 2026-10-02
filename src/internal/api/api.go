@@ -20,6 +20,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/Niklasvdm/TotemAppIT/internal/game"
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
 )
 
@@ -44,13 +45,17 @@ type Server struct {
 	cat    Catalog
 	images fs.FS             // <slug>.webp files; nil when images aren't deployed
 	emoji  map[string]string // slug -> emoji, served at /api/v1/emoji
+	games  *game.Registry    // live multiplayer game rooms
 	Router http.Handler
 }
 
 // New wires the routes and middleware. images is the filesystem of animal images
 // (nil → the image route 404s); emoji is the slug→emoji map for /api/v1/emoji.
+//
+// The returned Server owns a game registry with background goroutines; callers
+// that outlive a single request should Close it.
 func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
-	s := &Server{cat: cat, images: images, emoji: emoji}
+	s := &Server{cat: cat, images: images, emoji: emoji, games: game.NewRegistry()}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
@@ -72,10 +77,24 @@ func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
 			r.Post("/suggestions", s.createSuggestion)
 			r.Post("/animals/{slug}/reports", s.createReport)
 		})
+
+		// Multiplayer games. Creating a room allocates a goroutine and a tick
+		// loop, so it is rate-limited; the socket itself is not, since a long
+		// -lived connection is the point (it has its own per-frame budget).
+		r.Route("/games", func(r chi.Router) {
+			r.With(newRateLimiter(20, time.Minute).middleware).Post("/rooms", s.createRoom)
+			r.Get("/ws", s.gameWS)
+		})
 	})
 
 	s.Router = r
 	return s
+}
+
+// Close releases the server's background resources (the game registry's reaper
+// and every open room).
+func (s *Server) Close() {
+	s.games.Close()
 }
 
 // --- DTOs (JSON shapes; separate from the domain types) ---------------------
