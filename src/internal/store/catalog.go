@@ -64,6 +64,13 @@ const descProjection = `COALESCE(NULLIF(t.description, ''),
 	(SELECT description FROM translation WHERE animal_id = a.id AND lang = 'it' AND description <> ''),
 	(SELECT description FROM translation WHERE animal_id = a.id AND lang = 'nl' AND description <> ''), '')`
 
+// nameProjection returns the animal's name in the requested language, falling
+// back to Italian then the canonical Dutch name. Paired with a LEFT JOIN on
+// translation so an animal missing a name row for lang is never silently dropped.
+const nameProjection = `COALESCE(NULLIF(t.name, ''),
+	(SELECT name FROM translation WHERE animal_id = a.id AND lang = 'it' AND name <> ''),
+	a.name_nl)`
+
 // traitsSubquery is the correlated subquery that packs an animal's trait labels
 // (for ?=lang) into one delimited column, avoiding an N+1 per-animal fetch.
 const traitsSubquery = `COALESCE((SELECT group_concat(tt.value, char(31))
@@ -76,9 +83,9 @@ func (s *Store) GetAnimal(ctx context.Context, slug, lang string) (*AnimalDetail
 	q := `
 SELECT a.slug, a.name_nl, a.alt_names, a.source_url,
        a.image_path, a.image_author, a.image_license, a.image_source,
-       t.name, ` + descProjection + ` AS description, ` + traitsSubquery + `
+       ` + nameProjection + ` AS name, ` + descProjection + ` AS description, ` + traitsSubquery + `
 FROM animal a
-JOIN translation t ON t.animal_id = a.id AND t.lang = ?
+LEFT JOIN translation t ON t.animal_id = a.id AND t.lang = ?
 WHERE a.slug = ?`
 
 	var d AnimalDetail
@@ -102,17 +109,20 @@ WHERE a.slug = ?`
 func (s *Store) ListAnimals(ctx context.Context, f Filter) ([]Animal, error) {
 	var b strings.Builder
 	b.WriteString(`
-SELECT a.slug, t.name, ` + descProjection + ` AS description, ` + traitsSubquery + `, 0.0 AS score
+SELECT a.slug, ` + nameProjection + ` AS name, ` + descProjection + ` AS description, ` + traitsSubquery + `, 0.0 AS score
 FROM animal a
-JOIN translation t ON t.animal_id = a.id AND t.lang = ?
+LEFT JOIN translation t ON t.animal_id = a.id AND t.lang = ?
 WHERE 1 = 1`)
 
 	// arg order must track the SQL text exactly.
 	args := []any{f.Lang, f.Lang}
 
 	if q := strings.TrimSpace(f.Query); q != "" {
-		b.WriteString(" AND lower(t.name) LIKE '%' || lower(?) || '%'")
-		args = append(args, q)
+		// Escape LIKE metacharacters so the query text matches literally
+		// (otherwise a user typing "%" or "_" injects wildcards).
+		esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
+		b.WriteString(` AND lower(` + nameProjection + `) LIKE '%' || lower(?) || '%' ESCAPE '\'`)
+		args = append(args, esc)
 	}
 	// include: each entry is a synonym group ("rustig|stil"); the animal must have
 	// at least one key from EVERY included entry (OR within an entry, AND across them).
@@ -132,7 +142,7 @@ WHERE 1 = 1`)
 			args = append(args, k)
 		}
 	}
-	b.WriteString(" ORDER BY t.name")
+	b.WriteString(" ORDER BY name")
 
 	return s.queryAnimals(ctx, b.String(), args...)
 }
@@ -149,16 +159,16 @@ WITH target AS (
 	JOIN animal a ON a.id = at.animal_id WHERE a.slug = ?
 ),
 tsize AS (SELECT COUNT(*) AS n FROM target)
-SELECT a.slug, t.name, ` + descProjection + ` AS description, ` + traitsSubquery + `,
+SELECT a.slug, ` + nameProjection + ` AS name, ` + descProjection + ` AS description, ` + traitsSubquery + `,
        (1.0 * COUNT(*) / ((SELECT n FROM tsize) + ocnt.n - COUNT(*))) AS score
 FROM animal_trait oat
 JOIN animal a ON a.id = oat.animal_id
-JOIN translation t ON t.animal_id = a.id AND t.lang = ?
+LEFT JOIN translation t ON t.animal_id = a.id AND t.lang = ?
 JOIN (SELECT animal_id, COUNT(*) n FROM animal_trait GROUP BY animal_id) ocnt
 	ON ocnt.animal_id = a.id
 WHERE oat.trait_id IN (SELECT trait_id FROM target) AND a.slug <> ?
 GROUP BY a.id
-ORDER BY score DESC, COUNT(*) DESC, t.name
+ORDER BY score DESC, COUNT(*) DESC, name
 LIMIT ?`
 	// arg order: target slug, traits-subquery lang, join lang, exclude-self slug, limit.
 	return s.queryAnimals(ctx, q, slug, lang, lang, slug, limit)
@@ -181,10 +191,10 @@ func (s *Store) SimilarByTraits(ctx context.Context, include, exclude []string, 
 
 	var b strings.Builder
 	b.WriteString(`
-SELECT a.slug, t.name, ` + descProjection + ` AS description, ` + traitsSubquery + `,
+SELECT a.slug, ` + nameProjection + ` AS name, ` + descProjection + ` AS description, ` + traitsSubquery + `,
        (1.0 * sh.shared / (` + n + ` + ocnt.n - sh.shared)) AS score
 FROM animal a
-JOIN translation t ON t.animal_id = a.id AND t.lang = ?
+LEFT JOIN translation t ON t.animal_id = a.id AND t.lang = ?
 JOIN (SELECT animal_id, COUNT(*) n FROM animal_trait GROUP BY animal_id) ocnt ON ocnt.animal_id = a.id
 JOIN (SELECT at.animal_id, COUNT(*) shared FROM animal_trait at
       WHERE at.trait_id IN (SELECT id FROM trait WHERE key_nl IN (` + placeholders(len(target)) + `))
@@ -201,7 +211,7 @@ JOIN (SELECT at.animal_id, COUNT(*) shared FROM animal_trait at
 			args = append(args, k)
 		}
 	}
-	b.WriteString(` ORDER BY score DESC, sh.shared DESC, t.name LIMIT ?`)
+	b.WriteString(` ORDER BY score DESC, sh.shared DESC, name LIMIT ?`)
 	args = append(args, limit)
 
 	return s.queryAnimals(ctx, b.String(), args...)

@@ -7,8 +7,8 @@ import (
 	"context"
 	"flag"
 	"log"
-	"os"
 
+	"github.com/Niklasvdm/TotemAppIT/internal/config"
 	"github.com/Niklasvdm/TotemAppIT/internal/ingest"
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
 )
@@ -21,9 +21,9 @@ func main() {
 	force := flag.Bool("force", false, "replace an already-seeded catalogue")
 	flag.Parse()
 
-	key := os.Getenv("TOTEM_DB_KEY")
-	if key == "" {
-		log.Fatal("TOTEM_DB_KEY is required (the Adiantum encryption key)")
+	key, err := config.DBKey()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	ctx := context.Background()

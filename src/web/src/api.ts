@@ -57,18 +57,24 @@ export function listAnimals(f: Filter): Promise<Animal[]> {
 }
 
 export function getAnimal(slug: string, lang: Lang): Promise<AnimalDetail> {
-  return getJSON<AnimalDetail>(`/api/v1/animals/${slug}?lang=${lang}`);
+  return getJSON<AnimalDetail>(`/api/v1/animals/${encodeURIComponent(slug)}?lang=${lang}`);
 }
 
 export function getSimilar(slug: string, lang: Lang, limit = 8): Promise<Animal[]> {
-  return getJSON<Animal[]>(`/api/v1/animals/${slug}/similar?lang=${lang}&limit=${limit}`);
+  return getJSON<Animal[]>(`/api/v1/animals/${encodeURIComponent(slug)}/similar?lang=${lang}&limit=${limit}`);
 }
 
 // Similarity mode: rank animals by overlap with the selected trait profile.
-export function similarByTraits(include: string[], exclude: string[], lang: Lang): Promise<Animal[]> {
+export function similarByTraits(
+  include: string[],
+  exclude: string[],
+  lang: Lang,
+  limit?: number,
+): Promise<Animal[]> {
   const p = new URLSearchParams({ lang });
   if (include.length) p.set("include", include.join(","));
   if (exclude.length) p.set("exclude", exclude.join(","));
+  if (limit) p.set("limit", String(limit));
   return getJSON<Animal[]>(`/api/v1/similar?${p}`);
 }
 

@@ -1,22 +1,44 @@
+import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getEmojiMap } from "./api";
 import Header from "./components/Header";
 import FinderPage from "./pages/FinderPage";
 import DetailPage from "./pages/DetailPage";
+import Quiz from "./components/Quiz";
+import AboutTotems from "./components/AboutTotems";
 
 export default function App() {
   // Load the slug->emoji map once; cards fall back to 🐾 if it's unavailable.
   const { data: emoji = {} } = useQuery({ queryKey: ["emoji"], queryFn: getEmojiMap });
+  const [quizOpen, setQuizOpen] = useState(false);
+  // Auto-show the info pop-up on first visit; remember once it's been closed.
+  const [aboutOpen, setAboutOpen] = useState(() => {
+    try {
+      return !localStorage.getItem("totem-about-seen");
+    } catch {
+      return false;
+    }
+  });
+  const closeAbout = () => {
+    try {
+      localStorage.setItem("totem-about-seen", "1");
+    } catch {
+      /* private mode — just close */
+    }
+    setAboutOpen(false);
+  };
 
   return (
     <>
       <div className="bunting" />
-      <Header />
+      <Header onQuiz={() => setQuizOpen(true)} onAbout={() => setAboutOpen(true)} />
       <Routes>
         <Route path="/" element={<FinderPage emoji={emoji} />} />
         <Route path="/animal/:slug" element={<DetailPage emoji={emoji} />} />
       </Routes>
+      {quizOpen && <Quiz onClose={() => setQuizOpen(false)} />}
+      {aboutOpen && <AboutTotems onClose={closeAbout} />}
     </>
   );
 }

@@ -21,8 +21,9 @@ export TOTEM_IMAGE_DIR="$PWD/data/images"
 export TOTEM_EMOJI_FILE="$PWD/data/emoji.json"
 export TOTEM_ADDR="127.0.0.1:8683"
 
-echo "→ stopping any old backend…"
+echo "→ stopping any old backend / dev server…"
 pkill -x totemd 2>/dev/null || true
+pkill -f "node_modules/.bin/vite" 2>/dev/null || true   # clear stale Vite servers (5173, 5174…)
 
 echo "→ building backend…"
 ( cd src && go build -o /tmp/totemd ./cmd/totemd )

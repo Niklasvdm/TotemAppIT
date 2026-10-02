@@ -256,7 +256,7 @@
     "en": "Albatross",
     "traits_en": [
       "persistent",
-      "social animal (large group)",
+      "herd animal",
       "powerful",
       "tireless",
       "beautiful",
@@ -688,7 +688,7 @@
       "social animal",
       "chipper",
       "cheerful",
-      "teasing",
+      "mischievous",
       "playful"
     ]
   },
@@ -786,7 +786,7 @@
       "watchful",
       "shy",
       "resourceful",
-      "observing",
+      "observant",
       "adaptable",
       "convivial",
       "playful",
@@ -906,7 +906,7 @@
     "traits_en": [
       "active",
       "formidable",
-      "social animal (large group)",
+      "herd animal",
       "brave",
       "opportunistic",
       "collaborative",
@@ -985,7 +985,7 @@
     "en": "Longnose gar",
     "traits_en": [
       "enjoyer",
-      "social animal (small group)",
+      "pack animal",
       "observant",
       "opportunistic",
       "quiet",
@@ -1072,7 +1072,7 @@
       "brave",
       "sprightly",
       "resourceful",
-      "roaming",
+      "nomadic",
       "surprising",
       "brave",
       "social animal",
@@ -1162,7 +1162,7 @@
       "fast",
       "playful",
       "enduring",
-      "roaming"
+      "nomadic"
     ]
   },
   {
@@ -1667,10 +1667,10 @@
     "traits_en": [
       "domestic",
       "epicurean",
-      "listening",
+      "attentive",
       "interested",
       "droll",
-      "smiling",
+      "jovial",
       "communicative",
       "expressive"
     ]
@@ -1706,7 +1706,7 @@
       "active",
       "dependent",
       "convivial",
-      "social animal (small group)",
+      "pack animal",
       "stubborn",
       "loud",
       "peaceful"
@@ -1793,7 +1793,7 @@
     "en": "Bush duiker",
     "traits_en": [
       "deft",
-      "sharing",
+      "generous",
       "attached",
       "home-loving",
       "shy",
@@ -2668,7 +2668,7 @@
     "desc_en": "The fallow deer is small, unruly and restless. It lives in large groups, at least when conditions permit. Most of the time it lives in packs. It then adopts a tolerant attitude towards conspecifics. The fallow deer is playful and cheerful, but not as shy and cautious as other deer.",
     "en": "Fallow deer",
     "traits_en": [
-      "social animal (large group)",
+      "herd animal",
       "restless",
       "restless",
       "playful",
@@ -2791,7 +2791,7 @@
     "traits_en": [
       "active",
       "protective",
-      "social animal (small group)",
+      "pack animal",
       "collaborative",
       "fast",
       "loyal",
@@ -2900,7 +2900,7 @@
     "traits_en": [
       "adaptable",
       "alert",
-      "social animal (small group)",
+      "pack animal",
       "hierarchical",
       "independent",
       "smart",
@@ -3703,7 +3703,7 @@
     "traits_en": [
       "adaptable",
       "protective",
-      "social animal (small group)",
+      "pack animal",
       "helpful",
       "powerful",
       "perceptive",
@@ -3898,7 +3898,7 @@
     "traits_en": [
       "elegant",
       "convivial",
-      "social animal (large group)",
+      "herd animal",
       "colourful",
       "striking",
       "graceful",
@@ -4431,7 +4431,7 @@
       "perceptive",
       "fast",
       "apprehensive",
-      "roaming"
+      "nomadic"
     ]
   },
   {
@@ -4571,7 +4571,7 @@
       "protective",
       "patient",
       "enjoyer",
-      "social animal (small group)",
+      "pack animal",
       "peaceful"
     ]
   },
@@ -4679,7 +4679,7 @@
     "traits_en": [
       "acrobatic",
       "flexible",
-      "social animal (large group)",
+      "herd animal",
       "striking",
       "fast",
       "playful"
@@ -4719,7 +4719,7 @@
     "traits_en": [
       "adaptable",
       "deft",
-      "social animal (small group)",
+      "pack animal",
       "fussy",
       "vivid",
       "curious",
@@ -4962,7 +4962,7 @@
       "patient",
       "enjoyer",
       "useful",
-      "observing",
+      "observant",
       "imperturbable",
       "social"
     ]
@@ -5040,7 +5040,7 @@
     "traits_en": [
       "adventurous",
       "persistent",
-      "social animal (large group)",
+      "herd animal",
       "restless",
       "reckless",
       "strong",
@@ -5142,7 +5142,7 @@
       "tolerant",
       "docile",
       "friendly",
-      "working"
+      "hardworking"
     ]
   },
   {
@@ -5491,7 +5491,7 @@
     "traits_en": [
       "acrobatic",
       "active",
-      "social animal (large group)",
+      "herd animal",
       "social",
       "playful",
       "tolerant",
@@ -5664,7 +5664,7 @@
       "acrobatic",
       "communicative",
       "convivial",
-      "social animal (large group)",
+      "herd animal",
       "imitative",
       "colourful",
       "vivid",
@@ -5780,7 +5780,7 @@
       "alert",
       "intelligent",
       "nocturnal",
-      "observing",
+      "observant",
       "independent",
       "perceptive",
       "solitary",
@@ -6167,7 +6167,7 @@
     "traits_en": [
       "brave",
       "family-oriented",
-      "social animal (small group)",
+      "pack animal",
       "hierarchical",
       "instinctive",
       "intelligent",
@@ -6651,7 +6651,7 @@
     "desc_en": "This water bird has a remarkably long bill. In general, it is not a shy bird. They live in large colonies and do not have many enemies. The ibis is sensible and has a calm and dignified demeanour.",
     "en": "Ibis",
     "traits_en": [
-      "social animal (large group)",
+      "herd animal",
       "quiet",
       "sensible",
       "worthy"
@@ -6728,9 +6728,9 @@
     "traits_en": [
       "adaptable",
       "creature of habit",
-      "social animal (small group)",
+      "pack animal",
       "loud",
-      "supporting",
+      "supportive",
       "adapted"
     ]
   },
@@ -6840,7 +6840,7 @@
     "en": "Jabiru",
     "traits_en": [
       "grateful",
-      "social animal (large group)",
+      "herd animal",
       "home-loving",
       "loyal",
       "tolerant",
@@ -6873,7 +6873,7 @@
     "en": "Jacana",
     "traits_en": [
       "protective",
-      "social animal (large group)",
+      "herd animal",
       "graceful",
       "meticulous",
       "silent"
@@ -7027,7 +7027,7 @@
     "en": "Yak",
     "traits_en": [
       "hardened",
-      "social animal (large group)",
+      "herd animal",
       "brave",
       "strong",
       "tough",
@@ -7107,7 +7107,7 @@
     "en": "African grey parrot",
     "traits_en": [
       "sensitive",
-      "social animal (large group)",
+      "herd animal",
       "intelligent",
       "inquisitive",
       "collaborative",
@@ -7209,9 +7209,9 @@
     "desc_en": "This fish lives in large groups with a clear hierarchy, in which food is distributed fairly. Every year, cod return to their birthplace, which requires a strong sense of orientation. During the long trip, this predatory fish uses their energy efficiently. The cod is not picky.",
     "en": "Cod",
     "traits_en": [
-      "social animal (large group)",
+      "herd animal",
       "hierarchical",
-      "sharing",
+      "generous",
       "creature of habit",
       "good sense of orientation",
       "efficient",
@@ -7749,7 +7749,7 @@
       "adaptable",
       "deft",
       "vivid",
-      "cheering",
+      "uplifting",
       "smart",
       "social",
       "friendly",
@@ -7921,7 +7921,7 @@
       "noiseless",
       "nocturnal",
       "accurate",
-      "observing",
+      "observant",
       "solitary",
       "quiet",
       "watchful"
@@ -8193,7 +8193,7 @@
       "bustling",
       "protective",
       "agile",
-      "social animal (large group)",
+      "herd animal",
       "brave",
       "beautiful",
       "graceful",
@@ -8648,7 +8648,7 @@
       "adaptable",
       "active",
       "convivial",
-      "social animal (large group)",
+      "herd animal",
       "intelligent",
       "vivid",
       "curious",
@@ -8925,7 +8925,7 @@
     "en": "Crab",
     "traits_en": [
       "undemanding",
-      "social animal (large group)",
+      "herd animal",
       "collaborative",
       "protective",
       "ingenious",
@@ -9319,7 +9319,7 @@
       "brave",
       "family-oriented",
       "proud",
-      "social animal (small group)",
+      "pack animal",
       "hierarchical",
       "impressive",
       "powerful",
@@ -10578,7 +10578,7 @@
     "en": "Moorish idol",
     "traits_en": [
       "solitary",
-      "social animal (small group)",
+      "pack animal",
       "inconspicuous",
       "caring",
       "entertaining",
@@ -11579,7 +11579,7 @@
       "majestic",
       "mysterious",
       "nocturnal",
-      "observing",
+      "observant",
       "independent",
       "perceptive",
       "solitary",
@@ -11704,7 +11704,7 @@
       "loyal",
       "enduring",
       "caring",
-      "roaming"
+      "nomadic"
     ]
   },
   {
@@ -11784,7 +11784,7 @@
       "inventive",
       "accurate",
       "curious",
-      "observing",
+      "observant",
       "independent",
       "solitary",
       "resourceful"
@@ -11855,7 +11855,7 @@
     "traits_en": [
       "communicative",
       "family-oriented",
-      "social animal (small group)",
+      "pack animal",
       "hierarchical",
       "intelligent",
       "powerful",
@@ -12598,7 +12598,7 @@
     "en": "Pearl jellyfish",
     "traits_en": [
       "colourful",
-      "social animal (large group)",
+      "herd animal",
       "docile",
       "generous",
       "fierce",
@@ -12911,7 +12911,7 @@
     "en": "Brush crab",
     "traits_en": [
       "withdrawn",
-      "collecting",
+      "acquisitive",
       "chipper",
       "adaptable",
       "elegant",
@@ -13079,7 +13079,7 @@
       "protective",
       "persistent",
       "family-oriented",
-      "social animal (large group)",
+      "herd animal",
       "social",
       "tough",
       "loyal",
@@ -13482,7 +13482,7 @@
       "inventive",
       "mysterious",
       "curious",
-      "observing",
+      "observant",
       "smart",
       "cunning"
     ]
@@ -13602,11 +13602,11 @@
       "adaptable",
       "persistent",
       "family-oriented",
-      "social animal (large group)",
+      "herd animal",
       "powerful",
       "tough",
       "enduring",
-      "roaming"
+      "nomadic"
     ]
   },
   {
@@ -13823,7 +13823,7 @@
     "en": "Robin",
     "traits_en": [
       "cheerful",
-      "teasing",
+      "mischievous",
       "careful",
       "merry",
       "songful"
@@ -14489,7 +14489,7 @@
       "curious",
       "sensible",
       "peaceful",
-      "working"
+      "hardworking"
     ]
   },
   {
@@ -15302,7 +15302,7 @@
       "sagacious",
       "cheerful",
       "loud",
-      "smiling",
+      "jovial",
       "charming"
     ]
   },
@@ -15505,7 +15505,7 @@
       "protective",
       "experiential",
       "patient",
-      "listening",
+      "attentive",
       "curious",
       "inquisitive",
       "educational",
@@ -15652,7 +15652,7 @@
       "territorial",
       "defensive",
       "merry",
-      "working",
+      "hardworking",
       "meticulous"
     ]
   },
@@ -15780,7 +15780,7 @@
     "traits_en": [
       "deft",
       "builder",
-      "social animal (small group)",
+      "pack animal",
       "home-loving",
       "ingenious",
       "observant",
@@ -16009,7 +16009,7 @@
       "fast",
       "enduring",
       "sensible",
-      "working"
+      "hardworking"
     ]
   },
   {
@@ -16133,7 +16133,7 @@
       "helpful",
       "grateful",
       "fair",
-      "social animal (large group)",
+      "herd animal",
       "nervous",
       "candid",
       "fast",
@@ -16308,7 +16308,7 @@
       "experiential",
       "curious",
       "cheerful",
-      "deliberating",
+      "deliberate",
       "collaborative",
       "playful",
       "forward-looking",
@@ -16475,7 +16475,7 @@
       "communicative",
       "family-oriented",
       "social animal",
-      "observing",
+      "observant",
       "social",
       "watchful",
       "caring"
@@ -16520,7 +16520,7 @@
       "daredevil",
       "generous",
       "good sense of orientation",
-      "social animal (large group)",
+      "herd animal",
       "home-loving",
       "social",
       "sensible",
@@ -16608,7 +16608,7 @@
       "curious",
       "perceptive",
       "playful",
-      "sporting",
+      "athletic",
       "watchful",
       "caring"
     ]
@@ -16894,11 +16894,11 @@
       "bustling",
       "builder",
       "organised",
-      "social animal (large group)",
+      "herd animal",
       "dutiful",
       "social",
       "strong",
-      "working"
+      "hardworking"
     ]
   },
   {
@@ -17119,7 +17119,7 @@
       "restless",
       "tolerant",
       "resourceful",
-      "roaming"
+      "nomadic"
     ]
   },
   {
@@ -17257,7 +17257,7 @@
       "mysterious",
       "nocturnal",
       "accurate",
-      "observing",
+      "observant",
       "independent",
       "perceptive",
       "shy",
@@ -17729,7 +17729,7 @@
       "unfussy",
       "curious",
       "cheerful",
-      "teasing",
+      "mischievous",
       "merry"
     ]
   },
@@ -17842,7 +17842,7 @@
     "desc_en": "This bright yellow songbird with black wings lives in the treetops. With their melodious song, they are eagerly seen. The golden oriole likes to squabble. The animal is restless and bold. The golden oriole is caring for their family and makes an artfully woven nest.",
     "en": "Oriole",
     "traits_en": [
-      "bickering",
+      "quarrelsome",
       "artful",
       "brave",
       "restless",
@@ -17979,7 +17979,7 @@
       "protective",
       "brave",
       "family-oriented",
-      "social animal (small group)",
+      "pack animal",
       "hierarchical",
       "instinctive",
       "intelligent",
@@ -18527,7 +18527,7 @@
     "en": "Sea Lion",
     "traits_en": [
       "loving",
-      "social animal (large group)",
+      "herd animal",
       "sagacious",
       "perceptive",
       "good memory",
@@ -18609,7 +18609,7 @@
       "adaptable",
       "reliable",
       "graceful",
-      "social animal (small group)",
+      "pack animal",
       "home-loving",
       "quiet",
       "cute",
@@ -18654,7 +18654,7 @@
       "tough",
       "enduring",
       "careful",
-      "roaming"
+      "nomadic"
     ]
   },
   {
@@ -18768,7 +18768,7 @@
     "traits_en": [
       "colourful",
       "fragile",
-      "social animal (large group)",
+      "herd animal",
       "territorial",
       "curious",
       "alert",
@@ -18807,7 +18807,7 @@
     "traits_en": [
       "noble",
       "solitary",
-      "social animal (small group)",
+      "pack animal",
       "cunning",
       "crafty",
       "peace seeker",
@@ -18887,7 +18887,7 @@
     "traits_en": [
       "deft",
       "persistent",
-      "social animal (small group)",
+      "pack animal",
       "impressive",
       "striking",
       "fast",
@@ -18937,7 +18937,7 @@
       "protective",
       "reliable",
       "flexible",
-      "social animal (large group)",
+      "herd animal",
       "helpful",
       "artful",
       "unfussy",

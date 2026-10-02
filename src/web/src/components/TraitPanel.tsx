@@ -6,7 +6,7 @@ import { useFinder } from "../store";
 
 export default function TraitPanel() {
   const { t } = useTranslation();
-  const { lang, include, exclude, addInclude, addExclude, removeTrait } = useFinder();
+  const { lang, include, exclude, addInclude, addExclude, removeTrait, clearTraits } = useFinder();
   const [q, setQ] = useState("");
 
   const { data: traits = [] } = useQuery({
@@ -14,13 +14,21 @@ export default function TraitPanel() {
     queryFn: () => listTraits(lang),
   });
 
-  const labelOf = (key: string) => traits.find((x) => x.key === key)?.label ?? key;
+  // A chip's key may be a synonym group ("rustig|stil"); the quiz applies single
+  // keys ("rustig"). Match group-aware so labels resolve and nothing double-adds.
+  const keysOf = (k: string) => k.split("|");
+  const chosen = new Set([...include, ...exclude].flatMap(keysOf));
+  // A stored key may be a whole synonym group ("stil|rustig") or a single key
+  // ("rustig", from the quiz). Resolve by matching any overlapping member.
+  const labelOf = (key: string) => {
+    const parts = keysOf(key);
+    return traits.find((x) => keysOf(x.key).some((k) => parts.includes(k)))?.label ?? key;
+  };
 
   const available = traits.filter(
     (tr) =>
       tr.label.toLowerCase().includes(q.toLowerCase()) &&
-      !include.includes(tr.key) &&
-      !exclude.includes(tr.key),
+      !keysOf(tr.key).some((k) => chosen.has(k)),
   );
 
   return (
@@ -47,6 +55,11 @@ export default function TraitPanel() {
       </div>
 
       <div className="panel">
+        {(include.length > 0 || exclude.length > 0) && (
+          <button className="clear-traits" onClick={clearTraits}>
+            ✕ {t("removeAll")}
+          </button>
+        )}
         <h3>{t("traits")}</h3>
         <input
           className="trait-search"

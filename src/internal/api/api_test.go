@@ -47,7 +47,7 @@ func do(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
 
 func TestListAnimalsParsesFilter(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc, "")
+	srv := New(fc, nil, nil)
 
 	rec := do(t, srv, "/api/v1/animals?lang=en&q=fox&include=sluw,snel&exclude=nat")
 	if rec.Code != http.StatusOK {
@@ -71,7 +71,7 @@ func TestListAnimalsParsesFilter(t *testing.T) {
 
 func TestLangDefaultsToIT(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc, "")
+	srv := New(fc, nil, nil)
 	_ = do(t, srv, "/api/v1/animals") // no lang param
 	if fc.gotFilter.Lang != "it" {
 		t.Fatalf("default lang: %q", fc.gotFilter.Lang)
@@ -79,7 +79,7 @@ func TestLangDefaultsToIT(t *testing.T) {
 }
 
 func TestGetAnimalNotFound(t *testing.T) {
-	srv := New(&fakeCatalog{}, "")
+	srv := New(&fakeCatalog{}, nil, nil)
 	if rec := do(t, srv, "/api/v1/animals/nope"); rec.Code != http.StatusNotFound {
 		t.Fatalf("want 404, got %d", rec.Code)
 	}
@@ -93,7 +93,7 @@ func TestAnimalImage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "vos.webp"), []byte("RIFFfake"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	srv := New(&fakeCatalog{}, dir)
+	srv := New(&fakeCatalog{}, os.DirFS(dir), nil)
 
 	if rec := do(t, srv, "/api/v1/animals/vos/image"); rec.Code != http.StatusOK {
 		t.Fatalf("existing image: want 200, got %d", rec.Code)
@@ -108,7 +108,7 @@ func TestAnimalImage(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	srv := New(&fakeCatalog{}, "")
+	srv := New(&fakeCatalog{}, nil, nil)
 	if rec := do(t, srv, "/healthz"); rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 		t.Fatalf("health: %d %q", rec.Code, rec.Body.String())
 	}

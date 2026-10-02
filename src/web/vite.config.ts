@@ -6,6 +6,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // The WAF (dev.totem.nvdm.eu) proxies here forwarding its own Host header;
+    // Vite's dev server blocks unknown hosts unless they're allowlisted.
+    allowedHosts: ["dev.totem.nvdm.eu"],
     proxy: {
       "/api": "http://127.0.0.1:8683",
     },

@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.2.14
+version: 0.2.30
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -423,6 +423,96 @@ prof ..> db : quiz_result · friendship\n(new tables, additive)
 
 The database grows by *adding* tables (`quiz_question`, `quiz_option`, `quiz_result`, `user_profile`, `friendship`) — the catalogue tables never change. The `/api/v1` prefix means the contract can evolve without breaking old clients.
 
+## The real totem tradition (homage)
+
+In Flemish/Belgian scouting a **totem** is an animal name a scout receives from their **leaders and group**, chosen to mirror their **character** — never their looks. This app is a digital echo of that rite; it should pay homage to it, not pretend to replace it.
+
+- **When:** usually your 2nd–3rd year as a *jonggiver* (~14–15), or after your second camp.
+- **A challenge first:** you're typically set a *proef* — a challenge or test by the group — that you must complete **before** you're granted your totem. It's earned, not just handed out. Proeven differ a lot per group, but they're about **personal growth and testing your own limits**, e.g.:
+  - a **solo overnight / dropping** — getting yourself back to camp, or spending a night alone outdoors;
+  - a **day of silence**, or a day doing everything with your non-dominant hand;
+  - an **endurance or physical** task (a long hike, a demanding trek);
+  - a **creative or service** assignment for the group.
+- **How it's chosen:** the group and leaders then leaf through a **totemboek** — a book of animals and their traits — and pick the animal whose traits fit you best. **That is exactly what this app is: a searchable totemboek.**
+- **The reveal — a campfire ceremony:** the totem is granted during a ritual moment, often at a **campfire at night**. The name is announced to the circle; in some groups the *totemisant* shouts it to the **four wind directions** while the group, standing in a circle, **whispers it back in chorus**.
+- **Voortotem (adjective):** later you may get a pre-totem adjective for a standout trait — e.g. *Speelse Tuimelaar* ("Playful Dolphin"), *Opgewekte Coati* ("Cheerful Coati"). Famous ones: Baden-Powell was *Impeesa*, "the wolf that never sleeps".
+- **After:** you get a sheet of your totem's traits, your totem goes on your **uniform**, and you carry it for life.
+
+The spirit is **"Voor ons ben jij een…"** ("To us, you are a…") — *others* recognising your character. So the app is for inspiration and fun, not a substitute for the group's blessing.
+
+**Why this project exists:** I grew up with this tradition and loved it, and wanted to do the same with my friends in another country. There was no equivalent there — so I translated the totemboek and built on top of it, which is how this app came to be.
+
+> **Surface this in-app** as a short "How totems really work" info blurb (modal or About page), with the disclaimer above and a link to SGV. Sources: [SGV – Totemisatie](https://www.scoutsengidsenvlaanderen.be/scouts-en-gidsenleden/activiteiten/rituelen-en-totems/totemisatie), [SGV – Wat is totemisatie?](https://www.scoutsengidsenvlaanderen.be/ouders/dit-doen-scouts-en-gidsen/rituelen-en-totems/totems), [Immaterieel Erfgoed](https://immaterieelerfgoed.be/nl/erfgoederen/totemisatie-bij-de-scouts).
+
+## "Which animal are you?" — the quiz (design)
+
+A playful "Who am I?" questionnaire that guesses your totem. **v1 is built** — a pop-up over the finder (header button "✨ Which animal are you?"): 10 morally-grey dilemmas, each option → one real trait key, results via `/api/v1/similar`. Currently English-only and bundled in the frontend (`src/web/src/quiz.ts`). Remaining work (exclude questions, i18n, move to data/API) is in [Issues](#issues--roadmap). Design rationale below.
+
+**Flow:** Start → a **short run (~8–12 questions, 20 max)**, one at a time (progress bar, back button) → **results**: the top-matching animals with their % and the traits you share.
+
+**Philosophy — core profile, not a trait dump.** Aim to end on **~5–10 strong "you are" traits + 1–5 "you are not"**, not 20 scattered ones. Fewer, higher-signal questions beat many weak ones. Each answer adds only **1–2 traits**.
+
+**Build questions around the most common traits**, so every answer splits the field fast. The ~top-20 by animal count (the question "palette"):
+`social`/`convivial`/`social animal`, `adaptable`, `deft`, `fast`, `caring`, `active`, `curious`, `strong`, `quiet`, `perceptive`, `careful`, `protective`, `watchful`, `solitary`, `loyal`, `enduring`, `intelligent`, `patient`, `persistent`, `powerful`. (Rare traits make poor questions — they barely narrow.)
+
+**Two question styles, mixed:**
+1. **Forced choice** — "which is more you?", pick 1 of 3–4; each option → 1–2 **include** traits.
+2. **Morally-grey would/wouldn't** (personality-test feel) — a slightly uncomfortable situation; **"I would"** adds the trait to *include*, **"I wouldn't"** adds it to *exclude*. This is what produces the "you are not" signals.
+
+**Scoring reuses what's built:** answers accumulate an **include set** and an **exclude set** of `nl` trait keys, fed straight to `GET /api/v1/similar?include=…&exclude=…` → Jaccard-ranked animals with a % match. **No new scoring code.**
+
+**Examples:**
+```
+Forced choice — "In a group, you're usually…"
+  → the one leading           → include [dominant, hierarchical]
+  → keeping the peace          → include [caring, social]
+  → off on your own            → include [solitary, independent]
+  → watching, then acting      → include [watchful, patient]
+
+Morally-grey — "A weaker member of the group is slowing everyone down. You leave them behind."
+  → I would       → include [hardened, solitary]   exclude [caring, protective]
+  → I wouldn't    → include [caring, loyal]         exclude [solitary]
+```
+
+**Pieces to build:**
+
+| Piece | What |
+| ----- | ---- |
+| Quiz content | ~20 questions × 2–4 options; each option → trait keys that **must exist in the dataset**. Hand-authored `data/quiz.json`. |
+| API | `GET /api/v1/quiz?lang=` serves the question set; results reuse `GET /api/v1/similar`. |
+| Frontend | `/quiz` route: step through questions, collect trait keys, then render results (reuse `AnimalCard` + the % badge). |
+| i18n | Questions/answers need it/en/nl text — another translation surface (ties into the [data-quality](#issues--roadmap) work and the German ordering). |
+
+**Still open for build time:** exact question count (~8–12) · whether to weight traits or keep a plain set · how many excludes before results get too narrow · saving/sharing results (needs profiles/accounts → defer, auth delegated to [[AuthenticationServer]]). Authoring the questions + trait mappings (using the palette above, ~half forced-choice / half morally-grey) is a content task — good to delegate once we lock the format.
+
+### A second, open mode — a GROUP chooses someone's totem (design)
+
+This is the one that truly mirrors the tradition: **the group picks a totem *for* a person.** Where the dilemma quiz is "which animal are *you*", this mode is open and collaborative. It's "*Voor ons ben jij een…*" ("To us, you are a…") made into a tool.
+
+**The real process it models** (how it actually goes in a group):
+1. The person about to be totemised **leaves the room**.
+2. The group **talks about them and writes down adjectives**, then boils the list down to **3–5 that are really characteristic**.
+3. They **read animals' descriptions and adjectives** until one feels right — sometimes **dropping an adjective and swapping in a better one** as they go.
+4. If the person is an adult, the group also picks the **voortotem** — the adjective that goes in front of the animal.
+
+**App flow (staged, mirrors the above):**
+
+| Step | Screen | What it does |
+| ---- | ------ | ------------ |
+| 1. Warm-up | Aiding questions (static copy) | Prompts to spark discussion while they brainstorm words. No input required — just a thinking aid. |
+| 2. Pick 3–5 | Trait picker, **capped** | The group commits to **3–5 characteristic adjectives** (soft cap: nudge if they add more). These are the *include* set. |
+| 3. Browse & decide | Ranked animal list + full descriptions/adjectives | The app shows the best-matching animals (`/api/v1/similar`) with their traits and descriptions to read aloud; the group picks the one that fits. |
+| 4. Swap (live) | Same screen | Any adjective can be **removed and replaced** at any point — results re-rank live (`applyProfile`). This is the "drop one, add a better one" step. |
+| 5. Voortotem (adults) | Suggestion list | Offer adjectives for the chosen animal as the **voortotem** — final name is *Adjective + Animal*. |
+
+**Aiding questions (step 1 copy, to prompt the group):**
+- "What three words first come to mind for them?"
+- "What do you rely on them for?"
+- "How are they when things go wrong?" · "At a camp, what role do they take?"
+- "What are they *definitely* not?" → feeds *exclude*
+
+**Why it's cheap:** steps 2–5 reuse the trait cloud + `/similar` + `applyProfile` already built. The only new UI is the **staged framing** (leave-the-room intro → 3–5 cap → read-and-decide → voortotem), not new scoring. The 3–5 cap is the one real behavioural difference from the self-finder, and it matches how groups actually narrow it down.
+
 ## Build phases
 
 Work proceeds one layer at a time. Each phase is independently testable and leaves the tree in a clean state.
@@ -637,7 +727,7 @@ Mitigations, best-first:
 2. **Rewrite the descriptions in original wording.** Facts are free to reuse; original expression sidesteps the derivative-work issue — and doubles as the quality cleanup (tracked below).
 3. Keep a clear source attribution + link regardless (good faith; doesn't cure copyright).
 
-Until (1) or (2) is settled, treat the shipped descriptions as **placeholder**.
+**Current decision (2026-10-01):** keep the descriptions **as-is for now** — the project is personal and non-commercial, which materially lowers the *practical* risk (not legal certainty). Source is credited. Revisit (permission or original rewrite) before any commercial use or wide public release.
 
 ## Security Considerations
 
@@ -673,13 +763,16 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[FEATURE]` 27 animals have no image (names that are disambiguation pages in both nl+en) — manual sourcing, see `data/images/review.md`.
 - `[FEATURE]` Embed the built SPA into `totemd` via `embed.FS` + SPA-fallback routing → single-binary production (finishes Phase 3).
 - `[FEATURE]` Deploy: rsync `data/images/` to the box + systemd unit (`deploy/totemd.service`), behind the WAF (Phase 4).
-- `[FEATURE]` "Which animal are you?" quiz (reuses similarity); profiles & friends (auth delegated to [[AuthenticationServer]]) — see [Extensibility](#extensibility).
+- `[FEATURE]` **"Which animal are you?" quiz** — **v1 built** (finder pop-up, 10 EN dilemmas). TODO: morally-grey **exclude** ("you are not") questions; translate prompts/options to it/nl; move questions to `data/quiz.json` + a `/api/v1/quiz` endpoint; a mobile entry point; author more questions to cover `loyal`/`brave`/`deft`/`enduring`. Gates the German translation; profiles & friends later (auth delegated to [[AuthenticationServer]]).
 - `[ENHANCEMENT]` Free-text search (`q`) matches names only; consider matching descriptions too.
 - `[ENHANCEMENT]` CI/CD workflows + vuln scanning designed but not yet wired — see [CI/CD](#cicd-testing--supply-chain).
 - `[CHORE]` Trait-translation + Italian-name quality pass — **done** (0.2.14); descriptions remain (see legal item).
-- `[LEGAL]` **Descriptions**: resolve copyright — obtain SGV permission and/or rewrite in original wording. See [Data provenance](#data-provenance--licensing). Until then descriptions are placeholder, and a rewrite also raises their quality.
+- `[LEGAL]` **Descriptions**: kept as-is for now (non-commercial, source credited — see [Data provenance](#data-provenance--licensing)); revisit (SGV permission or original rewrite) before any commercial/wide release.
 - `[FEATURE]` **German (DE) translation** — a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the "Which animal are you?" quiz ships.
 - `[FEATURE]` **User requests**: a way for users to *request adding an animal* and to *request adding a trait/adjective*.
+- `[FEATURE]` ~~"How totems really work" in-app info blurb~~ — **done (0.2.24)**: ℹ️ in the header opens it (English; it/nl TODO).
+- `[FEATURE]` **Group mode** — a second, open flow where a *group* chooses someone's totem together (mark adjectives that fit / don't, with aiding questions) — see [the design](#a-second-open-mode--a-group-chooses-someones-totem-design).
+- `[FEATURE]` Suggest a **voortotem** (adjective) for your matched animal, as a nod to the tradition.
 
 ### Done
 - `[BUG]` Duplicate trait chips (synonyms collapsing in translation) → grouped by label (0.2.8).
@@ -690,8 +783,77 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[CHORE]` `run-dev.sh` hardened with a backend health-check after a silently-empty page (0.2.10).
 - Defaults set to English UI + dark theme (0.2.10).
 - `[BUG]` An animal could show the same translated trait twice (e.g. lion: *trots*+*fier* → "proud" ×2) → per-animal trait labels de-duplicated (0.2.13).
+- `[BUG]` Name search missed lower-ranked animals in similarity mode (e.g. Beaver) → full-catalogue name search annotated with match % (0.2.30).
+- `[BUG]` Latent INNER JOIN on `translation` could drop animals lacking a name row in a language → `LEFT JOIN` + `nameProjection` fallback (0.2.30).
+- `[BUG]` Latent cross-group include/exclude conflict (quiz key vs chip group) → group-aware store add/remove (0.2.30).
 
 ## Changelog
+
+### 0.2.30 — 2026-10-02
+- `[BUG]` **Name search missed animals in similarity mode.** With traits selected, a name search only scanned the top-60 ranked results, so an animal that matched the name but ranked lower (e.g. *Beaver*, sharing one selected trait) vanished. Name search now spans the whole catalogue and annotates each hit with its match %. Added an optional `limit` (max 500) to `GET /api/v1/similar`.
+- `[BUG]` **Fixed latent INNER JOIN on `translation`** — `GetAnimal`/`ListAnimals`/both similarity queries now `LEFT JOIN` with a `nameProjection` fallback (lang → it → `name_nl`), so an animal missing a name row in a language is projected instead of silently dropped. Verified all 471 still render in it/en/nl.
+- `[BUG]` **Fixed latent cross-group include/exclude conflict** — store add/remove/applyProfile are now synonym-group aware (overlap on any `|` member), so a quiz single-key and a chip's group can't co-occupy include and exclude.
+- `[SECURITY]` Added a conservative **Content-Security-Policy** (`frame-ancestors 'none'; base-uri 'none'`) to API responses; a document-scoped policy will accompany the SPA embed.
+
+### 0.2.29 — 2026-10-02
+- `[SECURITY]` **Bug + injection audit.** SQL is fully parameterized (no injection) and React auto-escapes (no XSS); findings were elsewhere:
+  - `[BUG]` Name search was silently ignored once a trait was selected (similarity mode doesn't take a query) — now the name filter is applied client-side on ranked results.
+  - `[SECURITY]` **LIKE pattern injection**: a user typing `%` or `_` in the search box injected SQL `LIKE` wildcards (so `_` matched every animal). Metacharacters are now escaped with an `ESCAPE` clause.
+  - `[SECURITY]` Added response **security headers** (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`).
+  - `[CHORE]` Client now `encodeURIComponent`s the slug in API paths (defence-in-depth; slugs are already server-validated `^[a-z0-9-]+$`).
+
+### 0.2.28 — 2026-10-02
+- `[BUG]` Selected multi-synonym traits showed their raw Dutch group key (e.g. `stil|rustig`, `moedig|dapper`) as the chip label instead of the translated label. `labelOf` compared the whole group key against split member keys, so only single-key traits resolved. Now matches on any overlapping member, so both group keys (from clicking) and single keys (from the quiz) resolve.
+
+### 0.2.27 — 2026-10-02
+- `[ENHANCEMENT]` Info pop-up now uses a **real licensed photo** (friends around a campfire, Elias Strale / Pexels free license, served from `src/web/public/campfire.jpg`) instead of emoji. Origin note restyled as small italics signed *Veelzijdige Bever*, and the copy was rewritten to drop em-dashes.
+
+### 0.2.26 — 2026-10-02
+- `[ENHANCEMENT]` Info pop-up reworked to show **scouting imagery** (campfire, tent, neckerchief, knot) instead of only animals, and now covers **what a *proef* looks like** (solo overnight, day of silence, endurance/creative tasks), the **campfire reveal ceremony** (name called to the four winds, group whispers it back), and a short **origin story** (built to bring the tradition to friends abroad). Mirrored in the README [homage section](#the-real-totem-tradition-homage).
+- `[DESIGN]` **Group mode redesigned** around the real process — person leaves the room → group picks **3–5 characteristic adjectives** → reads descriptions until one fits → swaps adjectives live → **voortotem** for adults. Staged flow spelled out in [the design](#a-second-open-mode--a-group-chooses-someones-totem-design); reuses existing `/similar` + `applyProfile`.
+
+### 0.2.25 — 2026-10-02
+- `[ENHANCEMENT]` Info pop-up now shows a **row of real animal photos** and **auto-opens on first visit** (dismissal remembered in `localStorage`, key `totem-about-seen`; the ℹ️ button reopens it anytime).
+- `[FEATURE]` **Finder settings persist** across visits — language + selected traits are saved to `localStorage` (zustand `persist`) and restored on return, with the UI language re-applied on load.
+
+### 0.2.24 — 2026-10-02
+- `[FEATURE]` **"How totems really work" info pop-up built** — ℹ️ button in the header opens a modal explaining the real totemisatie tradition (character not looks, earned via a *proef*, the *totemboek*, the *voortotem*, "*Voor ons ben jij een…*") with a "this is for fun, not a substitute for your group" disclaimer + SGV link. English for now (it/nl TODO).
+
+### 0.2.23 — 2026-10-02
+- Dev app now reachable via the WAF at `dev.totem.nvdm.eu` (Vite `allowedHosts` fix verified — forwarded Host returns 200, API proxies through).
+- Homage: noted that a **challenge (*proef*) is completed before a totem is granted** — it's earned.
+- Reframed the **second mode as a GROUP tool** — the group chooses someone's totem together (mark adjectives that fit / don't, with aiding questions), truly mirroring "*Voor ons ben jij een…*".
+
+### 0.2.22 — 2026-10-02
+- Researched the **real totem tradition** (SGV totemisatie) and added a [homage section](#the-real-totem-tradition-homage) — the app is a digital *totemboek*; to be surfaced in-app as a "How totems really work" blurb + disclaimer.
+- Designed a **second, open questionnaire** mode (guided self-reflection with aiding prompts; pick your own traits) and a **voortotem** (adjective) suggestion idea. Roadmap updated. (Design only — not built yet.)
+
+### 0.2.21 — 2026-10-02
+- `[FEATURE]` Quiz now mixes **dilemmas** (include a trait) with **"That's me / Not me" flaw self-reads** that produce **exclude** signals — 14 questions total; the result feeds both `include` and `exclude` to the finder (include wins on conflict).
+- `[CHORE]` `werklustig` → **hardworking** (reuse the existing label rather than coin "industrious"; synonyms group in the cloud). Translation rule: **reuse an existing English trait word for near-synonyms instead of inventing a distinct one.**
+
+### 0.2.20 — 2026-10-01
+- `[CHORE]` **Trait audit (round 2):** fixed 15 awkward English labels — gerunds/nouns like *werklustig* "working"→industrious, "sharing"→generous, "bickering"→quarrelsome, "roaming"→nomadic, and the clunky "social animal (large/small group)"→"herd animal"/"pack animal". (79 cells.)
+- `[FEATURE]` **"Remove all"** red button above the trait chooser — clears all included/excluded traits (`clearTraits`).
+- `[CHORE]` `run-dev.sh` now also clears stale **Vite** servers on start (no more 5173→5177 pile-up).
+
+### 0.2.19 — 2026-10-01
+- `[ENHANCEMENT]` Quiz UX: added a **Back** button and an always-present **"🤷 Can't decide"** option (adds no traits); on finish the quiz now **applies the traits to the finder filters and closes** — results render on the page itself (like you filled it in), instead of inside the pop-up. Sidebar trait labels are group-aware so quiz-applied keys show their proper label.
+
+### 0.2.18 — 2026-10-01
+- `[FEATURE]` **Quiz v1 built** — a pop-up over the finder ("✨ Which animal are you?" in the header): 10 morally-grey dilemmas (`src/web/src/quiz.ts`), each option → one real trait key, results ranked via `/api/v1/similar`, shown as cards with % match. English-only, frontend-bundled for now.
+- `[TODO]` Logged: morally-grey **exclude** questions, quiz i18n, moving the question set to `data/quiz.json` + `/api/v1/quiz`, a mobile entry point.
+
+### 0.2.17 — 2026-10-01
+- Quiz design refined: mix of **forced-choice** and **morally-grey "would/wouldn't"** questions (the latter feed *exclude* traits); target a **core profile (~5–10 include + 1–5 exclude)** over a trait dump; build questions around the **most common traits** (palette listed); ~8–12 short questions; scoring still reuses `/api/v1/similar` (include+exclude).
+
+### 0.2.16 — 2026-10-01
+- `[FEATURE]` Designed the ["Which animal are you?" quiz](#which-animal-are-you--the-quiz-design) — ≤20 trait-mapping questions → reuse the similarity engine to rank animals. README section added; build is a later step.
+- `[ENHANCEMENT]` UI: widened the left sidebar (290→340px) for readable trait chips; browser tab title → "Animal Totems"; added a paw (🐾) **favicon** (`web/public/favicon.svg`).
+
+### 0.2.15 — 2026-10-01
+- `[CHORE]` **Config centralised (I/O at the composition root).** New `internal/config` package reads all env + the key/emoji files + builds the image `fs.FS`; `main` injects these into `api`/`store`. Result: `os` is now imported **only** by `config` and `ingest` (both I/O layers) — `api`, `store`, `catalog`, and both commands are `os`-free. Images are served from an injected `fs.FS` (`http.ServeFileFS`); signals use `syscall` directly. Behaviour unchanged (verified: healthz, fs image serving, emoji, 404).
+- `[LEGAL]` Decision: **keep descriptions as-is** for now (non-commercial, source credited); revisit before any commercial/wide release.
 
 ### 0.2.14 — 2026-10-01
 - `[CHORE]` **Trait-translation quality pass:** fixed 29 English + 7 Italian distinct traits (394 `traits_en` + 45 `traits_it` cells) — MT homonyms and clunk like *druk* "print"→busy, *plantrekker* "plant puller"→resourceful, *beweeglijk* "movable"→agile, `flamboyant` "flamboyante"→sgargiante. Dutch untouched. Backup at `data/animals.json.bak`; scripts in `scripts/fix_traits.py` / `fix_names_it.py`; full list in `data/cleanup-review.md`.

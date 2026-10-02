@@ -6,9 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -35,33 +34,20 @@ type Catalog interface {
 
 // Server holds the router and its dependencies.
 type Server struct {
-	cat      Catalog
-	imageDir string            // directory of <slug>.webp files (TOTEM_IMAGE_DIR)
-	Emoji    map[string]string // slug -> emoji, served at /api/v1/emoji (set by main)
-	Router   http.Handler
+	cat    Catalog
+	images fs.FS             // <slug>.webp files; nil when images aren't deployed
+	emoji  map[string]string // slug -> emoji, served at /api/v1/emoji
+	Router http.Handler
 }
 
-// LoadEmoji reads a slug->emoji JSON map from path (returns nil on any error, so
-// the frontend simply falls back to a default glyph).
-func LoadEmoji(path string) map[string]string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var m map[string]string
-	if json.Unmarshal(b, &m) != nil {
-		return nil
-	}
-	return m
-}
-
-// New wires the routes and middleware. imageDir is where animal images are served
-// from (may be "" if images aren't deployed — the image route then 404s).
-func New(cat Catalog, imageDir string) *Server {
-	s := &Server{cat: cat, imageDir: imageDir}
+// New wires the routes and middleware. images is the filesystem of animal images
+// (nil → the image route 404s); emoji is the slug→emoji map for /api/v1/emoji.
+func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
+	s := &Server{cat: cat, images: images, emoji: emoji}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
+	r.Use(secureHeaders)
 
 	r.Get("/healthz", s.health)
 	r.Route("/api/v1", func(r chi.Router) {
@@ -71,7 +57,7 @@ func New(cat Catalog, imageDir string) *Server {
 		r.Get("/similar", s.similarByTraits)
 		r.Get("/animals/{slug}/image", s.animalImage)
 		r.Get("/traits", s.listTraits)
-		r.Get("/emoji", s.emoji)
+		r.Get("/emoji", s.emojiMap)
 	})
 
 	s.Router = r
@@ -115,13 +101,13 @@ type traitDTO struct {
 
 // --- Handlers ---------------------------------------------------------------
 
-// emoji returns the slug -> emoji map the finder cards use.
-func (s *Server) emoji(w http.ResponseWriter, _ *http.Request) {
-	if s.Emoji == nil {
+// emojiMap returns the slug -> emoji map the finder cards use.
+func (s *Server) emojiMap(w http.ResponseWriter, _ *http.Request) {
+	if s.emoji == nil {
 		writeJSON(w, http.StatusOK, map[string]string{})
 		return
 	}
-	writeJSON(w, http.StatusOK, s.Emoji)
+	writeJSON(w, http.StatusOK, s.emoji)
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
@@ -185,21 +171,21 @@ func (s *Server) getAnimal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dto)
 }
 
-// animalImage streams <slug>.webp from imageDir, or 404 if absent.
+// animalImage streams <slug>.webp from the images FS, or 404 if absent.
 func (s *Server) animalImage(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
-	if s.imageDir == "" || !slugRe.MatchString(slug) {
+	if s.images == nil || !slugRe.MatchString(slug) {
 		writeErr(w, http.StatusNotFound, "no image")
 		return
 	}
-	path := filepath.Join(s.imageDir, slug+".webp")
-	if _, err := os.Stat(path); err != nil {
+	name := slug + ".webp"
+	if _, err := fs.Stat(s.images, name); err != nil {
 		writeErr(w, http.StatusNotFound, "no image")
 		return
 	}
 	w.Header().Set("Content-Type", "image/webp")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	http.ServeFile(w, r, path)
+	http.ServeFileFS(w, r, s.images, name)
 }
 
 func (s *Server) similar(w http.ResponseWriter, r *http.Request) {
@@ -230,8 +216,12 @@ func (s *Server) similarByTraits(w http.ResponseWriter, r *http.Request) {
 	lang := validLang(q.Get("lang"))
 	include := splitCSV(q.Get("include"))
 	exclude := splitCSV(q.Get("exclude"))
+	limit := 60
+	if n, err := strconv.Atoi(q.Get("limit")); err == nil && n > 0 && n <= 500 {
+		limit = n
+	}
 
-	animals, err := s.cat.SimilarByTraits(r.Context(), include, exclude, lang, 60)
+	animals, err := s.cat.SimilarByTraits(r.Context(), include, exclude, lang, limit)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "could not compute similar animals")
 		return
@@ -257,6 +247,24 @@ func (s *Server) listTraits(w http.ResponseWriter, r *http.Request) {
 		out = append(out, traitDTO{Key: t.Key, Label: t.Label, Count: t.Count})
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// --- middleware -------------------------------------------------------------
+
+// secureHeaders sets conservative response headers. The API is JSON + images
+// and (later) the embedded SPA, so framing is denied and MIME sniffing is off.
+func secureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+		// Conservative CSP for the API (JSON + images, fetched by the SPA). It
+		// blocks framing and <base> hijacking without constraining resource loads;
+		// a document-scoped policy (script-src 'self', …) comes with the SPA embed.
+		h.Set("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'none'")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // --- helpers ----------------------------------------------------------------
