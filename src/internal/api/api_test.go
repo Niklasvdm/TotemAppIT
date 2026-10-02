@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
@@ -16,6 +17,8 @@ import (
 // tested in isolation (this is why the interface lives in the consumer).
 type fakeCatalog struct {
 	gotFilter store.Filter
+	gotSugg   [2]string // name, note
+	gotReport [3]string // slug, reason, note
 }
 
 func (f *fakeCatalog) ListAnimals(_ context.Context, flt store.Filter) ([]store.Animal, error) {
@@ -36,6 +39,17 @@ func (f *fakeCatalog) SimilarByTraits(context.Context, []string, []string, strin
 }
 func (f *fakeCatalog) ListTraits(context.Context, string) ([]store.Trait, error) {
 	return []store.Trait{{Key: "sluw", Label: "astuto", Count: 2}}, nil
+}
+func (f *fakeCatalog) AddSuggestion(_ context.Context, name, note string) error {
+	f.gotSugg = [2]string{name, note}
+	return nil
+}
+func (f *fakeCatalog) AddReport(_ context.Context, slug, reason, note string) error {
+	if slug != "vos" {
+		return store.ErrNotFound
+	}
+	f.gotReport = [3]string{slug, reason, note}
+	return nil
 }
 
 func do(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
@@ -111,5 +125,71 @@ func TestHealth(t *testing.T) {
 	srv := New(&fakeCatalog{}, nil, nil)
 	if rec := do(t, srv, "/healthz"); rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 		t.Fatalf("health: %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+func doPost(t *testing.T, srv *Server, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	srv.Router.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestCreateSuggestion(t *testing.T) {
+	fc := &fakeCatalog{}
+	srv := New(fc, nil, nil)
+
+	if rec := doPost(t, srv, "/api/v1/suggestions", `{"name":"Red Panda","note":"cute"}`); rec.Code != http.StatusAccepted {
+		t.Fatalf("valid suggestion: want 202, got %d (%s)", rec.Code, rec.Body)
+	}
+	if fc.gotSugg[0] != "Red Panda" || fc.gotSugg[1] != "cute" {
+		t.Fatalf("passed through: %+v", fc.gotSugg)
+	}
+
+	bad := []string{
+		`{"name":""}`,                      // empty
+		`{"name":"<script>"}`,              // angle brackets / punctuation
+		`{"name":"Fox123"}`,                // digits
+		`{"name":"Fox","bogus":1}`,         // unknown field
+		`{"name":"Fox","note":"a<b"}`,      // note with angle bracket
+	}
+	for _, b := range bad {
+		if rec := doPost(t, srv, "/api/v1/suggestions", b); rec.Code != http.StatusBadRequest {
+			t.Fatalf("want 400 for %s, got %d", b, rec.Code)
+		}
+	}
+}
+
+func TestCreateReport(t *testing.T) {
+	fc := &fakeCatalog{}
+	srv := New(fc, nil, nil)
+
+	if rec := doPost(t, srv, "/api/v1/animals/vos/reports", `{"reason":"unknown","note":"never heard of it"}`); rec.Code != http.StatusAccepted {
+		t.Fatalf("valid report: want 202, got %d (%s)", rec.Code, rec.Body)
+	}
+	if fc.gotReport[0] != "vos" || fc.gotReport[1] != "unknown" {
+		t.Fatalf("passed through: %+v", fc.gotReport)
+	}
+	if rec := doPost(t, srv, "/api/v1/animals/vos/reports", `{"reason":"nonsense"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad reason: want 400, got %d", rec.Code)
+	}
+	if rec := doPost(t, srv, "/api/v1/animals/nope/reports", `{"reason":"unknown"}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown animal: want 404, got %d", rec.Code)
+	}
+}
+
+func TestRateLimit(t *testing.T) {
+	srv := New(&fakeCatalog{}, nil, nil)
+	got429 := false
+	for i := 0; i < 15; i++ {
+		rec := doPost(t, srv, "/api/v1/suggestions", `{"name":"Capybara"}`)
+		if rec.Code == http.StatusTooManyRequests {
+			got429 = true
+			break
+		}
+	}
+	if !got429 {
+		t.Fatal("expected a 429 within 15 rapid writes")
 	}
 }

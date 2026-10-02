@@ -10,6 +10,7 @@
 #   $1  GO_VERSION   e.g. 1.23.4
 #   $2  NODE_MAJOR   e.g. 22
 #   $3  TIMEZONE     e.g. Europe/Brussels
+#   $4  PUBLIC_HOST  e.g. dev.totem.nvdm.eu (this box's public hostname; may be empty)
 #
 # Requirements: Debian 12, run as root.
 # =============================================================================
@@ -18,7 +19,15 @@ set -euo pipefail
 GO_VERSION="${1:-1.26.8}"
 NODE_MAJOR="${2:-22}"
 TIMEZONE="${3:-Europe/Brussels}"
+PUBLIC_HOST="${4:-}"
 ARCH="amd64"
+
+# Record this box's public host so the Vite dev server allowlists only it
+# (never a cross-environment hostname). run-dev.sh sources this file.
+if [ -n "$PUBLIC_HOST" ]; then
+  echo "VITE_ALLOWED_HOSTS=${PUBLIC_HOST}" > /etc/totem-web.env
+  echo "[0/7] public host: wrote /etc/totem-web.env (VITE_ALLOWED_HOSTS=${PUBLIC_HOST})"
+fi
 
 echo "[1/7] Timezone + apt base packages..."
 ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime || true

@@ -56,7 +56,7 @@ resource "proxmox_lxc" "totem_dev" {
   ostemplate = var.ostemplate
   password   = var.root_password
   start      = true
-  onboot     = false # a scratch box — don't auto-start it on host reboot
+  onboot     = var.onboot # dev: false (scratch box); prod: true (auto-start on host reboot)
 
   # Pure-Go build needs no special capabilities, so keep it unprivileged.
   unprivileged = true
@@ -96,7 +96,7 @@ resource "proxmox_lxc" "totem_dev" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/bootstrap-dev.sh",
-      "/tmp/bootstrap-dev.sh '${var.go_version}' '${var.node_major}' '${var.timezone}'",
+      "/tmp/bootstrap-dev.sh '${var.go_version}' '${var.node_major}' '${var.timezone}' '${var.public_host}'",
       "rm -f /tmp/bootstrap-dev.sh",
     ]
   }

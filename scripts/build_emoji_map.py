@@ -213,6 +213,7 @@ OVERRIDES = {
     # misc mammals
     "chinchilla": ("\U0001F42D", "category"),
     "cavia": ("\U0001F439", "category"),            # guinea pig -> hamster
+    "capibara": ("\U0001F439", "category"),         # capybara (giant cavy) -> hamster/rodent
     "prairiehond": ("\U0001F43F️", "category"),# prairie dog -> squirrel/rodent
     "berglemming": ("\U0001F42D", "category"),
     "steppelemming": ("\U0001F42D", "category"),
@@ -229,6 +230,37 @@ OVERRIDES = {
     "knobbelzwijn": ("\U0001F417", "category"),     # warthog -> boar
     "wolharige-mammoet": ("\U0001FA99", "specific"),# mammoth
     "dwergneushoorn": ("\U0001F98F", "category"),   # dwarf rhino
+    # --- review fixes (hand-tuned from data/emoji-review.md, 2026-10-02) ---
+    # These re-assign paw-fallback slugs to the closest emoji; later keys win.
+    "marter": ("\U0001F9A6", "category"),           # marten -> otter (mustelid)
+    "beermarter": ("\U0001F9A6", "category"),       # binturong -> same as marten
+    "hermelijn": ("\U0001F9A6", "category"),        # ermine -> otter (mustelid)
+    "wezel": ("\U0001F9A6", "category"),            # weasel -> otter (mustelid)
+    "stokstaartje": ("\U0001F9A6", "category"),     # meerkat -> otter
+    "wombat": ("\U0001F9A6", "category"),           # wombat -> otter
+    "zebramangoest": ("\U0001F9A6", "category"),    # zebra mongoose -> otter
+    "bunzing": ("\U0001F9A1", "category"),          # polecat -> badger
+    "fret": ("\U0001F9A1", "category"),             # ferret -> badger
+    "katfret": ("\U0001F9A1", "category"),          # marbled polecat -> badger
+    "mink": ("\U0001F9A1", "category"),             # mink -> badger
+    "mol": ("\U0001F9A1", "category"),              # mole -> badger
+    "opossum": ("\U0001F9A1", "category"),          # opossum -> badger
+    "mangoest": ("\U0001F9A1", "category"),         # mongoose -> badger
+    "klipdas": ("\U0001F9A1", "category"),          # hyrax -> badger
+    "tasmaanse-duivel": ("\U0001F9A1", "category"), # tasmanian devil -> badger
+    "gordeldier": ("\U0001F994", "category"),       # armadillo -> hedgehog
+    "tapir": ("\U0001F418", "category"),            # tapir -> elephant (snout)
+    "miereneter": ("\U0001F418", "category"),       # anteater -> elephant (snout)
+    "hyena": ("\U0001F415", "category"),            # hyena -> dog
+    "linsang": ("\U0001F408", "category"),          # linsang -> cat
+    "toepaja": ("\U0001F42D", "category"),          # treeshrew -> mouse
+    "hokko": ("\U0001F413", "category"),            # curassow -> rooster/fowl
+    "kokako": ("\U0001F99C", "category"),           # kokako -> parrot
+    "maraboe": ("\U0001F9A9", "category"),          # marabou stork -> flamingo
+    "merel": ("\U0001F426", "category"),            # blackbird -> bird
+    "salangaan": ("\U0001F426", "category"),        # swiftlet -> bird
+    "ijsduiker": ("\U0001F426", "category"),        # great northern diver/loon -> bird (not the "duiker" antelope!)
+    "schippertje": ("\U0001F419", "category"),      # skipper (squid) -> octopus
 }
 
 # ---------------------------------------------------------------------------

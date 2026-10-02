@@ -1,0 +1,365 @@
+openapi: 3.1.0
+info:
+  title: Totem Finder API
+  version: "1.0.0"
+  description: >
+    Read API for the totem catalogue (animals, traits, similarity, images, emoji)
+    plus two hardened public write endpoints for community feedback
+    (new-animal suggestions and reports on existing animals). All read endpoints
+    are unauthenticated and idempotent. Admin review of feedback is out of band
+    via the `totem-admin` CLI, so there is no admin HTTP surface.
+  contact:
+    name: Niklas
+servers:
+  - url: https://totem.nvdm.eu
+    description: Production
+  - url: https://dev.totem.nvdm.eu
+    description: Dev
+  - url: http://127.0.0.1:8683
+    description: Local
+
+tags:
+  - name: catalogue
+  - name: feedback
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200":
+          description: Service is up
+          content:
+            text/plain:
+              schema: { type: string, example: ok }
+
+  /api/v1/animals:
+    get:
+      tags: [catalogue]
+      summary: List / filter animals
+      description: >
+        Lists animals ordered by name. With `include`/`exclude` trait filters it
+        applies AND-across / OR-within-group semantics. `q` is a literal name
+        substring match (LIKE metacharacters are escaped).
+      operationId: listAnimals
+      parameters:
+        - $ref: "#/components/parameters/Lang"
+        - name: q
+          in: query
+          description: Name substring filter (literal; `%` and `_` are not wildcards).
+          schema: { type: string, maxLength: 100 }
+        - name: include
+          in: query
+          description: Comma-separated trait group keys the animal must all have (OR within a `|`-group).
+          schema: { type: string, example: "bouwlustig,moedig|dapper" }
+        - name: exclude
+          in: query
+          description: Comma-separated trait group keys the animal must not have.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching animals
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Animal" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/v1/animals/{slug}:
+    get:
+      tags: [catalogue]
+      summary: Get one animal (full detail)
+      operationId: getAnimal
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - $ref: "#/components/parameters/Lang"
+      responses:
+        "200":
+          description: Animal detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnimalDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/v1/animals/{slug}/similar:
+    get:
+      tags: [catalogue]
+      summary: Animals similar to this one
+      description: Ranks other animals by Jaccard overlap of trait sets.
+      operationId: similarToAnimal
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - $ref: "#/components/parameters/Lang"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Ranked animals (each with a `score`)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Animal" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/v1/similar:
+    get:
+      tags: [catalogue]
+      summary: Animals similar to a trait profile
+      description: Ranks animals by Jaccard overlap with the selected include/exclude trait profile.
+      operationId: similarByTraits
+      parameters:
+        - $ref: "#/components/parameters/Lang"
+        - name: include
+          in: query
+          schema: { type: string }
+        - name: exclude
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 60 }
+      responses:
+        "200":
+          description: Ranked animals (empty when `include` is empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Animal" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/v1/animals/{slug}/image:
+    get:
+      tags: [catalogue]
+      summary: Animal image
+      operationId: animalImage
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: The image
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "public, max-age=86400" }
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/traits:
+    get:
+      tags: [catalogue]
+      summary: Trait cloud
+      description: >
+        Traits projected to `lang`, most-used first. Synonymous Dutch traits that
+        share a translated label are grouped; `key` is the `|`-joined group.
+      operationId: listTraits
+      parameters:
+        - $ref: "#/components/parameters/Lang"
+      responses:
+        "200":
+          description: Traits
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Trait" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/v1/emoji:
+    get:
+      tags: [catalogue]
+      summary: Slug → emoji map
+      operationId: emojiMap
+      responses:
+        "200":
+          description: Map of slug to a single emoji (empty object if unavailable)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: string }
+                example: { wolf: "🐺", bever: "🦫" }
+
+  /api/v1/suggestions:
+    post:
+      tags: [feedback]
+      summary: Suggest a new animal
+      description: >
+        Submits a new-animal suggestion to the moderation queue. Deduplicated by
+        a normalized name (case/whitespace-insensitive) with a running count, so
+        repeat submissions bump the counter rather than creating duplicates.
+        Rate limited to 10 requests/minute per IP. Body is capped at 4 KiB and
+        validated strictly (unknown fields rejected).
+      operationId: createSuggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SuggestionRequest" }
+      responses:
+        "202":
+          $ref: "#/components/responses/Received"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/v1/animals/{slug}/reports:
+    post:
+      tags: [feedback]
+      summary: Report an existing animal
+      description: >
+        Reports an animal (wrong, too obscure, poor description, …). Deduplicated
+        per (animal, reason) with a running count. The slug must reference a real
+        animal. Rate limited to 10 requests/minute per IP.
+      operationId: createReport
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReportRequest" }
+      responses:
+        "202":
+          $ref: "#/components/responses/Received"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+components:
+  parameters:
+    Lang:
+      name: lang
+      in: query
+      description: UI language; anything else falls back to Italian.
+      schema:
+        type: string
+        enum: [it, en, nl]
+        default: it
+    Slug:
+      name: slug
+      in: path
+      required: true
+      description: Lowercase animal slug.
+      schema:
+        type: string
+        pattern: "^[a-z0-9-]+$"
+        example: bever
+
+  responses:
+    Received:
+      description: Accepted for review
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Received" }
+    BadRequest:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Too many submissions
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Internal error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Animal:
+      type: object
+      required: [slug, name, description, traits]
+      properties:
+        slug: { type: string, example: bever }
+        name: { type: string, example: Beaver }
+        description: { type: string }
+        traits:
+          type: array
+          items: { type: string }
+        score:
+          type: number
+          format: double
+          description: Jaccard similarity 0..1; present only on similarity results.
+    AnimalDetail:
+      type: object
+      required: [slug, name, nameNl, description, traits]
+      properties:
+        slug: { type: string }
+        name: { type: string, description: Name in the requested language }
+        nameIt: { type: string }
+        nameEn: { type: string }
+        nameNl: { type: string, description: Canonical Dutch name }
+        altNames: { type: string }
+        description: { type: string }
+        traits:
+          type: array
+          items: { type: string }
+        sourceUrl: { type: string }
+        image: { $ref: "#/components/schemas/Image" }
+    Image:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, example: /api/v1/animals/bever/image }
+        author: { type: string }
+        license: { type: string }
+        source: { type: string }
+    Trait:
+      type: object
+      required: [key, label, count]
+      properties:
+        key:
+          type: string
+          description: Synonym group key, `|`-joined Dutch keys.
+          example: "stil|rustig"
+        label: { type: string, example: quiet }
+        count: { type: integer, example: 42 }
+    SuggestionRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Letters/marks plus spaces and - ' . ( ). No digits or angle brackets.
+          example: Capybara
+        note:
+          type: string
+          maxLength: 280
+          description: Optional reason. No control characters or angle brackets.
+    ReportRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          enum: [incorrect, unknown, poor_description, other]
+        note:
+          type: string
+          maxLength: 280
+    Received:
+      type: object
+      properties:
+        status: { type: string, example: received }
+    Error:
+      type: object
+      properties:
+        error: { type: string }

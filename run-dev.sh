@@ -21,6 +21,11 @@ export TOTEM_IMAGE_DIR="$PWD/data/images"
 export TOTEM_EMOJI_FILE="$PWD/data/emoji.json"
 export TOTEM_ADDR="127.0.0.1:8683"
 
+# Per-box public hostname for the Vite dev-server allowlist, written by Terraform
+# (bootstrap-dev.sh) to /etc/totem-web.env. No file (e.g. laptop) -> localhost only.
+[ -f /etc/totem-web.env ] && . /etc/totem-web.env
+export VITE_ALLOWED_HOSTS="${VITE_ALLOWED_HOSTS:-}"
+
 echo "→ stopping any old backend / dev server…"
 pkill -x totemd 2>/dev/null || true
 pkill -f "node_modules/.bin/vite" 2>/dev/null || true   # clear stale Vite servers (5173, 5174…)

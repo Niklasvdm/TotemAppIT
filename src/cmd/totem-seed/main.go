@@ -18,7 +18,8 @@ func main() {
 	// Default assumes you run from src/ (the module root); data/ lives at the repo root.
 	dataPath := flag.String("data", "../data/animals.json", "path to animals.json")
 	attrPath := flag.String("attributions", "../data/images/attributions.json", "path to image attributions (optional)")
-	force := flag.Bool("force", false, "replace an already-seeded catalogue")
+	force := flag.Bool("force", false, "replace an already-seeded catalogue (DESTRUCTIVE: wipes animals + cascade-wipes reports)")
+	merge := flag.Bool("merge", false, "idempotently add/update animals by slug without clearing (safe on a live DB; preserves reports)")
 	flag.Parse()
 
 	key, err := config.DBKey()
@@ -37,12 +38,17 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	stats, err := ingest.LoadFile(ctx, s, *dataPath, *force)
+	var stats ingest.Stats
+	if *merge {
+		stats, err = ingest.MergeFile(ctx, s, *dataPath)
+	} else {
+		stats, err = ingest.LoadFile(ctx, s, *dataPath, *force)
+	}
 	if err != nil {
 		log.Fatalf("seed: %v", err)
 	}
-	log.Printf("seeded %s: %d animals, %d traits, %d links",
-		*dbPath, stats.Animals, stats.Traits, stats.Links)
+	log.Printf("seeded %s (merge=%v): %d animals, %d traits, %d links",
+		*dbPath, *merge, stats.Animals, stats.Traits, stats.Links)
 
 	imgs, err := ingest.LoadImages(ctx, s.DB, *attrPath)
 	if err != nil {

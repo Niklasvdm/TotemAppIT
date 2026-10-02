@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.2.30
+version: 0.3.6
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -284,6 +284,67 @@ go --> WAF : 200 application/json
 WAF --> Browser : JSON (+ security headers)
 @enduml
 ```
+
+## API contract
+
+The full contract is an **OpenAPI 3.1** spec at [`docs/openapi.yaml`](docs/openapi.yaml) (paste into [editor.swagger.io](https://editor.swagger.io) to browse). Summary:
+
+| Method & path | Purpose | Key params / body |
+| ------------- | ------- | ----------------- |
+| `GET /healthz` | Liveness | — |
+| `GET /api/v1/animals` | List / filter | `lang`, `q`, `include`, `exclude` |
+| `GET /api/v1/animals/{slug}` | Full detail (multilingual names, image) | `lang` |
+| `GET /api/v1/animals/{slug}/similar` | Similar to this animal | `lang`, `limit` (≤50) |
+| `GET /api/v1/similar` | Similar to a trait profile | `lang`, `include`, `exclude`, `limit` (≤500) |
+| `GET /api/v1/animals/{slug}/image` | Animal image (webp) | — |
+| `GET /api/v1/traits` | Trait cloud (grouped synonyms) | `lang` |
+| `GET /api/v1/emoji` | slug → emoji map | — |
+| `POST /api/v1/suggestions` | Suggest a new animal | `{name, note?}` |
+| `POST /api/v1/animals/{slug}/reports` | Report an animal | `{reason, note?}` |
+
+Reads are unauthenticated and idempotent. The two writes are public but hardened (see [Community feedback](#community-feedback-suggestions--reports)). Admin review has **no HTTP surface** — it's the `totem-admin` CLI.
+
+## Community feedback (suggestions & reports)
+
+Readers can **suggest a new animal** and **report an existing one** (many totems are very Flemish-specific, so an Italian audience will hit unknowns). Both deduplicate and keep a count; a SysAdmin reviews the queue with `totem-admin` over SSH.
+
+**Data model** (migration `0003_feedback.sql`): `suggestion(name, name_norm UNIQUE, note, count, status)` and `report(animal_id, reason, note, count, status, UNIQUE(animal_id, reason))`. Repeat submissions hit the `ON CONFLICT … DO UPDATE SET count = count + 1` upsert instead of inserting duplicates. `status ∈ {pending, accepted, rejected}` and `reason ∈ {incorrect, unknown, poor_description, other}` are enforced by `CHECK` constraints **and** in Go (defence in depth).
+
+**Hardening of the public write path:**
+- **No injection surface** — all SQL parameterized; the report `slug` is resolved to an id (unknown slug → 404, so reports can't be seeded for arbitrary strings).
+- **Strict input validation** — `name` is 1–60 runes of letters/marks + ``- ' . ( )`` (no digits, no angle brackets); `note` ≤280 runes, no control chars or `< >`. Reject on violation (400).
+- **Bounded body** — `http.MaxBytesReader` caps the JSON at 4 KiB; decoder rejects unknown fields and trailing data.
+- **Rate limiting** — a per-IP fixed-window limiter (10 writes/min) in front of both endpoints (429 when exceeded), on top of the WAF.
+- **No enumeration** — responses are always `202 {"status":"received"}`, so dup/count state isn't leaked.
+
+```plantuml
+@startuml feedback-seq
+title Community feedback — submit & review
+skinparam shadowing false
+actor Reader
+actor SysAdmin
+participant "totemd (Go)" as go
+database "SQLite (encrypted)" as db
+
+Reader -> go : POST /api/v1/suggestions {name, note}
+go -> go : rate-limit + validate + bound body
+go -> db : INSERT ... ON CONFLICT(name_norm)\n            DO UPDATE count = count + 1
+go --> Reader : 202 {"status":"received"}
+
+SysAdmin -> go : (no HTTP) — reviews over SSH
+SysAdmin -> db : totem-admin suggestions / reports
+SysAdmin -> db : totem-admin accept-suggestion <id>
+@enduml
+```
+
+**Review CLI:**
+```
+totem-admin [--db PATH] [--status pending|accepted|rejected|all] suggestions
+totem-admin [--db PATH] [--status ...]                            reports
+totem-admin accept-suggestion <id> | reject-suggestion <id>
+totem-admin accept-report <id>     | reject-report <id>
+```
+It opens the same encrypted DB (needs `TOTEM_DB_KEY`) and lists entries sorted by count.
 
 ## Database & encryption
 
@@ -711,6 +772,86 @@ The unit is [`deploy/totemd.service`](deploy/totemd.service). The **encryption k
 
 **Design Decision — no Docker.** A static Go binary has no runtime dependencies, so a container adds registry/daemon/nesting overhead and an image-scanning surface for no benefit at this scale. Deploy is `scp` the binary + `systemctl restart`. (If a fully self-contained binary across differing glibc versions is ever needed, a musl-static build restores that — a build-flag change, not an architecture change.)
 
+**One-command deploy.** [`deploy/deploy.sh`](deploy/deploy.sh) builds the static `linux/amd64` binaries (`totemd`, `totem-admin`, `totem-seed`), ships them (atomic rename, safe while the service runs) plus the **assets** (`emoji.json`, `images/`) to `/var/lib/totemd/data/`, then restarts `totemd` (which applies pending migrations) and healthchecks it:
+
+```
+./deploy/deploy.sh root@host                 # binaries + data + restart
+./deploy/deploy.sh root@host --install-unit  # also (re)install the systemd unit
+```
+
+> **Asset paths must be absolute.** systemd gives the service no useful working directory, so the CWD-relative defaults (`../data/...`) would resolve against `/` — the emoji map would come back empty and every animal image would 404. The unit sets `TOTEM_EMOJI_FILE` / `TOTEM_IMAGE_DIR` explicitly, and `totemd` logs a startup warning if either asset is missing. **First-time setup** still needs a one-off seed on the host (`totem-seed`, see the env for the key) to populate the encrypted DB.
+
+**`deploy.sh` needs Go only where it builds** — locally by default, or on a `--builder` host (e.g. the dev LXC, which already has Go) so your workstation needs nothing:
+
+```
+./deploy/deploy.sh root@host --builder root@dev-lxc
+```
+
+### Operations scripts
+
+All three take an optional **`user@host`** first argument and run over SSH on that host (like `sync.sh`/`deploy.sh`), so you trigger them from your workstation — no need to SSH in first. Omit it to run locally on the host.
+
+| Script | What it does | From workstation |
+| ------ | ------------ | ---------------- |
+| [`deploy/deploy.sh`](deploy/deploy.sh) | Build (local or `--builder`) + ship binaries & assets + restart + healthcheck. | `./deploy/deploy.sh root@HOST` |
+| [`deploy/update.sh`](deploy/update.sh) | Keep a **build host** current: apt upgrade, Go toolchain, npm + `npm ci`. `--deps` also bumps deps, then builds + tests. | `./deploy/update.sh root@HOST` (repo at `REMOTE_REPO`, default `/root/totem-it`) |
+| [`deploy/backup.sh`](deploy/backup.sh) | Timestamped, gzipped, rotated snapshot of the encrypted DB (`KEEP=` retention; `--stop` for a consistent copy). Cron-friendly. | `KEEP=30 ./deploy/backup.sh root@HOST` |
+
+Examples:
+```
+./deploy/backup.sh root@192.168.10.200              # back up prod from your laptop
+./deploy/update.sh root@192.168.10.195 --deps       # update + bump deps on the build box
+```
+
+> The backup is **ciphertext** (Adiantum), so it's safe to store offsite — but it's only restorable with the same `TOTEM_DB_KEY`. **Back the key up separately** (not beside the backups). `update.sh` targets a build/dev host (toolchain + source); a prod host that only runs the binary is maintained with `apt upgrade` + a redeploy.
+
+### Dev vs. Prod
+
+Two environments from the **same Terraform config**, isolated by **workspace** (separate state) and tfvars — see [infra/README → Production environment](infra/README.md#production-environment). Prod gets its own container (`vmid`/IP), `onboot=true`, hostname `totem-prod`, and DNS `totem.nvdm.eu` (vs `dev.totem.nvdm.eu`), all driven by [`infra/env/prod.tfvars`](infra/env/prod.tfvars.example):
+
+```
+cd infra/lxc && terraform workspace new prod
+terraform apply -var-file=../env/prod.tfvars
+./deploy/deploy.sh root@<prod-ip> --builder root@<dev-ip> --install-unit
+```
+
+### Seeding & adding animals
+
+The **data load does not run on startup** — `totemd` only applies DB **migrations** (idempotent, tracked in `schema_migrations`), never the seed. Seeding is the separate `totem-seed` CLI, run once. So adding animals is a deliberate step, not something that re-runs and breaks.
+
+To **add or edit animals on a live database**, edit `data/animals.json` and run `totem-seed --merge`:
+
+- `--merge` **upserts by slug** without clearing the catalogue. Existing animal **ids are preserved**, so community **reports survive** (they reference `animal.id`). It rebuilds each touched animal's trait links and prunes orphaned traits.
+- `--force` is the opposite: it **DELETEs every animal + trait** and reloads, which **cascade-wipes all reports**. Use it only for a from-scratch rebuild, before you have feedback data.
+- plain (no flag) refuses if the catalogue is non-empty — a safety default.
+
+```
+# safe on prod: add the new animals from animals.json, keep everything else
+TOTEM_DB_KEY=… totem-seed --db /var/lib/totemd/totem.db \
+  --data /var/lib/totemd/data/animals.json --merge
+```
+
+### Adding a new animal — the process
+
+Follow this whenever you accept a suggestion or add an animal. (The **Capybara** in 0.3.4 was done exactly this way, as a worked example.)
+
+1. **Research with real sources.** Facts from Wikipedia; character/temperament from the Flemish totem tradition (SGV) where it exists. Get the **nl / it / en** names — Dutch is the canonical source language, so the slug is Dutch-derived and lowercase (`^[a-z0-9-]+$`).
+2. **Write original descriptions** (nl/it/en) in your own words — do **not** copy the totemboek verbatim (see [Data provenance](#data-provenance--licensing)). **No em-dashes or hyphens as sentence connectors** — use periods, commas, parentheses.
+3. **Reuse existing traits** where possible so similarity + synonym-grouping work. Keep `traits_nl[i]` / `traits_it[i]` / `traits_en[i]` index-aligned, and for an existing `nl` key the it/en **must match the dataset's existing translation** (merge upserts `trait_translation`, so a mismatch rewrites that trait everywhere). Look them up first:
+   ```bash
+   python3 - <<'PY'
+   import json; d=json.load(open("data/animals.json")); want={"rustig","sociaal"}
+   for a in d:
+     for i,k in enumerate(a.get("traits_nl",[])):
+       if k in want: print(k, a["traits_it"][i], a["traits_en"][i]); want.discard(k)
+   PY
+   ```
+4. **Add the entry** to `data/animals.json`.
+5. **Picture (required).** Find a licensed image — **Wikimedia Commons** (CC0 / CC-BY / CC-BY-SA) or **Pexels** — square-crop to ~512px **webp** at `data/images/<slug>.webp`, and add `{author, license, source_url}` to `data/images/attributions.json`. (Wikimedia imageinfo API gives the url + `Artist` + `LicenseShortName`.)
+6. **Emoji.** If the keyword engine can't map the slug, add an `OVERRIDES` entry in `scripts/build_emoji_map.py`, then regenerate: `python3 scripts/build_emoji_map.py` (should keep paw-fallbacks at 0).
+7. **Merge it in** (non-destructive, preserves reports) and reload: `totem-seed --merge --attributions …/attributions.json`, then restart `totemd` so the new emoji map loads.
+8. **Close the loop:** `totem-admin accept-suggestion <id>`.
+
 ## Current state vs. target
 
 The repository currently ships the **v1 static site**: a single ~650 KB `index.html` with the full dataset embedded as JSON in an inline `<script>`, plus 471 pre-generated `animals/<slug>.html` pages, built by the `scripts/*.py` pipeline. The v2 architecture above replaces the embedded-data/static-generation approach with the API + SPA described here. Migration is incremental (see [Build phases](#build-phases)): the same `data/animals.json` seeds the new database, so no data is lost.
@@ -769,7 +910,7 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[CHORE]` Trait-translation + Italian-name quality pass — **done** (0.2.14); descriptions remain (see legal item).
 - `[LEGAL]` **Descriptions**: kept as-is for now (non-commercial, source credited — see [Data provenance](#data-provenance--licensing)); revisit (SGV permission or original rewrite) before any commercial/wide release.
 - `[FEATURE]` **German (DE) translation** — a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the "Which animal are you?" quiz ships.
-- `[FEATURE]` **User requests**: a way for users to *request adding an animal* and to *request adding a trait/adjective*.
+- `[FEATURE]` ~~**User requests**: request adding an animal~~ — **done (0.3.0)**: suggest + report with moderation via `totem-admin`. Still open: *request adding a trait/adjective*, and accepting a suggestion could scaffold a draft animal row.
 - `[FEATURE]` ~~"How totems really work" in-app info blurb~~ — **done (0.2.24)**: ℹ️ in the header opens it (English; it/nl TODO).
 - `[FEATURE]` **Group mode** — a second, open flow where a *group* chooses someone's totem together (mark adjectives that fit / don't, with aiding questions) — see [the design](#a-second-open-mode--a-group-chooses-someones-totem-design).
 - `[FEATURE]` Suggest a **voortotem** (adjective) for your matched animal, as a nod to the tradition.
@@ -786,8 +927,52 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Name search missed lower-ranked animals in similarity mode (e.g. Beaver) → full-catalogue name search annotated with match % (0.2.30).
 - `[BUG]` Latent INNER JOIN on `translation` could drop animals lacking a name row in a language → `LEFT JOIN` + `nameProjection` fallback (0.2.30).
 - `[BUG]` Latent cross-group include/exclude conflict (quiz key vs chip group) → group-aware store add/remove (0.2.30).
+- `[FEATURE]` Community suggestions + reports with moderation CLI (`totem-admin`); hardened write endpoints (0.3.0).
+- `[FEATURE]` OpenAPI 3.1 contract at `docs/openapi.yaml` (0.3.0).
+- `[BUG]` Flag emoji not rendering on Windows → inline SVG flags (0.3.0).
+- `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.3.6 — 2026-10-02
+- `[BUG]` **Committed `src/web/package-lock.json`** — it was missing, so `update.sh`'s `npm ci` failed (`npm ci` requires a lockfile). Generated and committed it (reproducible installs; CI-ready).
+- `[CHORE]` `update.sh` now falls back to `npm install` when no lockfile is present, so it never hard-fails on a fresh checkout.
+
+### 0.3.5 — 2026-10-02
+- `[SECURITY]` **Per-environment Vite host allowlist** — removed the hardcoded default that let a prod box accept `dev.totem.nvdm.eu`. The allowed host now comes only from `VITE_ALLOWED_HOSTS`, supplied per box by a new Terraform `public_host` var → written to `/etc/totem-web.env` by `bootstrap-dev.sh` → sourced by `run-dev.sh`. Verified on dev: `dev.totem.nvdm.eu` → 200, `totem.nvdm.eu` and others → 403.
+- `[BUG]` `update.sh` again on the LXC: `$SUDO DEBIAN_FRONTEND=… apt-get` fails when `$SUDO` is empty (the `VAR=val` becomes the command). Switched to `$SUDO env DEBIAN_FRONTEND=… …`.
+- `[FEATURE]` **Capybara now has a picture** — a CC-BY-SA Wikimedia photo (Giles Laurent), square-cropped to 512px webp with attribution. Descriptions rewritten **without em-dashes** (per the house style).
+- `[DOCS]` Added the **"Adding a new animal"** process to the README (research → hyphen-free descriptions → reuse traits → licensed picture + emoji → `--merge` → accept), with the Capybara as the worked example.
+
+### 0.3.4 — 2026-10-02
+- `[FEATURE]` **First community-suggested animal added: the Capybara** 🐹 (slug `capibara`, nl *Capibara*/Waterzwijn). Added via `totem-seed --merge` (non-destructive), original descriptions in it/en/nl, traits reuse existing keys (calm/social/peaceful/adaptable/tolerant/patient/friendly); suggestion marked accepted in the queue. Now 472 animals.
+- `[BUG]` `update.sh` failed on the LXC (`sudo: command not found`) — it runs as root with no sudo. Now root-aware (`SUDO=""` when uid 0) and dropped the pointless `ssh -t` on the piped invocation.
+- `[ENHANCEMENT]` **Prod host config** — Vite `allowedHosts` now covers `totem.nvdm.eu` as well as `dev.totem.nvdm.eu` and is overridable via `VITE_ALLOWED_HOSTS`. Clarified: the backend does **not** validate `Host` (it's localhost behind the WAF), so no backend per-host config is needed; the allowlist is a dev-server concern only.
+
+### 0.3.3 — 2026-10-02
+- `[CHORE]` **Scripts now run from your workstation** — `update.sh` and `backup.sh` accept a `user@host` first arg and re-exec over SSH on that host (forwarding their env tunables), matching `deploy.sh`/`sync.sh`. No need to SSH in first.
+- `[FEATURE]` **Production environment scaffolding** — [`infra/env/prod.tfvars.example`](infra/env/prod.tfvars.example) + a workspace-isolated prod flow (separate state from dev), and a new `onboot` Terraform variable (dev `false`, prod `true`). Documented in [infra/README](infra/README.md#production-environment) and the main [Deployment](#dev-vs-prod) section.
+
+### 0.3.2 — 2026-10-02
+- `[FEATURE]` **Non-destructive seeding** — `totem-seed --merge` upserts animals by slug without clearing the catalogue, so **adding/editing animals on a live DB preserves community reports** (ids stay stable). `--force` still does a full destructive rebuild. Answers "does adding animals break it?" — no, with `--merge`. Covered by `TestMergePreservesIDsAndReports`.
+- `[CHORE]` **Ops scripts** — [`deploy/update.sh`](deploy/update.sh) (apt + Go toolchain + npm, `--deps` bumps deps) and [`deploy/backup.sh`](deploy/backup.sh) (rotated gzipped snapshots of the encrypted DB). See [Operations](#operations-scripts).
+- `[CHORE]` **`deploy.sh --builder`** — build on a remote host that has Go (e.g. the dev LXC) so the workstation running the deploy needs no local Go.
+- `[BUG]` Emoji fix from live feedback: `ijsduiker` (loon/diver) was 🦌 — the keyword engine matched the "duiker" antelope — now 🐦.
+
+### 0.3.1 — 2026-10-02
+- `[ENHANCEMENT]` **Report control redesigned** — now a prominent **red flag in the top-right corner** of the animal page (instead of a low-key dashed button), opening a red-accented report modal. More apparent and clearly a "something's wrong" action.
+- `[CHORE]` **Deploy script** — [`deploy/deploy.sh`](deploy/deploy.sh): builds static binaries, ships them + assets to `/var/lib/totemd/data/`, restarts, healthchecks, and surfaces startup warnings. See [Deployment](#deployment).
+
+### 0.3.0 — 2026-10-02
+- `[FEATURE]` **Community feedback** — readers can **suggest a new animal** (header ➕ modal) and **report an existing one** (⚑ on the detail page). Deduplicated + counted server-side; reviewed via the new **`totem-admin`** CLI (`suggestions`/`reports`/`accept-*`/`reject-*`). Migration `0003_feedback.sql`. See [design](#community-feedback-suggestions--reports).
+- `[SECURITY]` The two new public write endpoints are hardened: parameterized SQL, strict name/note validation (charset + length), 4 KiB body cap with unknown-field rejection, and a per-IP rate limiter (10/min → 429). Tests cover happy path, validation rejects, SQL-injection attempt, and the rate limit.
+- `[FEATURE]` **API contract** — added [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI 3.1) covering all 10 endpoints, plus an [API summary](#api-contract) in the README.
+- `[BUG]` **Flag emoji didn't render on Windows / some Androids** (showed "IT"/"GB" letters) → replaced with inline **SVG flags** (`Flag.tsx`) in the header and the detail-page names. Belgian flag kept for Dutch.
+- `[BUG]` **Prod emoji empty + animal images 404** — the systemd unit set no working directory or asset paths, so the CWD-relative defaults resolved against `/`. Fixed: `totemd.service`/`env.example` now set absolute `TOTEM_EMOJI_FILE`/`TOTEM_IMAGE_DIR`, and `totemd` now **logs a startup warning** when either asset is missing instead of failing silently.
+
+### 0.2.31 — 2026-10-02
+- `[FEATURE]` **Multilingual names on the detail page** — each animal now shows its name in 🇮🇹 Italian, 🇬🇧 English and 🇧🇪 Dutch (Belgian flag for the Dutch name, by request). Added `nameIt`/`nameEn` to the animal-detail DTO.
+- `[CHORE]` **Emoji review fixes applied** — hand-tuned the 28 paw-fallback slugs into `OVERRIDES` (mustelids → 🦦/🦡, armadillo → 🦔, tapir/anteater → 🐘, hyena → 🐕, marabou → 🦩, etc.) and regenerated `data/emoji.json` + `data/emoji-review.md`. **Paw fallbacks now 0** (was 28); 156 specific, 315 category.
 
 ### 0.2.30 — 2026-10-02
 - `[BUG]` **Name search missed animals in similarity mode.** With traits selected, a name search only scanned the top-60 ranked results, so an animal that matched the name but ranked lower (e.g. *Beaver*, sharing one selected trait) vanished. Name search now spans the whole catalogue and annotates each hit with its match %. Added an optional `limit` (max 500) to `GET /api/v1/similar`.

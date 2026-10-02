@@ -30,6 +30,8 @@ type Animal struct {
 type AnimalDetail struct {
 	Slug        string
 	Name        string
+	NameIT      string
+	NameEN      string
 	NameNL      string
 	AltNames    string
 	Description string
@@ -81,7 +83,10 @@ const traitsSubquery = `COALESCE((SELECT group_concat(tt.value, char(31))
 // GetAnimal returns one animal projected to lang, or ErrNotFound.
 func (s *Store) GetAnimal(ctx context.Context, slug, lang string) (*AnimalDetail, error) {
 	q := `
-SELECT a.slug, a.name_nl, a.alt_names, a.source_url,
+SELECT a.slug, a.name_nl,
+       COALESCE((SELECT name FROM translation WHERE animal_id = a.id AND lang = 'it'), '') AS name_it,
+       COALESCE((SELECT name FROM translation WHERE animal_id = a.id AND lang = 'en'), '') AS name_en,
+       a.alt_names, a.source_url,
        a.image_path, a.image_author, a.image_license, a.image_source,
        ` + nameProjection + ` AS name, ` + descProjection + ` AS description, ` + traitsSubquery + `
 FROM animal a
@@ -92,7 +97,7 @@ WHERE a.slug = ?`
 	var traits string
 	// arg order follows the SQL text: traits-subquery lang, join lang, slug.
 	err := s.DB.QueryRowContext(ctx, q, lang, lang, slug).Scan(
-		&d.Slug, &d.NameNL, &d.AltNames, &d.SourceURL,
+		&d.Slug, &d.NameNL, &d.NameIT, &d.NameEN, &d.AltNames, &d.SourceURL,
 		&d.ImagePath, &d.ImageAuthor, &d.ImageLicense, &d.ImageSource,
 		&d.Name, &d.Description, &traits)
 	if errors.Is(err, sql.ErrNoRows) {

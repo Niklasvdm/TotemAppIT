@@ -1,0 +1,61 @@
+# =============================================================================
+# prod.tfvars.example — Totem Finder PRODUCTION LXC
+#
+# Copy to infra/env/prod.tfvars (gitignored) and fill in real values.
+# Apply in a dedicated Terraform workspace so prod and dev keep SEPARATE state:
+#
+#     cd infra/lxc
+#     terraform workspace new prod      # once; then `terraform workspace select prod`
+#     terraform apply -var-file=../env/prod.tfvars
+#
+# (dev lives in the `default`/`dev` workspace — never apply prod into it, or
+# Terraform will try to replace the dev container.)
+# =============================================================================
+
+# Proxmox connection (same cluster as dev)
+proxmox_host_ip     = "192.168.10.55"
+pm_api_token_id     = "root@pam!Terraform"
+pm_api_token_secret = "your-token-secret-here"
+pm_tls_insecure     = true
+
+# Container — DIFFERENT from dev: own vmid, hostname and IP
+target_node   = "nvdm-deb-01"
+vmid          = 300                 # dev is 295; keep prod distinct
+hostname      = "totem-prod"
+ostemplate    = "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
+root_password = "change-me-to-a-long-random-password"
+onboot        = true   # prod auto-starts on host reboot (dev stays false)
+public_host   = "totem.nvdm.eu"   # Vite dev-server allowlist for THIS box (never dev's host)
+
+# SSH (public key injected; private key must be in your ssh-agent)
+ssh_public_key_path  = "~/.ssh/id_ed25519.pub"
+ssh_private_key_path = "~/.ssh/id_ed25519"
+
+# Resources — a touch more headroom than the disposable dev box
+cores          = 2
+memory         = 2048
+swap           = 512
+rootfs_storage = "local"
+rootfs_size    = "16G"
+
+# Network — DIFFERENT IP from dev (192.168.10.195)
+bridge           = "vmbr0"
+container_ip     = "192.168.10.200"
+container_prefix = "24"
+ip_address       = "192.168.10.200/24"
+gateway          = "192.168.10.1"
+ssh_host         = ""
+
+# Toolchain (prod runs the shipped binary; these matter only if you build on-box)
+go_version = "1.26.8"   # ncruces/go-sqlite3 requires Go >= 1.26
+node_major = "22"
+timezone   = "Europe/Brussels"
+
+# -----------------------------------------------------------------------------
+# NOT managed here (handled outside Terraform):
+#   * DNS / TLS:  point totem.nvdm.eu at the WAF; the WAF reverse-proxies to this
+#                 container's 127.0.0.1:8683 over the tunnel (see [[ReverseProxyWAF]]).
+#                 dev uses dev.totem.nvdm.eu -> the dev container.
+#   * App deploy: ./deploy/deploy.sh root@192.168.10.200 --builder root@<dev-lxc>
+#   * DB key + seed: configure TOTEM_DB_KEY on the host, then run totem-seed once.
+# -----------------------------------------------------------------------------

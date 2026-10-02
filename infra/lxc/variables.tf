@@ -168,3 +168,15 @@ variable "timezone" {
   default     = "Europe/Brussels"
   description = "System timezone (IANA)."
 }
+
+variable "onboot" {
+  type        = bool
+  default     = false
+  description = "Start the container automatically on host boot. false for the disposable dev box; set true for prod."
+}
+
+variable "public_host" {
+  type        = string
+  default     = ""
+  description = "Public hostname this box is served as (e.g. dev.totem.nvdm.eu / totem.nvdm.eu). Written to /etc/totem-web.env so the Vite dev server allowlists only this host — never cross-environment."
+}

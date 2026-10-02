@@ -18945,5 +18945,42 @@
       "fast",
       "social"
     ]
+  },
+  {
+    "slug": "capibara",
+    "nl": "Capibara",
+    "it": "Capibara",
+    "en": "Capybara",
+    "alt": "Waterzwijn",
+    "desc_nl": "De capibara is het grootste knaagdier ter wereld en vooral bekend om zijn onverstoorbare rust. Dit vreedzame waterzwijn leeft in hechte groepen en komt met iedereen overeen. Zelfs vogels en andere dieren rusten gerust op zijn rug. Een capibara is sociaal, geduldig en past zich overal aan, zowel op het land als in het water.",
+    "desc_it": "Il capibara è il più grande roditore del mondo, famoso per la sua calma imperturbabile. Questo pacifico «maiale d'acqua» vive in gruppi affiatati e va d'accordo con tutti. Persino uccelli e altri animali si riposano sulla sua schiena. È socievole, paziente e si adatta ovunque, sia sulla terraferma sia in acqua.",
+    "desc_en": "The capybara is the world's largest rodent, best known for its unshakable calm. This peaceful “water pig” lives in close-knit groups and gets along with everyone. Even birds and other animals happily rest on its back. It is sociable, patient and adapts anywhere, on land and in the water.",
+    "traits_nl": [
+      "rustig",
+      "sociaal",
+      "vreedzaam",
+      "aanpassend",
+      "tolerant",
+      "geduldig",
+      "vriendelijk"
+    ],
+    "traits_it": [
+      "tranquillo",
+      "socievole",
+      "pacifico",
+      "adattabile",
+      "tollerante",
+      "paziente",
+      "gentile"
+    ],
+    "traits_en": [
+      "quiet",
+      "social",
+      "peaceful",
+      "adaptable",
+      "tolerant",
+      "patient",
+      "friendly"
+    ]
   }
 ]

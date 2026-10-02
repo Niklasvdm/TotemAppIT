@@ -21,6 +21,8 @@ export interface AnimalImage {
 export interface AnimalDetail {
   slug: string;
   name: string;
+  nameIt?: string;
+  nameEn?: string;
   nameNl: string;
   altNames?: string;
   description: string;
@@ -84,4 +86,33 @@ export function listTraits(lang: Lang): Promise<Trait[]> {
 
 export function getEmojiMap(): Promise<Record<string, string>> {
   return getJSON<Record<string, string>>(`/api/v1/emoji`);
+}
+
+async function postJSON(url: string, body: unknown): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = `${res.status}`;
+    try {
+      const j = await res.json();
+      if (j?.error) msg = j.error;
+    } catch {
+      /* non-JSON error */
+    }
+    throw new Error(msg);
+  }
+}
+
+// Community feedback.
+export type ReportReason = "incorrect" | "unknown" | "poor_description" | "other";
+
+export function suggestAnimal(name: string, note: string): Promise<void> {
+  return postJSON(`/api/v1/suggestions`, { name, note });
+}
+
+export function reportAnimal(slug: string, reason: ReportReason, note: string): Promise<void> {
+  return postJSON(`/api/v1/animals/${encodeURIComponent(slug)}/reports`, { reason, note });
 }

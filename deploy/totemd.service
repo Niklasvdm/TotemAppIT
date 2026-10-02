@@ -32,6 +32,12 @@ RestartSec=2
 
 Environment=TOTEM_ADDR=127.0.0.1:8683
 Environment=TOTEM_DB_PATH=/var/lib/totemd/totem.db
+# Asset paths MUST be absolute: systemd gives the service no useful working
+# directory, so the app's CWD-relative defaults (../data/...) would resolve
+# against / and the emoji map + every animal image would silently fail.
+# Deploy the data there:  cp -r data/emoji.json data/images /var/lib/totemd/data/
+Environment=TOTEM_EMOJI_FILE=/var/lib/totemd/data/emoji.json
+Environment=TOTEM_IMAGE_DIR=/var/lib/totemd/data/images
 
 # --- (A) credential-based key (recommended) ---
 #LoadCredentialEncrypted=totem_db_key:/etc/totemd/db_key.cred

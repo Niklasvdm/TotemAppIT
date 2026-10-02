@@ -134,6 +134,101 @@ func Load(ctx context.Context, db *sql.DB, animals []SourceAnimal, force bool) (
 	return st, nil
 }
 
+// MergeFile reads animals.json at path and merges it into s (see Merge).
+func MergeFile(ctx context.Context, s *store.Store, path string) (Stats, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Stats{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	var animals []SourceAnimal
+	if err := json.Unmarshal(raw, &animals); err != nil {
+		return Stats{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return Merge(ctx, s.DB, animals)
+}
+
+// Merge idempotently upserts animals by slug WITHOUT clearing the catalogue, so
+// it is the safe way to add or edit animals on a live database: existing animal
+// ids are preserved, so community reports (report.animal_id) survive — unlike a
+// force reload, which DELETEs every animal and cascade-wipes reports.
+//
+// Per animal it upserts the row + translations, then rebuilds that one animal's
+// trait links. Finally it prunes traits no animal references any more.
+func Merge(ctx context.Context, db *sql.DB, animals []SourceAnimal) (Stats, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return Stats{}, err
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after commit
+
+	st := Stats{}
+	for _, a := range animals {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO animal(slug, name_nl, alt_names, source_url) VALUES (?, ?, ?, '')
+			 ON CONFLICT(slug) DO UPDATE SET name_nl = excluded.name_nl, alt_names = excluded.alt_names`,
+			a.Slug, a.NL, a.Alt); err != nil {
+			return Stats{}, fmt.Errorf("upsert animal %s: %w", a.Slug, err)
+		}
+		var aid int64
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM animal WHERE slug = ?`, a.Slug).Scan(&aid); err != nil {
+			return Stats{}, fmt.Errorf("resolve animal %s: %w", a.Slug, err)
+		}
+		st.Animals++
+
+		names := map[string]string{"nl": a.NL, "it": a.IT, "en": a.EN}
+		descs := map[string]string{"nl": a.DescNL, "it": a.DescIT, "en": a.DescEN}
+		for _, lg := range langs {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO translation(animal_id, lang, name, description) VALUES (?, ?, ?, ?)
+				 ON CONFLICT(animal_id, lang) DO UPDATE SET name = excluded.name, description = excluded.description`,
+				aid, lg, names[lg], descs[lg]); err != nil {
+				return Stats{}, fmt.Errorf("upsert translation %s/%s: %w", a.Slug, lg, err)
+			}
+		}
+
+		// Rebuild this animal's trait links (scoped to one animal_id; does not
+		// touch reports, which reference animal not animal_trait).
+		if _, err := tx.ExecContext(ctx, `DELETE FROM animal_trait WHERE animal_id = ?`, aid); err != nil {
+			return Stats{}, fmt.Errorf("clear links %s: %w", a.Slug, err)
+		}
+		for i, key := range a.TraitsNL {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO trait(key_nl) VALUES (?) ON CONFLICT(key_nl) DO NOTHING`, key); err != nil {
+				return Stats{}, fmt.Errorf("upsert trait %q: %w", key, err)
+			}
+			var tid int64
+			if err := tx.QueryRowContext(ctx, `SELECT id FROM trait WHERE key_nl = ?`, key).Scan(&tid); err != nil {
+				return Stats{}, fmt.Errorf("resolve trait %q: %w", key, err)
+			}
+			vals := map[string]string{"nl": key, "it": at(a.TraitsIT, i), "en": at(a.TraitsEN, i)}
+			for _, lg := range langs {
+				if _, err := tx.ExecContext(ctx,
+					`INSERT INTO trait_translation(trait_id, lang, value) VALUES (?, ?, ?)
+					 ON CONFLICT(trait_id, lang) DO UPDATE SET value = excluded.value`,
+					tid, lg, vals[lg]); err != nil {
+					return Stats{}, fmt.Errorf("upsert trait_translation %q/%s: %w", key, lg, err)
+				}
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT OR IGNORE INTO animal_trait(animal_id, trait_id) VALUES (?, ?)`, aid, tid); err != nil {
+				return Stats{}, fmt.Errorf("link %s/%q: %w", a.Slug, key, err)
+			}
+			st.Links++
+		}
+	}
+
+	// Drop traits no animal references any more (keeps the trait cloud clean).
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM trait WHERE id NOT IN (SELECT trait_id FROM animal_trait)`); err != nil {
+		return Stats{}, fmt.Errorf("prune orphan traits: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Stats{}, fmt.Errorf("commit: %w", err)
+	}
+	return st, nil
+}
+
 // LoadImages reads data/images/attributions.json ({slug: {author, license,
 // source_url}}) and records image metadata on the matching animals. It sets
 // image_path to "<slug>.webp" (the file the image endpoint serves). Returns the

@@ -13,14 +13,18 @@ import (
 
 // Config is everything totemd needs to run, resolved from the environment.
 type Config struct {
-	Addr   string            // TOTEM_ADDR
-	DBPath string            // TOTEM_DB_PATH
-	DBKey  string            // TOTEM_DB_KEY or TOTEM_DB_KEY_FILE
-	Images fs.FS             // TOTEM_IMAGE_DIR (nil when unset)
-	Emoji  map[string]string // TOTEM_EMOJI_FILE (nil when missing)
+	Addr     string            // TOTEM_ADDR
+	DBPath   string            // TOTEM_DB_PATH
+	DBKey    string            // TOTEM_DB_KEY or TOTEM_DB_KEY_FILE
+	Images   fs.FS             // TOTEM_IMAGE_DIR (nil when unset/missing)
+	Emoji    map[string]string // TOTEM_EMOJI_FILE (nil when missing)
+	Warnings []string          // non-fatal config problems for the caller to log
 }
 
-// Load resolves the full configuration for the server.
+// Load resolves the full configuration for the server. Missing optional assets
+// (emoji file, image dir) are non-fatal but recorded in Warnings so the caller
+// can surface them — the relative defaults only resolve when the process runs
+// from src/, which is a common production foot-gun (see deploy/totemd.service).
 func Load() (Config, error) {
 	key, err := DBKey()
 	if err != nil {
@@ -30,10 +34,21 @@ func Load() (Config, error) {
 		Addr:   env("TOTEM_ADDR", "127.0.0.1:8683"), // 8683 = "TOTE"; below the ephemeral range
 		DBPath: env("TOTEM_DB_PATH", "totem.db"),
 		DBKey:  key,
-		Emoji:  loadEmoji(env("TOTEM_EMOJI_FILE", "../data/emoji.json")),
 	}
+
+	emojiPath := env("TOTEM_EMOJI_FILE", "../data/emoji.json")
+	if c.Emoji = loadEmoji(emojiPath); c.Emoji == nil {
+		c.Warnings = append(c.Warnings,
+			fmt.Sprintf("emoji map not loaded from %q — cards fall back to 🐾 (set TOTEM_EMOJI_FILE)", emojiPath))
+	}
+
 	if dir := env("TOTEM_IMAGE_DIR", "../data/images"); dir != "" {
-		c.Images = os.DirFS(dir)
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			c.Images = os.DirFS(dir)
+		} else {
+			c.Warnings = append(c.Warnings,
+				fmt.Sprintf("image dir %q not accessible — animal images will 404 (set TOTEM_IMAGE_DIR)", dir))
+		}
 	}
 	return c, nil
 }

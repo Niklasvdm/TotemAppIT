@@ -1,15 +1,24 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFinder } from "../store";
+import Flag from "./Flag";
 import type { Lang } from "../api";
 
-const LANGS: { code: Lang; flag: string }[] = [
-  { code: "it", flag: "🇮🇹" },
-  { code: "en", flag: "🇬🇧" },
-  { code: "nl", flag: "🇳🇱" },
+const LANGS: { code: Lang; flag: "it" | "gb" | "nl" }[] = [
+  { code: "it", flag: "it" },
+  { code: "en", flag: "gb" },
+  { code: "nl", flag: "nl" },
 ];
 
-export default function Header({ onQuiz, onAbout }: { onQuiz: () => void; onAbout: () => void }) {
+export default function Header({
+  onQuiz,
+  onAbout,
+  onSuggest,
+}: {
+  onQuiz: () => void;
+  onAbout: () => void;
+  onSuggest: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const { lang, setLang } = useFinder();
 
@@ -48,11 +57,14 @@ export default function Header({ onQuiz, onAbout }: { onQuiz: () => void; onAbou
         <div className="langs">
           {LANGS.map((l) => (
             <button key={l.code} className={l.code === lang ? "active" : ""} onClick={() => pick(l.code)}>
-              <span className="flag">{l.flag}</span>
+              <Flag code={l.flag} />
               {l.code.toUpperCase()}
             </button>
           ))}
         </div>
+        <button className="iconbtn" onClick={onSuggest} title="Suggest an animal">
+          ➕
+        </button>
         <button className="iconbtn" onClick={onAbout} title="How totems work">
           ℹ️
         </button>

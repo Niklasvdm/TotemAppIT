@@ -7,10 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,6 +35,8 @@ type Catalog interface {
 	Similar(ctx context.Context, slug, lang string, limit int) ([]store.Animal, error)
 	SimilarByTraits(ctx context.Context, include, exclude []string, lang string, limit int) ([]store.Animal, error)
 	ListTraits(ctx context.Context, lang string) ([]store.Trait, error)
+	AddSuggestion(ctx context.Context, name, note string) error
+	AddReport(ctx context.Context, slug, reason, note string) error
 }
 
 // Server holds the router and its dependencies.
@@ -58,6 +65,13 @@ func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
 		r.Get("/animals/{slug}/image", s.animalImage)
 		r.Get("/traits", s.listTraits)
 		r.Get("/emoji", s.emojiMap)
+
+		// Public write endpoints: rate-limited and strictly validated.
+		r.Group(func(r chi.Router) {
+			r.Use(newRateLimiter(10, time.Minute).middleware) // 10 writes/min/IP
+			r.Post("/suggestions", s.createSuggestion)
+			r.Post("/animals/{slug}/reports", s.createReport)
+		})
 	})
 
 	s.Router = r
@@ -77,6 +91,8 @@ type animalDTO struct {
 type animalDetailDTO struct {
 	Slug        string    `json:"slug"`
 	Name        string    `json:"name"`
+	NameIT      string    `json:"nameIt,omitempty"`
+	NameEN      string    `json:"nameEn,omitempty"`
 	NameNL      string    `json:"nameNl"`
 	AltNames    string    `json:"altNames,omitempty"`
 	Description string    `json:"description"`
@@ -154,6 +170,8 @@ func (s *Server) getAnimal(w http.ResponseWriter, r *http.Request) {
 	dto := animalDetailDTO{
 		Slug:        d.Slug,
 		Name:        d.Name,
+		NameIT:      d.NameIT,
+		NameEN:      d.NameEN,
 		NameNL:      d.NameNL,
 		AltNames:    d.AltNames,
 		Description: d.Description,
@@ -249,7 +267,134 @@ func (s *Server) listTraits(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// --- write handlers (community feedback) ------------------------------------
+
+type suggestionReq struct {
+	Name string `json:"name"`
+	Note string `json:"note"`
+}
+
+type reportReq struct {
+	Reason string `json:"reason"`
+	Note   string `json:"note"`
+}
+
+// createSuggestion accepts a new-animal suggestion. Deduped + counted in the
+// store; always answers "received" so repeat/duplicate state isn't enumerable.
+func (s *Server) createSuggestion(w http.ResponseWriter, r *http.Request) {
+	var req suggestionReq
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	name, ok := cleanName(req.Name)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "name must be 1–60 letters (spaces, - ' . ( ) allowed)")
+		return
+	}
+	note, ok := cleanNote(req.Note)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "note too long or contains disallowed characters")
+		return
+	}
+	if err := s.cat.AddSuggestion(r.Context(), name, note); err != nil {
+		writeErr(w, http.StatusInternalServerError, "could not save suggestion")
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "received"})
+}
+
+// createReport accepts a report against an existing animal.
+func (s *Server) createReport(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	if !slugRe.MatchString(slug) {
+		writeErr(w, http.StatusNotFound, "animal not found")
+		return
+	}
+	var req reportReq
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if !store.ValidReportReason(req.Reason) {
+		writeErr(w, http.StatusBadRequest, "invalid reason")
+		return
+	}
+	note, ok := cleanNote(req.Note)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "note too long or contains disallowed characters")
+		return
+	}
+	err := s.cat.AddReport(r.Context(), slug, req.Reason, note)
+	if errors.Is(err, store.ErrNotFound) {
+		writeErr(w, http.StatusNotFound, "animal not found")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "could not save report")
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "received"})
+}
+
 // --- middleware -------------------------------------------------------------
+
+// rateLimiter is a tiny fixed-window per-IP limiter for the write endpoints,
+// so a single client can't flood the suggestion/report tables. In-memory and
+// best-effort (resets on restart); the WAF in front handles broader abuse.
+type rateLimiter struct {
+	mu     sync.Mutex
+	hits   map[string]*window
+	limit  int
+	window time.Duration
+}
+
+type window struct {
+	count int
+	reset time.Time
+}
+
+func newRateLimiter(limit int, w time.Duration) *rateLimiter {
+	return &rateLimiter{hits: make(map[string]*window), limit: limit, window: w}
+}
+
+func (rl *rateLimiter) allow(ip string, now time.Time) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	w, ok := rl.hits[ip]
+	if !ok || now.After(w.reset) {
+		rl.hits[ip] = &window{count: 1, reset: now.Add(rl.window)}
+		// Opportunistic cleanup so the map can't grow unbounded.
+		if len(rl.hits) > 10000 {
+			for k, v := range rl.hits {
+				if now.After(v.reset) {
+					delete(rl.hits, k)
+				}
+			}
+		}
+		return true
+	}
+	if w.count >= rl.limit {
+		return false
+	}
+	w.count++
+	return true
+}
+
+func (rl *rateLimiter) middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// RealIP middleware has already normalized r.RemoteAddr.
+		ip := r.RemoteAddr
+		if host, _, err := net.SplitHostPort(ip); err == nil {
+			ip = host
+		}
+		if !rl.allow(ip, time.Now()) {
+			writeErr(w, http.StatusTooManyRequests, "slow down — too many submissions")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 // secureHeaders sets conservative response headers. The API is JSON + images
 // and (later) the embedded SPA, so framing is denied and MIME sniffing is off.
@@ -277,6 +422,57 @@ func validLang(q string) string {
 	default:
 		return "it"
 	}
+}
+
+// decodeJSON reads a small JSON body (max 4 KiB) into dst, rejecting unknown
+// fields and trailing garbage. Bounds the body so a write endpoint can't be
+// used to exhaust memory.
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		return errors.New("invalid JSON body")
+	}
+	if dec.More() {
+		return errors.New("unexpected trailing data")
+	}
+	return nil
+}
+
+// cleanName validates a submitted animal name: 1–60 runes of letters/marks plus
+// a small punctuation set. Returns the trimmed name and whether it's valid.
+// Rejects digits, angle brackets and control characters outright.
+func cleanName(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	n := utf8.RuneCountInString(s)
+	if n < 1 || n > 60 {
+		return "", false
+	}
+	for _, r := range s {
+		switch {
+		case unicode.IsLetter(r), unicode.IsMark(r), r == ' ':
+		case r == '-' || r == '\'' || r == '’' || r == '.' || r == '(' || r == ')':
+		default:
+			return "", false
+		}
+	}
+	return s, true
+}
+
+// cleanNote validates an optional free-text note: up to 280 runes, no control
+// characters and no angle brackets (defence in depth against stored markup).
+func cleanNote(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	if utf8.RuneCountInString(s) > 280 {
+		return "", false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) || r == '<' || r == '>' {
+			return "", false
+		}
+	}
+	return s, true
 }
 
 // splitCSV splits a comma list into trimmed, non-empty values (nil when empty).

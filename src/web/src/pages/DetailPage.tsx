@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getAnimal, getSimilar } from "../api";
 import { useFinder } from "../store";
 import AnimalCard from "../components/AnimalCard";
+import Flag from "../components/Flag";
+import ReportBox from "../components/ReportBox";
 
 export default function DetailPage({ emoji }: { emoji: Record<string, string> }) {
   const { t } = useTranslation();
@@ -36,6 +38,7 @@ export default function DetailPage({ emoji }: { emoji: Record<string, string> })
     <div className="layout" style={{ gridTemplateColumns: "1fr" }}>
       <div className="detail">
         <Link to="/" className="back">{t("back")}</Link>
+        <ReportBox slug={animal.slug} />
 
         <div className="hero">
           <div className="photo-frame">
@@ -47,10 +50,20 @@ export default function DetailPage({ emoji }: { emoji: Record<string, string> })
             {animal.image && <span className="emoji-badge">{glyph}</span>}
           </div>
           <h2>{animal.name}</h2>
-          <div className="nl">
-            🇧🇪 {animal.nameNl}
-            {animal.altNames ? ` · ${animal.altNames}` : ""}
+          <div className="names">
+            {[
+              { code: "it" as const, name: animal.nameIt },
+              { code: "gb" as const, name: animal.nameEn },
+              { code: "be" as const, name: animal.nameNl }, // Belgian flag for the Dutch name
+            ]
+              .filter((n) => n.name)
+              .map((n) => (
+                <span key={n.code} className="name-lang">
+                  <Flag code={n.code} /> {n.name}
+                </span>
+              ))}
           </div>
+          {animal.altNames && <div className="alt-names">{animal.altNames}</div>}
           {animal.image?.license && (
             <div className="credit">
               📷 {animal.image.author || "Wikimedia Commons"} · {animal.image.license}

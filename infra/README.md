@@ -76,6 +76,39 @@ cp env/dev.tfvars env/dev2.tfvars   # edit vmid + container_ip
 terraform apply -var-file=../env/dev2.tfvars
 ```
 
+## Production environment
+
+Same Terraform config, a **separate container and separate state**. Prod uses its own `vmid`, `hostname`, IP and `onboot=true`, isolated with a **Terraform workspace** so applying prod never touches the dev box:
+
+```bash
+cd infra/lxc
+cp ../env/prod.tfvars.example ../env/prod.tfvars   # edit vmid / IP / password
+terraform workspace new prod                        # once; separate state file
+# later: terraform workspace select prod
+terraform apply -var-file=../env/prod.tfvars
+```
+
+Keep dev in the `default` (or a `dev`) workspace — `terraform workspace select default` before applying `dev.tfvars`. `terraform workspace list` shows where you are; **check it before every apply** so you don't rebuild the wrong box.
+
+| Aspect | Dev | Prod |
+| ------ | --- | ---- |
+| Workspace | `default` | `prod` |
+| tfvars | `env/dev.tfvars` | `env/prod.tfvars` |
+| `vmid` / IP | 295 / .195 | 300 / .200 (example) |
+| `onboot` | `false` (disposable) | `true` (survives host reboot) |
+| Hostname | `totem-dev` | `totem-prod` |
+| DNS (via WAF) | `dev.totem.nvdm.eu` | `totem.nvdm.eu` |
+| App on it | built in place, `npm run dev` | shipped binary + systemd (`deploy.sh`) |
+
+After `apply`, provision the app (not managed by Terraform):
+
+```bash
+./deploy/deploy.sh root@192.168.10.200 --builder root@192.168.10.195 --install-unit
+# then on the host: set TOTEM_DB_KEY, run totem-seed once, point the WAF at it
+```
+
+DNS/TLS for `totem.nvdm.eu` live in the WAF project (`[[ReverseProxyWAF]]`), which reverse-proxies to this container's `127.0.0.1:8683`.
+
 ## Notes & security
 
 - **Not production.** `onboot=false`, self-signed nothing, root SSH by key. This box is for building, not for serving public traffic — the real deployment is a static binary + systemd behind the WAF (see the [main README](../README.md)).

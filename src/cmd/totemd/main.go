@@ -19,6 +19,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	for _, w := range cfg.Warnings {
+		log.Printf("warning: %s", w)
+	}
 
 	st, err := store.Open(cfg.DBPath, cfg.DBKey)
 	if err != nil {
