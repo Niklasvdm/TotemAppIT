@@ -70,8 +70,15 @@ export TOTEM_ALLOWED_ORIGINS="$DEV_ORIGINS"
 echo "→ stopping any old backend / dev server…"
 stop_servers
 
-echo "→ building backend…"
-( cd src && go build -o /tmp/totemd ./cmd/totemd )
+# Stamp the build so the game's F3 HUD can tell this dev binary apart from a
+# deployed one — and tell a rebuild apart from a stale process. The -dev suffix
+# is the honest part: this did not come from deploy.sh.
+BUILD_SHA="$(git rev-parse --short=7 HEAD 2>/dev/null || echo nogit)"
+export TOTEM_BUILD="$(cat VERSION 2>/dev/null || echo 0.0.0)-dev+$BUILD_SHA"
+echo "→ building backend… ($TOTEM_BUILD)"
+( cd src && go build \
+    -ldflags "-X github.com/Niklasvdm/TotemAppIT/internal/buildinfo.Version=$TOTEM_BUILD" \
+    -o /tmp/totemd ./cmd/totemd )
 
 if [ ! -f "$TOTEM_DB_PATH" ]; then
   echo "→ no database found — seeding $TOTEM_DB_PATH (first run)…"
