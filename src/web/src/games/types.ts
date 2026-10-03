@@ -26,6 +26,7 @@ export interface PlayerDTO {
   p: number; // blast radius
   q: number; // last input sequence folded into this position
   v: number; // movement speed, tiles per second
+  d: number; // inputs still queued on the server for this player
 }
 
 // Input is one client tick's intent. Mirrors game.Input in Go.

@@ -395,6 +395,24 @@ Measured after the change, reading the drawn sprite off the canvas rather than t
 
 A bomb press **latches** on both sides. The key is sampled once per tick, so a tap that begins and ends between two samples would otherwise be swallowed entirely.
 
+#### The netcode HUD (`F3`)
+
+Netcode complaints are unfalsifiable without numbers — "it feels laggy" could be the client, the server, the network or the proxy in between. **`F3`** toggles a diagnostic overlay (or `?stats=1` in the URL; the choice is remembered). It samples a few times a second, never per frame, and reads:
+
+| Row | What it means when it goes wrong |
+| --- | --- |
+| `fps` | Below the tick rate: the browser, not the network. |
+| `ping` | Input sent → the snapshot acknowledging it. One tick is the floor. |
+| `snapshot` | Arrival gap. Should equal one tick; **bunching here is a proxy buffering WebSocket frames**, the usual production culprit. |
+| `stalls` | Snapshots arriving more than two ticks late. |
+| `correction` | How far reconciliation moved you, in tiles. **Near zero means the Go and TypeScript movement rules agree.** Anything visible is the stutter a player feels. |
+| `jumps` | Corrections big enough to see. |
+| `queue` | Server-side input queue depth — the client/server clock drift made visible. It should hover near 1: pinned at 0 means the client is running slow and the server is repeating inputs; pinned high means it is running fast and will start dropping them. |
+
+The header also states the tick rate and whether prediction is active, which makes "did my deploy actually go out?" a glance rather than a guess.
+
+On the dev box the healthy reading is: `fps 60`, `snapshot 16.7ms`, `correction 0.000`, `jumps 0`, `queue srv ~0.8`.
+
 ### Two things that will bite you again
 
 - **WebSockets inherit `http.Server`'s timeouts.** `totemd` sets `ReadTimeout`/`WriteTimeout` to 10s, and hijacking a connection does *not* clear the deadlines already on it — every game socket would die after ten seconds. `gameWS` clears them per-connection via `http.ResponseController` *before* the upgrade, rather than weakening the timeouts that protect the JSON API.

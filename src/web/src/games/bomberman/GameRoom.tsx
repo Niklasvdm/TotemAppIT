@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Input } from "../types";
 import { SLOT_COLORS } from "../types";
 import { sample, useGame } from "./net";
+import NetHud, { useStatsFlag } from "./NetHud";
 import { draw, readPalette } from "./render";
 
 // Physical key codes, so the WASD cluster stays in the same place on an AZERTY
@@ -40,7 +41,8 @@ export default function GameRoom({
 }) {
   const { t } = useTranslation();
   const g = useGame(code, name, animal);
-  const { arena, roster, you, phase, winner, world, self, tickMs, fuseTicks, tickInput, sendStart } = g;
+  const { arena, roster, you, phase, winner, world, self, net, tickMs, fuseTicks, tickInput, sendStart } = g;
+  const showStats = useStatsFlag();
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -141,6 +143,7 @@ export default function GameRoom({
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
+      net.current.frames++;
 
       // Input runs on a fixed step at the server's rate, not at whatever the
       // display refreshes at — prediction only matches if each local tick
@@ -182,7 +185,7 @@ export default function GameRoom({
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [arena, roster, emoji, you, tickMs, fuseTicks, world, self, tickInput]);
+  }, [arena, roster, emoji, you, tickMs, fuseTicks, world, self, net, tickInput]);
 
   const isHost = you >= 0 && you === g.host;
   const mine = roster.find((r) => r.s === you);
@@ -227,6 +230,7 @@ export default function GameRoom({
 
       <div className="game-stage" ref={wrapRef}>
         <canvas ref={canvasRef} className="game-canvas" />
+        {showStats && <NetHud net={net} hz={Math.round(1000 / tickMs)} predicting={self.current.active} />}
 
         {g.status === "closed" && (
           <div className="game-overlay">

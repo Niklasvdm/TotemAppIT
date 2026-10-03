@@ -302,6 +302,13 @@ type PlayerDTO struct {
 	// movement, so it needs the same speed the server is using — pickups
 	// change it mid-round.
 	V float64 `json:"v"`
+
+	// D is how many of this player's inputs are still queued. The client ticks
+	// off its own clock while the server consumes exactly one input per tick,
+	// so this is the drift between the two: it should hover near 1. Persistent
+	// 0 means the client is running slow and the server is repeating inputs;
+	// persistently high means it is running fast and will start losing them.
+	D int `json:"d"`
 }
 
 // BombDTO carries the fuse so the client can pulse the sprite in sync.
@@ -345,7 +352,7 @@ func (m *Match) Snapshot() Snapshot {
 		}
 		s.P = append(s.P, PlayerDTO{
 			S: p.Slot, X: r2(p.X), Y: r2(p.Y), A: p.Alive,
-			B: p.Bombs, P: p.Power, Q: p.ack, V: r2(p.Speed),
+			B: p.Bombs, P: p.Power, Q: p.ack, V: r2(p.Speed), D: len(p.pending),
 		})
 	}
 	for _, b := range m.Bombs {

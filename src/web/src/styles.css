@@ -235,3 +235,11 @@ header {
 .game-bombkey { width: 94px; height: 94px; border-radius: 50%; background: var(--red-soft); border: 3px solid var(--red); font-size: 2.2rem; }
 .game-bombkey:active { background: var(--red); }
 @media (hover: none) and (pointer: coarse) { .game-pad { display: flex; } }
+
+/* Netcode dev overlay (F3). Diagnostic only — never shown by default. */
+.nethud { position: absolute; top: 10px; left: 10px; z-index: 5; min-width: 220px; padding: .5rem .6rem; border-radius: 12px; background: rgba(10,10,12,.82); color: #d8f3e4; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .72rem; line-height: 1.45; pointer-events: none; backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,.12); }
+.nethud-title { font-weight: 700; color: #7fe3ad; margin-bottom: .25rem; letter-spacing: .02em; }
+.nethud-row { display: flex; justify-content: space-between; gap: 1rem; }
+.nethud-row span:first-child { opacity: .62; }
+.nethud-row.warn span:last-child { color: #ffb4a2; font-weight: 700; }
+.nethud-hint { margin-top: .3rem; opacity: .4; font-size: .66rem; }

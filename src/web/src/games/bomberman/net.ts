@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { Arena, Input, Phase, PlayerDTO, RosterEntry, ServerMsg, Snapshot } from "../types";
 import { makeBlocked, stepMovement, type Movable } from "./movement";
+import { bigCorrection, newStats, type NetStats } from "./stats";
 
 export type ConnStatus = "connecting" | "open" | "closed";
 
@@ -60,6 +61,7 @@ export interface Connection {
   tickMs: number;
   fuseTicks: number;
   stats: Stats;
+  net: MutableRefObject<NetStats>;
   world: MutableRefObject<World>;
   self: MutableRefObject<Predicted>;
   tickInput: (input: Input) => void;
@@ -80,9 +82,12 @@ export function useGame(code: string, name: string, animal: string): Connection 
   const [fuseTicks, setFuseTicks] = useState(120);
   const [stats, setStats] = useState<Stats>({ bombs: 0, power: 0 });
 
+  const net = useRef<NetStats>(newStats());
   const world = useRef<World>(newWorld());
   const self = useRef<Predicted>({ active: false, x: 0, y: 0, speed: 0 });
-  const unacked = useRef<{ seq: number; input: Input }[]>([]);
+  // Each unacked input remembers when it was sent, which is where the RTT
+  // measurement comes from: no ping/pong frame is needed, the ack already is one.
+  const unacked = useRef<{ seq: number; input: Input; at: number }[]>([]);
   const seq = useRef(0);
   const sock = useRef<WebSocket | null>(null);
 
@@ -98,8 +103,16 @@ export function useGame(code: string, name: string, animal: string): Connection 
   // server is about to do, run early.
   const reconcile = useCallback((mine: PlayerDTO, snap: Snapshot) => {
     const pred = self.current;
+    const m = net.current;
     pred.speed = mine.v;
+
+    // The newest input this snapshot acknowledges tells us the round trip.
+    const acked = unacked.current.filter((p) => p.seq <= mine.q);
+    if (acked.length) m.rtt.push(performance.now() - acked[acked.length - 1].at);
+
     unacked.current = unacked.current.filter((p) => p.seq > mine.q);
+    m.localQueue = unacked.current.length;
+    m.serverQueue.push(mine.d);
 
     const playable = snap.ph === "play" && mine.a;
     if (!playable || !pred.active) {
@@ -117,6 +130,13 @@ export function useGame(code: string, name: string, animal: string): Connection 
     const blocked = makeBlocked(board, world.current.crates, snap.b ?? [], youRef.current);
     const replay: Movable = { x: mine.x, y: mine.y, speed: mine.v };
     for (const p of unacked.current) stepMovement(replay, p.input, hzRef.current, blocked);
+
+    // How far the authoritative answer moved us. Near zero means the two rule
+    // sets agree; anything visible here is the stutter a player complains about.
+    const moved = Math.hypot(replay.x - pred.x, replay.y - pred.y);
+    m.correction.push(moved);
+    if (moved > bigCorrection) m.bigCorrections++;
+
     pred.x = replay.x;
     pred.y = replay.y;
   }, []);
@@ -132,6 +152,7 @@ export function useGame(code: string, name: string, animal: string): Connection 
     const ws = new WebSocket(socketURL(code, name, animal));
     sock.current = ws;
     world.current = newWorld();
+    net.current = newStats();
     self.current = { active: false, x: 0, y: 0, speed: 0 };
     unacked.current = [];
     seq.current = 0;
@@ -171,10 +192,16 @@ export function useGame(code: string, name: string, animal: string): Connection 
 
         case "state": {
           const w = world.current;
+          const at = performance.now();
+          if (w.nextAt) {
+            const gap = at - w.nextAt;
+            net.current.snapGap.push(gap);
+            if (gap > (1000 / hzRef.current) * 2) net.current.stalls++;
+          }
           w.prev = w.next;
           w.prevAt = w.nextAt;
           w.next = msg;
-          w.nextAt = performance.now();
+          w.nextAt = at;
           if (msg.c !== undefined) w.crates = msg.c;
 
           // Phase and winner change rarely; the identity returns let React skip
@@ -222,7 +249,7 @@ export function useGame(code: string, name: string, animal: string): Connection 
     const board = arenaRef.current;
     if (!pred.active || !board) return;
 
-    unacked.current.push({ seq: n, input });
+    unacked.current.push({ seq: n, input, at: performance.now() });
     if (unacked.current.length > maxUnacked) unacked.current.shift();
 
     const blocked = makeBlocked(board, world.current.crates, world.current.next?.b ?? [], youRef.current);
@@ -236,7 +263,7 @@ export function useGame(code: string, name: string, animal: string): Connection 
 
   return {
     status, error, you, host, arena, roster, phase, winner, tickMs, fuseTicks, stats,
-    world, self, tickInput, sendStart,
+    net, world, self, tickInput, sendStart,
   };
 }
 
