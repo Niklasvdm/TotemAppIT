@@ -62,7 +62,7 @@ func do(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
 
 func TestListAnimalsParsesFilter(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc, nil, nil, nil)
+	srv := New(fc, nil, nil)
 
 	rec := do(t, srv, "/api/v1/animals?lang=en&q=fox&include=sluw,snel&exclude=nat")
 	if rec.Code != http.StatusOK {
@@ -86,7 +86,7 @@ func TestListAnimalsParsesFilter(t *testing.T) {
 
 func TestLangDefaultsToIT(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc, nil, nil, nil)
+	srv := New(fc, nil, nil)
 	_ = do(t, srv, "/api/v1/animals") // no lang param
 	if fc.gotFilter.Lang != "it" {
 		t.Fatalf("default lang: %q", fc.gotFilter.Lang)
@@ -94,7 +94,7 @@ func TestLangDefaultsToIT(t *testing.T) {
 }
 
 func TestGetAnimalNotFound(t *testing.T) {
-	srv := New(&fakeCatalog{}, nil, nil, nil)
+	srv := New(&fakeCatalog{}, nil, nil)
 	if rec := do(t, srv, "/api/v1/animals/nope"); rec.Code != http.StatusNotFound {
 		t.Fatalf("want 404, got %d", rec.Code)
 	}
@@ -108,7 +108,7 @@ func TestAnimalImage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "vos.webp"), []byte("RIFFfake"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	srv := New(&fakeCatalog{}, os.DirFS(dir), nil, nil)
+	srv := New(&fakeCatalog{}, os.DirFS(dir), nil)
 
 	if rec := do(t, srv, "/api/v1/animals/vos/image"); rec.Code != http.StatusOK {
 		t.Fatalf("existing image: want 200, got %d", rec.Code)
@@ -123,7 +123,7 @@ func TestAnimalImage(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	srv := New(&fakeCatalog{}, nil, nil, nil)
+	srv := New(&fakeCatalog{}, nil, nil)
 	if rec := do(t, srv, "/healthz"); rec.Code != http.StatusOK || rec.Body.String() != "ok" {
 		t.Fatalf("health: %d %q", rec.Code, rec.Body.String())
 	}
@@ -134,7 +134,7 @@ func TestSPAFallback(t *testing.T) {
 		"index.html":    {Data: []byte("<!doctype html><title>totem</title>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
 	}
-	srv := New(&fakeCatalog{}, nil, nil, spa)
+	srv := New(&fakeCatalog{}, nil, nil, WithSPA(spa))
 
 	if rec := do(t, srv, "/assets/app.js"); rec.Code != http.StatusOK {
 		t.Fatalf("real asset: want 200, got %d", rec.Code)
@@ -150,7 +150,7 @@ func TestSPAFallback(t *testing.T) {
 		t.Fatalf("api shadowed by SPA: %d", rec.Code)
 	}
 	// No SPA configured → non-API route 404s.
-	if rec := do(t, New(&fakeCatalog{}, nil, nil, nil), "/"); rec.Code != http.StatusNotFound {
+	if rec := do(t, New(&fakeCatalog{}, nil, nil), "/"); rec.Code != http.StatusNotFound {
 		t.Fatalf("api-only mode: want 404 at /, got %d", rec.Code)
 	}
 }
@@ -165,7 +165,7 @@ func doPost(t *testing.T, srv *Server, path, body string) *httptest.ResponseReco
 
 func TestCreateSuggestion(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc, nil, nil, nil)
+	srv := New(fc, nil, nil)
 
 	if rec := doPost(t, srv, "/api/v1/suggestions", `{"name":"Red Panda","note":"cute"}`); rec.Code != http.StatusAccepted {
 		t.Fatalf("valid suggestion: want 202, got %d (%s)", rec.Code, rec.Body)
@@ -190,7 +190,7 @@ func TestCreateSuggestion(t *testing.T) {
 
 func TestCreateReport(t *testing.T) {
 	fc := &fakeCatalog{}
-	srv := New(fc, nil, nil, nil)
+	srv := New(fc, nil, nil)
 
 	if rec := doPost(t, srv, "/api/v1/animals/vos/reports", `{"reason":"unknown","note":"never heard of it"}`); rec.Code != http.StatusAccepted {
 		t.Fatalf("valid report: want 202, got %d (%s)", rec.Code, rec.Body)
@@ -207,7 +207,7 @@ func TestCreateReport(t *testing.T) {
 }
 
 func TestRateLimit(t *testing.T) {
-	srv := New(&fakeCatalog{}, nil, nil, nil)
+	srv := New(&fakeCatalog{}, nil, nil)
 	got429 := false
 	for i := 0; i < 15; i++ {
 		rec := doPost(t, srv, "/api/v1/suggestions", `{"name":"Capybara"}`)
