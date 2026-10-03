@@ -44,6 +44,9 @@ type Room struct {
 	round   uint64
 	emptyAt time.Time // zero while someone is connected
 
+	// lastCrates is the crate layer this room's clients have already been sent.
+	lastCrates string
+
 	acts      chan func()
 	quit      chan struct{}
 	closeOnce sync.Once
@@ -113,7 +116,7 @@ func (r *Room) step() {
 	}
 	was := r.match.Phase
 	r.match.Step()
-	r.broadcast(r.match.Snapshot())
+	r.broadcastSnapshot()
 	if was == PhasePlay && r.match.Phase == PhaseOver {
 		r.broadcast(r.rosterMsg()) // the winner's tally changed
 	}
@@ -125,13 +128,41 @@ func (r *Room) broadcast(v any) {
 		return
 	}
 	for _, c := range r.conns {
-		select {
-		case c.send <- b:
-		default:
-			// Stalled client. Dropping a snapshot is harmless — the next one is
-			// a complete picture — and never blocks the room.
-		}
+		queue(c, b)
 	}
+}
+
+func (r *Room) sendTo(c *Conn, v any) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+	queue(c, b)
+}
+
+// queue hands a frame to one client, dropping it if that client is backed up.
+// Snapshots supersede each other, so the newest is the only one worth having —
+// and the room must never block on a stalled socket.
+func queue(c *Conn, b []byte) {
+	select {
+	case c.send <- b:
+	default:
+	}
+}
+
+// broadcastSnapshot sends the per-tick state, omitting the crate layer when it
+// has not changed since the last one: delivery is ordered, so clients hold the
+// last value they saw. This lives here rather than in Match because only the
+// Room knows what its clients have already been sent — which is what lets a
+// mid-round joiner be handed the full layer instead of an empty arena.
+func (r *Room) broadcastSnapshot() {
+	s := r.match.Snapshot()
+	if s.C == r.lastCrates {
+		s.C = ""
+	} else {
+		r.lastCrates = s.C
+	}
+	r.broadcast(s)
 }
 
 func (r *Room) rosterMsg() RosterMsg {
@@ -163,8 +194,9 @@ func (r *Room) Join(name, animal string) (*Conn, WelcomeMsg, error) {
 		}
 		r.broadcast(r.rosterMsg())
 		if r.match.Phase != PhaseLobby {
-			// Mid-round joiner needs the live picture, not just the roster.
-			r.broadcast(r.match.Snapshot())
+			// Mid-round joiner has seen nothing, so they get the complete
+			// state — crate layer included — addressed only to them.
+			r.sendTo(conn, r.match.Snapshot())
 		}
 	}) {
 		return nil, WelcomeMsg{}, ErrRoomClosed
@@ -228,8 +260,9 @@ func (r *Room) Begin(slot int) {
 		}
 		r.round++
 		r.match.Start(r.round)
+		r.lastCrates = "" // fresh grid: make the next snapshot carry it
 		r.broadcast(r.rosterMsg())
-		r.broadcast(r.match.Snapshot())
+		r.broadcastSnapshot()
 	})
 }
 

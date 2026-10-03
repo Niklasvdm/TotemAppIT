@@ -340,20 +340,24 @@ func TestBlastDestroysPowerup(t *testing.T) {
 	}
 }
 
-func TestSnapshotSendsCrateLayerOnlyOnChange(t *testing.T) {
+// Snapshot is a pure read: every call describes the whole match. Taking one for
+// a joining player must not rob the next broadcast of its crate layer, which is
+// exactly what a snapshot that quietly tracked "what changed" used to do.
+func TestSnapshotIsCompleteAndRepeatable(t *testing.T) {
 	m := openMatch(t, 1)
 	m.Grid.crate[idx(3, 1)] = true
 
-	if first := m.Snapshot(); first.C == "" {
-		t.Fatal("first snapshot omitted the crate layer")
+	first, second := m.Snapshot(), m.Snapshot()
+	if first.C == "" {
+		t.Fatal("snapshot omitted the crate layer")
 	}
-	if second := m.Snapshot(); second.C != "" {
-		t.Fatal("unchanged crate layer was resent")
+	if first.C != second.C {
+		t.Fatal("two reads of an unchanged match disagreed")
 	}
 
 	m.Grid.BreakCrate(3, 1)
-	if third := m.Snapshot(); third.C == "" {
-		t.Fatal("changed crate layer was not sent")
+	if third := m.Snapshot(); third.C == first.C {
+		t.Fatal("snapshot did not reflect the destroyed crate")
 	}
 }
 

@@ -214,6 +214,43 @@ func TestRoomTicksAndAppliesInput(t *testing.T) {
 	}
 }
 
+// The crate layer rides along only on the ticks where it changed, so a player
+// who joins mid-round has never seen one. Their first snapshot has to carry the
+// full layer, or they render an arena with no crates in it at all.
+func TestMidRoundJoinerGetsTheCrateLayer(t *testing.T) {
+	r := mustCreate(t, testRegistry(t))
+	c0, _ := mustJoin(t, r, "aap")
+	r.Begin(c0.Slot())
+
+	// Let the round settle past the first snapshot, so the layer counts as
+	// "unchanged" by the time the second player arrives.
+	for i := 0; i < 3; i++ {
+		recvTyped(t, c0, MsgState)
+	}
+
+	c1, _ := mustJoin(t, r, "beer")
+	if frame := recvTyped(t, c1, MsgState); frame["c"] == nil {
+		t.Fatal("mid-round joiner's first snapshot carried no crate layer")
+	}
+}
+
+// The flip side of the joiner case: an established client must not be sent the
+// crate layer 30 times a second when nothing has blown up.
+func TestTickSnapshotsOmitUnchangedCrateLayer(t *testing.T) {
+	r := mustCreate(t, testRegistry(t))
+	c0, _ := mustJoin(t, r, "aap")
+	r.Begin(c0.Slot())
+
+	if first := recvTyped(t, c0, MsgState); first["c"] == nil {
+		t.Fatal("first snapshot of a round omitted the crate layer")
+	}
+	for i := 0; i < 3; i++ {
+		if f := recvTyped(t, c0, MsgState); f["c"] != nil {
+			t.Fatal("unchanged crate layer was resent on a later tick")
+		}
+	}
+}
+
 func TestLobbyDoesNotStreamSnapshots(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")

@@ -126,9 +126,8 @@ type Match struct {
 	// meaningful in PhaseOver.
 	Winner int
 
-	seed    uint64
-	overAt  uint64
-	cratesC string // last encoded crate layer, to send only on change
+	seed   uint64
+	overAt uint64
 
 	// rng drives crate drops. It belongs to the match (not the global source)
 	// so a seed reproduces a whole game, drops included.
@@ -204,7 +203,6 @@ func (m *Match) Start(round uint64) {
 	m.Flames = nil
 	m.Powers = nil
 	m.Winner = -1
-	m.cratesC = ""
 	for _, p := range m.Players {
 		m.resetPlayer(p)
 	}
@@ -262,9 +260,10 @@ type PowerDTO struct {
 // mantissa digits are pure bandwidth.
 func r2(v float64) float64 { return math.Round(v*100) / 100 }
 
-// Snapshot renders the current state for the wire. The crate layer is included
-// only when it changed since the previous snapshot — WebSocket delivery is
-// ordered, so the client can safely hold the last value it saw.
+// Snapshot renders the complete current state for the wire. It is a pure read:
+// call it as often as you like and every call describes the whole match. Thinning
+// it for a client that has already seen most of it is the Room's job, because
+// only the Room knows what each client has received.
 func (m *Match) Snapshot() Snapshot {
 	s := Snapshot{T: MsgState, K: m.Tick, Ph: m.Phase, Winner: m.Winner}
 
@@ -284,10 +283,7 @@ func (m *Match) Snapshot() Snapshot {
 	for _, u := range m.Powers {
 		s.U = append(s.U, PowerDTO{X: u.X, Y: u.Y, K: u.Kind})
 	}
-	if c := m.Grid.CrateString(); c != m.cratesC {
-		m.cratesC = c
-		s.C = c
-	}
+	s.C = m.Grid.CrateString()
 	return s
 }
 
