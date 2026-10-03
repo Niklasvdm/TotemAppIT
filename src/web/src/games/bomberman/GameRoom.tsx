@@ -41,7 +41,7 @@ export default function GameRoom({
 }) {
   const { t } = useTranslation();
   const g = useGame(code, name, animal);
-  const { arena, roster, you, phase, winner, world, self, net, tickMs, fuseTicks, tickInput, sendStart } = g;
+  const { arena, roster, you, phase, winner, world, self, net, pace, tickMs, fuseTicks, tickInput, sendStart } = g;
   const showStats = useStatsFlag();
 
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -150,8 +150,11 @@ export default function GameRoom({
       // corresponds to exactly one server tick.
       carry = Math.min(carry + (now - last), maxCatchUp);
       last = now;
-      while (carry >= tickMs) {
-        carry -= tickMs;
+      // pace.factor steers this interval so the server's input queue stays
+      // shallow; see the clock-sync note in net.ts.
+      const step = tickMs * pace.current.factor;
+      while (carry >= step) {
+        carry -= step;
         tickInput(sampleInput());
       }
 
@@ -185,7 +188,7 @@ export default function GameRoom({
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [arena, roster, emoji, you, tickMs, fuseTicks, world, self, net, tickInput]);
+  }, [arena, roster, emoji, you, tickMs, fuseTicks, world, self, net, pace, tickInput]);
 
   const isHost = you >= 0 && you === g.host;
   const mine = roster.find((r) => r.s === you);
@@ -230,7 +233,15 @@ export default function GameRoom({
 
       <div className="game-stage" ref={wrapRef}>
         <canvas ref={canvasRef} className="game-canvas" />
-        {showStats && <NetHud net={net} hz={Math.round(1000 / tickMs)} predicting={self.current.active} />}
+        {showStats && (
+          <NetHud
+            net={net}
+            pace={pace}
+            hz={Math.round(1000 / tickMs)}
+            predicting={self.current.active}
+            serverBuild={g.serverBuild}
+          />
+        )}
 
         {g.status === "closed" && (
           <div className="game-overlay">

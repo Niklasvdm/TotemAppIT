@@ -11,6 +11,19 @@ export type ConnStatus = "connecting" | "open" | "closed";
 // replaying further is pointless.
 const maxUnacked = 120;
 
+// Clock sync. The server consumes exactly one input per tick while the client
+// produces exactly one per tick, so the depth of the server's queue has no
+// restoring force: a burst or a stall pushes it up and it stays there forever,
+// because inputs arrive precisely as fast as they drain. Every queued input is
+// a tick of pure added latency, and once the queue saturates, inputs are lost.
+//
+// So the client steers it. The server reports its depth in every snapshot; the
+// local tick interval is nudged until that depth settles at a shallow target.
+// The adjustment is capped, so a bad reading can never run the clock away.
+const queueTarget = 1.5;
+const paceGain = 0.05;
+const paceLimit = 0.2;
+
 // World holds the two most recent snapshots so the renderer can draw between
 // them. Snapshots deliberately live in a ref rather than React state: at the
 // tick rate, routing them through setState would re-render the tree endlessly.
@@ -29,6 +42,13 @@ export function newWorld(): World {
 // Predicted is where this client believes its own player is, which runs ahead
 // of the last server snapshot by however much input is still in flight. Drawing
 // the local player from here is what makes the controls feel immediate.
+// Pace is the multiplier on the client's tick interval: above 1 the client
+// ticks slower than the server and the queue drains, below 1 it fills.
+export interface Pace {
+  factor: number;
+  depth: number; // smoothed server queue depth
+}
+
 export interface Predicted {
   active: boolean;
   x: number;
@@ -60,8 +80,10 @@ export interface Connection {
   winner: number;
   tickMs: number;
   fuseTicks: number;
+  serverBuild: string;
   stats: Stats;
   net: MutableRefObject<NetStats>;
+  pace: MutableRefObject<Pace>;
   world: MutableRefObject<World>;
   self: MutableRefObject<Predicted>;
   tickInput: (input: Input) => void;
@@ -80,9 +102,11 @@ export function useGame(code: string, name: string, animal: string): Connection 
   const [winner, setWinner] = useState(-1);
   const [tickMs, setTickMs] = useState(1000 / 60);
   const [fuseTicks, setFuseTicks] = useState(120);
+  const [serverBuild, setServerBuild] = useState("?");
   const [stats, setStats] = useState<Stats>({ bombs: 0, power: 0 });
 
   const net = useRef<NetStats>(newStats());
+  const pace = useRef<Pace>({ factor: 1, depth: queueTarget });
   const world = useRef<World>(newWorld());
   const self = useRef<Predicted>({ active: false, x: 0, y: 0, speed: 0 });
   // Each unacked input remembers when it was sent, which is where the RTT
@@ -94,6 +118,10 @@ export function useGame(code: string, name: string, animal: string): Connection 
   // The message handler and the input tick both need these, and neither should
   // be torn down and rebuilt when they change — hence refs rather than state.
   const youRef = useRef(-1);
+  // Whether a round is actually running for us. Outside one there is nothing to
+  // simulate, so feeding the server's queue would only add latency to the next.
+  const playingRef = useRef(false);
+  const sentIdle = useRef(false);
   const hzRef = useRef(60);
   const arenaRef = useRef<Arena | null>(null);
 
@@ -114,7 +142,20 @@ export function useGame(code: string, name: string, animal: string): Connection 
     m.localQueue = unacked.current.length;
     m.serverQueue.push(mine.d);
 
+    // Steer the local clock toward a shallow server queue. Smoothed, because a
+    // single snapshot's depth is noisy and chasing it would oscillate.
+    const pc = pace.current;
+    pc.depth += (mine.d - pc.depth) * 0.1;
+    const drift = (pc.depth - queueTarget) * paceGain;
+    pc.factor = 1 + Math.max(-paceLimit, Math.min(paceLimit, drift));
+
     const playable = snap.ph === "play" && mine.a;
+    if (playable && !playingRef.current) {
+      // A fresh round starts from an empty queue; forget the old correction.
+      pace.current = { factor: 1, depth: queueTarget };
+    }
+    playingRef.current = playable;
+
     if (!playable || !pred.active) {
       // Nothing worth predicting from — a new round, a death, or the first
       // snapshot. Adopt the server's position outright.
@@ -153,6 +194,9 @@ export function useGame(code: string, name: string, animal: string): Connection 
     sock.current = ws;
     world.current = newWorld();
     net.current = newStats();
+    pace.current = { factor: 1, depth: queueTarget };
+    playingRef.current = false;
+    sentIdle.current = false;
     self.current = { active: false, x: 0, y: 0, speed: 0 };
     unacked.current = [];
     seq.current = 0;
@@ -183,6 +227,7 @@ export function useGame(code: string, name: string, animal: string): Connection 
           setRoster(msg.roster);
           setTickMs(1000 / msg.hz);
           setFuseTicks(msg.fuse);
+          setServerBuild(msg.build || "?");
           break;
 
         case "roster":
@@ -237,12 +282,28 @@ export function useGame(code: string, name: string, animal: string): Connection 
   // away — that local application is the whole point: the player sees their
   // own move on the next frame instead of a round trip later.
   const tickInput = useCallback((input: Input) => {
+    const ws = sock.current;
+    const open = ws?.readyState === WebSocket.OPEN;
+
+    if (!playingRef.current) {
+      // Between rounds, in the lobby, or dead. Send one neutral input on the
+      // way out — the server holds the last one it consumed when its queue runs
+      // dry, so a stale direction would keep walking us — then go quiet.
+      if (sentIdle.current) return;
+      sentIdle.current = true;
+      unacked.current = [];
+      if (open) {
+        seq.current += 1;
+        ws!.send(JSON.stringify({ t: "input", seq: seq.current, dx: 0, dy: 0, bomb: false }));
+      }
+      return;
+    }
+    sentIdle.current = false;
+
     seq.current += 1;
     const n = seq.current;
-
-    const ws = sock.current;
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ t: "input", seq: n, dx: input.dx, dy: input.dy, bomb: input.bomb }));
+    if (open) {
+      ws!.send(JSON.stringify({ t: "input", seq: n, dx: input.dx, dy: input.dy, bomb: input.bomb }));
     }
 
     const pred = self.current;
@@ -262,8 +323,8 @@ export function useGame(code: string, name: string, animal: string): Connection 
   }, []);
 
   return {
-    status, error, you, host, arena, roster, phase, winner, tickMs, fuseTicks, stats,
-    net, world, self, tickInput, sendStart,
+    status, error, you, host, arena, roster, phase, winner, tickMs, fuseTicks, serverBuild, stats,
+    net, pace, world, self, tickInput, sendStart,
   };
 }
 

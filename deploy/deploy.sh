@@ -33,6 +33,14 @@ done
 [ -n "$HOST" ] || { echo "usage: deploy.sh user@host [--install-unit] [--builder user@host]" >&2; exit 1; }
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Build stamp. The binaries carry it via -ldflags and the SPA bakes it in at
+# `npm run build`, so the running client and server can each say what they are
+# (see the game's F3 HUD). Go stamps the commit itself; this is the readable half.
+BUILD_VERSION="$(cat "$REPO_ROOT/VERSION" 2>/dev/null || echo dev)"
+BUILD_SHA="$(git -C "$REPO_ROOT" rev-parse --short=7 HEAD 2>/dev/null || true)"
+BUILD_STAMP="$BUILD_VERSION${BUILD_SHA:++$BUILD_SHA}"
+echo "→ build: $BUILD_STAMP"
 BIN_DIR=/usr/local/bin
 DATA_DIR=/var/lib/totemd/data
 STAGE="$(mktemp -d)"
@@ -45,10 +53,11 @@ if [ -n "$BUILDER" ]; then
   ssh "$BUILDER" "mkdir -p ~/totem-build/src"
   rsync -az --delete --exclude node_modules --exclude .git "$REPO_ROOT/src/" "$BUILDER:~/totem-build/src/"
   ssh "$BUILDER" "set -e; source /etc/profile.d/go.sh 2>/dev/null || true
+    export TOTEM_BUILD='$BUILD_STAMP'
     cd ~/totem-build/src/web && npm ci && npm run build      # -> ../internal/web/dist
     cd ~/totem-build/src
     for c in $CMDS; do
-      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags embed -trimpath -ldflags '-s -w' -o \"../\$c\" \"./cmd/\$c\"
+      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags embed -trimpath -ldflags \"-s -w -X github.com/Niklasvdm/TotemAppIT/internal/buildinfo.Version=$BUILD_VERSION\" -o \"../\$c\" \"./cmd/\$c\"
     done"
   for cmd in $CMDS; do scp -q "$BUILDER:~/totem-build/$cmd" "$STAGE/$cmd"; done
 else
@@ -62,11 +71,13 @@ else
     exit 1
   }
   echo "==> building SPA + static linux/amd64 binaries locally"
-  ( cd "$REPO_ROOT/src/web" && npm ci && npm run build )
+  ( cd "$REPO_ROOT/src/web" && TOTEM_BUILD="$BUILD_STAMP" npm ci && TOTEM_BUILD="$BUILD_STAMP" npm run build )
   ( cd "$REPO_ROOT/src"
     for cmd in $CMDS; do
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-        go build -tags embed -trimpath -ldflags "-s -w" -o "$STAGE/$cmd" "./cmd/$cmd"
+        go build -tags embed -trimpath \
+          -ldflags "-s -w -X github.com/Niklasvdm/TotemAppIT/internal/buildinfo.Version=$BUILD_VERSION" \
+          -o "$STAGE/$cmd" "./cmd/$cmd"
     done
   )
 fi

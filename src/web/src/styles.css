@@ -36,6 +36,8 @@ header {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1.25rem; flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: .6rem; }
+.brand:hover .mark { filter: brightness(1.1); }
+.brand:hover h1 { text-decoration: underline; text-underline-offset: 3px; }
 .brand .mark { width: 42px; height: 42px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; font-size: 1.3rem; box-shadow: 0 0 0 4px var(--green-soft), 0 0 0 6px var(--green); }
 .brand h1 { font-size: 1.35rem; font-weight: 800; color: var(--green-deep); line-height: 1; }
 .brand small { color: var(--muted); font-weight: 700; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }

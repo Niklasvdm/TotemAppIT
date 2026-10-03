@@ -1,5 +1,31 @@
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+
+// Build stamp, baked in at compile time. The browser caches bundles, so "which
+// client am I actually running" needs an answer that travels with the bundle
+// rather than one the server reports. Both halves are shown in the game HUD.
+function buildStamp(): string {
+  // The deploy may hand us the stamp directly: its remote builder gets only
+  // src/, so neither the VERSION file nor a git tree is there to read.
+  if (process.env.TOTEM_BUILD) return process.env.TOTEM_BUILD;
+
+  let version = "dev";
+  try {
+    version = readFileSync(new URL("../../VERSION", import.meta.url), "utf8").trim();
+  } catch {
+    /* no VERSION file — stay "dev" */
+  }
+  try {
+    const sha = execSync("git rev-parse --short=7 HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+    return `${version}+${sha}`;
+  } catch {
+    return version; // building outside a git tree (a tarball, a container)
+  }
+}
 
 // Dev: proxy the API (and image/emoji routes) to the Go backend on :8683.
 // Build: emits into the Go package src/internal/web/dist, which totemd embeds
@@ -21,6 +47,7 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? "")
   .filter(Boolean);
 
 export default defineConfig({
+  define: { __BUILD__: JSON.stringify(buildStamp()) },
   plugins: [react()],
   server: {
     allowedHosts,

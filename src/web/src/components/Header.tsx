@@ -46,13 +46,13 @@ export default function Header({
 
   return (
     <header>
-      <div className="brand">
+      <Link className="brand" to="/" aria-label={t("brand")}>
         <div className="mark">🐾</div>
         <div>
           <h1>{t("brand")}</h1>
           <small>{t("tagline")}</small>
         </div>
-      </div>
+      </Link>
       <div className="header-tools">
         <button className="quiz-cta" onClick={onQuiz}>✨ Which animal are you?</button>
         <div className="langs">

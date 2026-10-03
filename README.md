@@ -11,6 +11,10 @@ relate to:
 
 # Totem Finder (IT)
 
+**Build `0.4.0`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.0+a1b2c3d`.
+
+Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
+
 Italian translation of the Dutch **Scouts en Gidsen Vlaanderen** *Totemzoeker*. A searchable catalogue of 472 animal totems, each with a set of character traits and a description in Italian, English and Dutch. Two search modes: **exact filter** (animals that have *all* included traits and *none* excluded) and **similarity** (animals closest to a chosen trait profile).
 
 This README describes the **target architecture** for the v2 rewrite — a Go backend + React frontend replacing the current single-file static site (see [Current state vs. target](#current-state-vs-target)). It is a living design document; the [Changelog](#changelog) tracks decisions. Work proceeds in [phases](#build-phases), one layer at a time — database and backend are **done**; currently the **frontend** (Phase 3), with the single-binary embed and CI still to come.
@@ -387,6 +391,16 @@ So the local player is **predicted**, and only the local player:
 2. The server keeps a short per-player queue and consumes **exactly one input per tick** (holding the previous one when the queue runs dry, so a late packet costs no movement). It echoes the sequence it consumed as an **ack** in every snapshot.
 3. On each snapshot the client rewinds its own player to the authoritative position, drops the acked inputs, and **replays the rest**. Those inputs are not guesses — the server is about to apply them — so replay is the same arithmetic, run early.
 
+#### Keeping the two clocks together
+
+That 1:1 relationship has a sting in the tail, and it is worth spelling out because the symptom is baffling otherwise. The server drains its input queue at exactly the rate the client fills it, so **the queue depth has no restoring force**. It is a random walk. One network burst, one garbage-collection pause, one backgrounded tab, and the depth steps up — and then stays there for the rest of the session, because nothing pulls it back down.
+
+Every queued input is a tick of pure added latency before that input is simulated, and once the queue hits its bound the server starts dropping inputs. Observed in the wild: a depth of 6.5 out of 8, which is ~110 ms of self-inflicted lag on top of the real network, with inputs going missing.
+
+The fix is a feedback loop. The server reports its queue depth in every snapshot; the client smooths that reading and nudges its own tick interval — capped at ±20%, so a bad reading can never run the clock away — until the depth settles at a shallow target. Measured: steady at **1.5**, spiking to 7 under an induced 400 ms stall, and back to **1.55** two seconds later. Before the loop existed, that spike was permanent.
+
+The client also stops sending inputs entirely outside a round, with one neutral input on the way out: the server holds the last input it consumed when its queue runs dry, so a stale direction would otherwise keep walking you after you died.
+
 That 1:1 input-to-tick relationship is what makes replay exact. It is also why `movement.ts` is a careful port of `movePlayer` in `sim.go`: **both sides run the same rules, in the same order**, and a change to one without the other shows up immediately as the sprite being yanked backwards several times a second. JavaScript numbers are IEEE 754 doubles like Go's `float64`, so identical operations in identical order give identical results.
 
 Two details that prediction forces into the protocol: each player's **speed** (pickups change it, and the client cannot predict movement without it) and each bomb's **pass-through bitmask** (you may step off a bomb you just dropped, so without it prediction would fight the server for as long as you stood on one).
@@ -407,11 +421,14 @@ Netcode complaints are unfalsifiable without numbers — "it feels laggy" could 
 | `stalls` | Snapshots arriving more than two ticks late. |
 | `correction` | How far reconciliation moved you, in tiles. **Near zero means the Go and TypeScript movement rules agree.** Anything visible is the stutter a player feels. |
 | `jumps` | Corrections big enough to see. |
-| `queue` | Server-side input queue depth — the client/server clock drift made visible. It should hover near 1: pinned at 0 means the client is running slow and the server is repeating inputs; pinned high means it is running fast and will start dropping them. |
+| `queue` | `srv` depth · `local` unacked · the pace correction. Depth should sit near 1.5; the percentage is how much the client's clock is being stretched to hold it there. Pinned high means added latency and dropped inputs. |
+| `client` / `server` | Build stamps. A mismatch is highlighted — usually a cached bundle rather than a failed deploy. |
 
 The header also states the tick rate and whether prediction is active, which makes "did my deploy actually go out?" a glance rather than a guess.
 
-On the dev box the healthy reading is: `fps 60`, `snapshot 16.7ms`, `correction 0.000`, `jumps 0`, `queue srv ~0.8`.
+`stalls` and `jumps` are reported as a recent rate, not a lifetime count: a total from a burst a minute ago next to a rolling average reads as a contradiction.
+
+On the dev box the healthy reading is: `fps 60`, `ping ~29ms`, `snapshot 16.7ms`, `correction 0.000`, `stalls 0.0/s`, `jumps 0.0/s`, `queue srv 1.5 · 100%`.
 
 ### Two things that will bite you again
 

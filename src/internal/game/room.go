@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/Niklasvdm/TotemAppIT/internal/buildinfo"
 )
 
 // sendQueue is how many snapshots may back up for one client before the room
@@ -190,6 +192,7 @@ func (r *Room) Join(name, animal string) (*Conn, WelcomeMsg, error) {
 		}
 		wm = WelcomeMsg{
 			T: MsgWelcome, You: slot, Code: r.code, Host: r.host, Hz: TickHz, Fuse: fuseTicks,
+			Build: buildinfo.String(),
 			Arena: r.match.Grid.ArenaDTO(), Roster: r.match.Roster(),
 		}
 		r.broadcast(r.rosterMsg())

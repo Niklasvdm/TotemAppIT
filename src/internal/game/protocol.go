@@ -56,7 +56,8 @@ type WelcomeMsg struct {
 	Code   string        `json:"code"`
 	Host   int           `json:"host"`
 	Hz     int           `json:"hz"`
-	Fuse   int           `json:"fuse"` // bomb fuse in ticks, for the client's countdown
+	Fuse   int           `json:"fuse"`  // bomb fuse in ticks, for the client's countdown
+	Build  string        `json:"build"` // server build stamp, shown next to the client's
 	Arena  ArenaDTO      `json:"arena"`
 	Roster []RosterEntry `json:"roster"`
 }

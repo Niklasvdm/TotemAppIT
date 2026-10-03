@@ -73,6 +73,7 @@ export interface WelcomeMsg {
   host: number;
   hz: number;
   fuse: number; // bomb fuse length in ticks
+  build: string; // server build stamp
   arena: Arena;
   roster: RosterEntry[];
 }
