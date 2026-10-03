@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.3.7
+version: 0.3.8
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -676,6 +676,17 @@ Work proceeds one layer at a time. Each phase is independently testable and leav
 
 **Quickest (on the dev LXC):** `cd ~/totem-it && ./run-dev.sh` — builds the backend, seeds the DB if needed, and starts both the API and the React dev server; it prints a `http://<box-ip>:5173` URL to open. Ctrl-C stops both. To iterate: edit `src/web/` locally, `./infra/sync.sh root@<box>` from a second terminal, and the browser hot-reloads.
 
+**How code reaches the box (there is no `git` on it).** The dev LXC is not a git checkout — it is an **rsync mirror** of your local working tree. So the flow is: `git pull` updates your *laptop* (Go and web alike) → [`infra/sync.sh root@<box>`](infra/sync.sh) pushes that tree to `~/totem-it` on the box (this *is* the "push"; it rsyncs everything under `src/`, Go source included) → `run-dev.sh` on the box runs `go build` against the freshly-synced sources and restarts. Consequences:
+
+- **Go changes** need a `run-dev.sh` re-run (it recompiles — no hot-reload). Go module deps in `go.mod`/`go.sum` are pulled by that `go build` automatically.
+- **Frontend changes** hot-reload after a `sync.sh` (Vite HMR); no restart needed.
+- **Dependency changes** (a new `package-lock.json`, e.g. after a pull) need a one-off `npm install` on the box, because `run-dev.sh` only installs when `node_modules` is missing:
+  ```bash
+  ./infra/sync.sh root@<box>                                   # laptop -> box (Go + web)
+  ssh root@<box> 'cd ~/totem-it/src/web && npm install'        # only when deps changed
+  ssh root@<box> 'cd ~/totem-it && ./run-dev.sh'               # rebuild Go + restart both
+  ```
+
 Manual steps (what the script automates):
 
 ```bash
@@ -984,6 +995,8 @@ Mitigations, best-first:
 Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEMENT]` improve existing · `[CHORE]` infra/cleanup.
 
 ### Open
+- `[ENHANCEMENT]` **Prod `:8683` is reachable directly on the LAN** — `totemd` binds `0.0.0.0` and the WAF runs on a separate host, so the API can be hit without passing through the WAF (no TLS, ModSecurity or edge rate-limiting; and the future [auth-header trust](#extensibility) would be spoofable). Restrict prod `:8683` to the ReverseProxy-WAF only (host firewall allowing just the WAF IP, or a tunnel with `totemd` bound to it). Deferred 2026-10-03.
+- `[ENHANCEMENT]` **Frontend dev-only vuln** — the `esbuild`/`vite` dev-server advisory ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)) remains after the react-router fix. It affects only the Vite dev server, **not** the embedded prod binary. The fix is a `vite 5 → 7+` major upgrade (config/plugin migration + test pass). Deferred.
 - `[BUG]` 31 animals lack an `en`/`nl` description — the API now falls back to Italian so nothing is blank, but they should be properly translated per language (DeepL). (Reported example: Mink in English.)
 - `[BUG]` Italian animal names are largely unvalidated — Wikidata's Italian vernacular coverage is sparse (only 1 IT name could be fixed). Re-validate via it.wikipedia titles.
 - `[ENHANCEMENT]` **Paw fallbacks now 0** (hand-tuned in 0.2.26+); the remaining ~316 "category" emoji are family-level approximations that could still be refined from `data/emoji-review.md`.
@@ -1019,6 +1032,12 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.3.8 — 2026-10-03
+- `[SECURITY]` **react-router 6 → 7** (`react-router-dom` `7.18.4`) — patches two advisories carried by 6.x: the open redirect via backslash in `<Link>`/`useNavigate`, and the `deserializeErrors()` constructor-injection (the latter needs SSR hydration, which this SPA does not use). All usage is v7-compatible (`BrowserRouter`/`Routes`/`Route`/`Link`/`useParams`/`useSearchParams`), so **no code changes**; `tsc` + `vite build` pass and the dev routes (`/`, `/games`, `/games/bomberman`, `/animal/:slug`) were verified 200. `npm audit` 4 → 2; the remaining two are the **dev-only** `esbuild`/`vite` chain (one advisory, not in the prod binary) — tracked in [Issues](#open).
+- `[DOCS]` **Dev workflow clarified** in [Running (dev)](#running-dev): the dev box is an rsync mirror, not a git checkout — `git pull` updates the laptop, `sync.sh` pushes Go + web to the box, `run-dev.sh` recompiles Go and restarts, and a dependency change needs a one-off `npm install` on the box.
+- `[DOCS]` Logged the deferred **prod `:8683` LAN exposure** (WAF-bypassable) and the **dev-only esbuild/vite** vuln in [Issues → Open](#open).
+- `[NOTE]` Why the deps had drifted: they were the current stable majors at scaffold time, and no automated updater (Renovate) or CI vuln scan is wired yet (see [CI/CD](#cicd-testing--supply-chain)). Upgrades done deliberately, one major at a time.
 
 ### 0.3.7 — 2026-10-02
 - `[DOCS]` README freshness pass: animal count 471 → **472** (current-state spots), images **445/472**, intro now says database+backend done / frontend in progress (was "currently the database"), Phase 3 row lists what's actually built, Phase 4 marked **partial** (deploy scripts done, CI pending), emoji roadmap updated (**paw fallbacks now 0**), deploy roadmap item marked done. Historical changelog entries left as-is.
