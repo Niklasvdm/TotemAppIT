@@ -21,6 +21,11 @@ type ClientMsg struct {
 	DX   int    `json:"dx"`
 	DY   int    `json:"dy"`
 	Bomb bool   `json:"bomb"`
+
+	// Seq is the client's own tick counter. The server consumes one input per
+	// tick and echoes the last one it used, which is how a predicting client
+	// knows what it still has in flight.
+	Seq uint32 `json:"seq"`
 }
 
 // ArenaDTO is the immutable map, sent once per client in the welcome frame.
@@ -51,6 +56,7 @@ type WelcomeMsg struct {
 	Code   string        `json:"code"`
 	Host   int           `json:"host"`
 	Hz     int           `json:"hz"`
+	Fuse   int           `json:"fuse"` // bomb fuse in ticks, for the client's countdown
 	Arena  ArenaDTO      `json:"arena"`
 	Roster []RosterEntry `json:"roster"`
 }

@@ -372,11 +372,28 @@ Only `room.go` touches concurrency. Each room **owns its `Match` on a single gor
 
 ### Netcode
 
-- **30 Hz** authoritative tick. Snapshots go out every tick during play; the lobby is silent (its state travels in roster frames) so idle rooms cost nothing.
-- Snapshots use **single-letter JSON keys**, and the crate layer is sent **only on the ticks where it changed** — WebSocket delivery is ordered, so the client holds the last value it saw.
+- **60 Hz** authoritative tick. Every duration in the simulation is expressed in *ticks*, so changing `TickHz` changes only how finely time is sampled, never how long a fuse burns. Snapshots go out every tick during play; the lobby is silent (its state travels in roster frames) so idle rooms cost nothing.
+- Snapshots use **single-letter JSON keys**, and the crate layer is sent **only on the ticks where it changed** — WebSocket delivery is ordered, so the client holds the last value it saw. That thinning lives in `Room`, not `Match`: only the Room knows what each client has already received, which is what lets a mid-round joiner be handed the full layer.
 - A client that stalls has its snapshots **dropped, not queued**: each one is a complete picture, so the newest is always the one worth having.
-- The browser renders **one tick behind** and interpolates between the two most recent snapshots, which turns arrival jitter into smooth motion instead of sprites snapping between tiles. Snapshots live in a ref, never React state — at 30/s, `setState` would re-render the tree continuously.
-- A bomb press **latches** on the server. Direction is a level sampled at tick time, but a tap that starts and ends inside one 33 ms tick would otherwise be swallowed entirely.
+- Remote players are rendered **one tick behind** and interpolated between the two most recent snapshots, which turns arrival jitter into smooth motion instead of sprites snapping between tiles. Snapshots live in a ref, never React state — at 60/s, `setState` would re-render the tree continuously.
+
+#### Client-side prediction
+
+Waiting for the server to confirm your own movement costs half a tick, plus the round trip, plus the interpolation buffer. Measured end to end that was **~55 ms** before prediction — right at the point where a grid game starts to feel floaty, and far worse once players are on the open internet rather than a LAN.
+
+So the local player is **predicted**, and only the local player:
+
+1. The client runs its own fixed-step loop at the server's rate. Each tick it samples the held keys, tags the input with a **sequence number**, sends it, *and applies it locally straight away*.
+2. The server keeps a short per-player queue and consumes **exactly one input per tick** (holding the previous one when the queue runs dry, so a late packet costs no movement). It echoes the sequence it consumed as an **ack** in every snapshot.
+3. On each snapshot the client rewinds its own player to the authoritative position, drops the acked inputs, and **replays the rest**. Those inputs are not guesses — the server is about to apply them — so replay is the same arithmetic, run early.
+
+That 1:1 input-to-tick relationship is what makes replay exact. It is also why `movement.ts` is a careful port of `movePlayer` in `sim.go`: **both sides run the same rules, in the same order**, and a change to one without the other shows up immediately as the sprite being yanked backwards several times a second. JavaScript numbers are IEEE 754 doubles like Go's `float64`, so identical operations in identical order give identical results.
+
+Two details that prediction forces into the protocol: each player's **speed** (pickups change it, and the client cannot predict movement without it) and each bomb's **pass-through bitmask** (you may step off a bomb you just dropped, so without it prediction would fight the server for as long as you stood on one).
+
+Measured after the change, reading the drawn sprite off the canvas rather than trusting the code: **keypress to visible movement, median 11 ms** (one frame), and the predicted position **converges to the server's at rest**, which is the check that proves the two rule sets agree.
+
+A bomb press **latches** on both sides. The key is sampled once per tick, so a tap that begins and ends between two samples would otherwise be swallowed entirely.
 
 ### Two things that will bite you again
 

@@ -189,7 +189,7 @@ func (r *Room) Join(name, animal string) (*Conn, WelcomeMsg, error) {
 			r.host = slot
 		}
 		wm = WelcomeMsg{
-			T: MsgWelcome, You: slot, Code: r.code, Host: r.host, Hz: TickHz,
+			T: MsgWelcome, You: slot, Code: r.code, Host: r.host, Hz: TickHz, Fuse: fuseTicks,
 			Arena: r.match.Grid.ArenaDTO(), Roster: r.match.Roster(),
 		}
 		r.broadcast(r.rosterMsg())
@@ -237,12 +237,12 @@ func (r *Room) Leave(slot int) {
 	})
 }
 
-// Input records a player's intent for the next tick.
-func (r *Room) Input(slot int, in Input) {
+// Input queues a player's sequenced intent.
+func (r *Room) Input(slot int, seq uint32, in Input) {
 	// Fire-and-forget: a dropped input costs one tick of movement, where
 	// blocking the connection goroutine would cost much more.
 	select {
-	case r.acts <- func() { r.match.SetInput(slot, in) }:
+	case r.acts <- func() { r.match.QueueInput(slot, seq, in) }:
 	case <-r.quit:
 	default:
 	}

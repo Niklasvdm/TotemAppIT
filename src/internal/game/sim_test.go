@@ -23,12 +23,30 @@ func openMatch(t *testing.T, players int) *Match {
 	return m
 }
 
-// stepN advances n ticks with one player holding the same input throughout.
+// testSeq hands out input sequence numbers. Only the ack tests read them back.
+var testSeq uint32
+
+// pushInput queues one input the way a client would, with its own sequence.
+func pushInput(m *Match, slot int, in Input) uint32 {
+	testSeq++
+	m.QueueInput(slot, testSeq, in)
+	return testSeq
+}
+
+// stepN advances n ticks with one player holding the same input throughout,
+// queueing one input per tick exactly as a predicting client does.
 func stepN(m *Match, n, slot int, in Input) {
 	for i := 0; i < n; i++ {
-		m.SetInput(slot, in)
+		pushInput(m, slot, in)
 		m.Step()
 	}
+}
+
+// walkTicks is how many ticks a player needs to cover d tiles at base speed.
+// Tests say "walk a tile and a half", not "step 11 times", so they keep working
+// when the tick rate changes.
+func walkTicks(d float64) int {
+	return int(math.Ceil(d*TickHz/baseSpeed)) + 1
 }
 
 func flameSet(m *Match) map[[2]int]bool {
@@ -110,28 +128,69 @@ func TestBombIsEdgeTriggered(t *testing.T) {
 	}
 }
 
-func TestBombTapShorterThanATickStillCounts(t *testing.T) {
+func TestBombPressAndReleaseInTheSameFrameStillCounts(t *testing.T) {
 	m := openMatch(t, 1)
 
-	// Press and release between two ticks. Sampling the key level at tick time
-	// would see Bomb=false and lose the press entirely.
-	m.SetInput(0, Input{Bomb: true})
-	m.SetInput(0, Input{Bomb: false})
+	// Press and release both arrive before the next tick. Inputs are consumed
+	// one per tick, so the release cannot overwrite the press and lose it.
+	pushInput(m, 0, Input{Bomb: true})
+	pushInput(m, 0, Input{Bomb: false})
 	m.Step()
 
 	if len(m.Bombs) != 1 {
 		t.Fatalf("a quick tap dropped %d bombs, want 1", len(m.Bombs))
 	}
 
-	// The release already happened, so the next press must drop another.
+	// Next tick consumes the queued release, which re-arms the edge.
 	m.Players[0].Bombs = 2
-	stepN(m, 3, 0, Input{DX: 1})
-	m.SetInput(0, Input{DX: 1, Bomb: true})
-	m.SetInput(0, Input{DX: 1, Bomb: false})
 	m.Step()
+	stepN(m, walkTicks(1), 0, Input{DX: 1}) // clear of the first bomb's tile
 
+	pushInput(m, 0, Input{DX: 1, Bomb: true})
+	m.Step()
 	if len(m.Bombs) != 2 {
-		t.Fatalf("second tap left %d bombs, want 2", len(m.Bombs))
+		t.Fatalf("second press left %d bombs, want 2", len(m.Bombs))
+	}
+}
+
+func TestAckReportsTheLastConsumedInput(t *testing.T) {
+	m := openMatch(t, 1)
+
+	first := pushInput(m, 0, Input{DX: 1})
+	second := pushInput(m, 0, Input{DX: 1})
+
+	m.Step()
+	if got := m.Players[0].ack; got != first {
+		t.Fatalf("ack = %d after one tick, want %d — one input per tick", got, first)
+	}
+	m.Step()
+	if got := m.Players[0].ack; got != second {
+		t.Fatalf("ack = %d after two ticks, want %d", got, second)
+	}
+
+	// Queue run dry: the player holds their last input and the ack stands, so
+	// the client knows that input is still its own to replay.
+	m.Step()
+	if got := m.Players[0].ack; got != second {
+		t.Fatalf("ack advanced to %d with nothing queued, want %d", got, second)
+	}
+}
+
+func TestInputQueueIsBounded(t *testing.T) {
+	m := openMatch(t, 1)
+
+	// A client running far ahead must lose its stalest intent, not its freshest.
+	for i := 0; i < maxPending*3; i++ {
+		pushInput(m, 0, Input{DX: 1})
+	}
+	newest := pushInput(m, 0, Input{DX: -1})
+
+	if n := len(m.Players[0].pending); n > maxPending {
+		t.Fatalf("queued %d inputs, want at most %d", n, maxPending)
+	}
+	last := m.Players[0].pending[len(m.Players[0].pending)-1]
+	if last.seq != newest {
+		t.Fatalf("freshest input was dropped: tail seq = %d, want %d", last.seq, newest)
 	}
 }
 
@@ -140,13 +199,13 @@ func TestBombStockLimitsConcurrentBombs(t *testing.T) {
 	m.Players[0].Bombs = 2
 
 	stepN(m, 1, 0, Input{Bomb: true})
-	stepN(m, 4, 0, Input{DX: 1})             // step clear of the first bomb
+	stepN(m, walkTicks(1), 0, Input{DX: 1})  // step clear of the first bomb
 	stepN(m, 1, 0, Input{DX: 1, Bomb: true}) // and drop the second
 	if len(m.Bombs) != 2 {
 		t.Fatalf("got %d bombs, want 2", len(m.Bombs))
 	}
 
-	stepN(m, 4, 0, Input{DX: 1})
+	stepN(m, walkTicks(1), 0, Input{DX: 1})
 	stepN(m, 1, 0, Input{DX: 1, Bomb: true})
 	if len(m.Bombs) != 2 {
 		t.Fatalf("got %d bombs, want the stock of 2 to hold", len(m.Bombs))
@@ -290,13 +349,13 @@ func TestPlayerWalksOffOwnBombButNotBackOn(t *testing.T) {
 	}
 
 	// Walking off must work even though the bomb tile is otherwise solid.
-	stepN(m, 10, 0, Input{DX: 1})
+	stepN(m, walkTicks(1), 0, Input{DX: 1})
 	if p.X < 2.4 {
 		t.Fatalf("X = %v: player could not step off their own bomb", p.X)
 	}
 
 	// Now the bomb is solid behind them: the box's left edge stops at x = 2.
-	stepN(m, 20, 0, Input{DX: -1})
+	stepN(m, walkTicks(2), 0, Input{DX: -1})
 	wantX := 2 + playerRadius
 	if p.X < wantX-1e-3 {
 		t.Fatalf("X = %v, want >= ~%v — player walked back onto the bomb", p.X, wantX)

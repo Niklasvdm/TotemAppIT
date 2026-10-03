@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
-import type { Arena, Phase, RosterEntry, ServerMsg, Snapshot } from "../types";
+import type { Arena, Input, Phase, PlayerDTO, RosterEntry, ServerMsg, Snapshot } from "../types";
+import { makeBlocked, stepMovement, type Movable } from "./movement";
 
 export type ConnStatus = "connecting" | "open" | "closed";
 
+// maxUnacked bounds the replay buffer at roughly two seconds of input. If the
+// server has not acknowledged anything in that long, the connection is gone and
+// replaying further is pointless.
+const maxUnacked = 120;
+
 // World holds the two most recent snapshots so the renderer can draw between
-// them. Snapshots deliberately live in a ref rather than React state: at 30 a
-// second, routing them through setState would re-render the tree continuously.
+// them. Snapshots deliberately live in a ref rather than React state: at the
+// tick rate, routing them through setState would re-render the tree endlessly.
 export interface World {
   prev: Snapshot | null;
   next: Snapshot | null;
@@ -19,20 +25,27 @@ export function newWorld(): World {
   return { prev: null, next: null, prevAt: 0, nextAt: 0, crates: "" };
 }
 
+// Predicted is where this client believes its own player is, which runs ahead
+// of the last server snapshot by however much input is still in flight. Drawing
+// the local player from here is what makes the controls feel immediate.
+export interface Predicted {
+  active: boolean;
+  x: number;
+  y: number;
+  speed: number;
+}
+
+export interface Stats {
+  bombs: number;
+  power: number;
+}
+
 export function socketURL(code: string, name: string, animal: string): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const q = new URLSearchParams({ code, name, animal });
   // Same origin, so the server's Origin check passes and dev goes through the
   // Vite proxy without extra configuration.
   return `${proto}//${location.host}/api/v1/games/ws?${q}`;
-}
-
-// Stats is the local player's pickup state. Snapshots carry it every tick, but
-// it only ever changes when something is collected, so it is cheap to keep in
-// React state for the HUD to render.
-export interface Stats {
-  bombs: number;
-  power: number;
 }
 
 export interface Connection {
@@ -45,9 +58,11 @@ export interface Connection {
   phase: Phase;
   winner: number;
   tickMs: number;
+  fuseTicks: number;
   stats: Stats;
   world: MutableRefObject<World>;
-  sendInput: (dx: number, dy: number, bomb: boolean) => void;
+  self: MutableRefObject<Predicted>;
+  tickInput: (input: Input) => void;
   sendStart: () => void;
 }
 
@@ -61,14 +76,50 @@ export function useGame(code: string, name: string, animal: string): Connection 
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("lobby");
   const [winner, setWinner] = useState(-1);
-  const [tickMs, setTickMs] = useState(1000 / 30);
+  const [tickMs, setTickMs] = useState(1000 / 60);
+  const [fuseTicks, setFuseTicks] = useState(120);
   const [stats, setStats] = useState<Stats>({ bombs: 0, power: 0 });
 
   const world = useRef<World>(newWorld());
+  const self = useRef<Predicted>({ active: false, x: 0, y: 0, speed: 0 });
+  const unacked = useRef<{ seq: number; input: Input }[]>([]);
+  const seq = useRef(0);
   const sock = useRef<WebSocket | null>(null);
-  // The message handler needs our own slot, which only arrives with the
-  // welcome frame — a ref keeps it available without re-subscribing.
+
+  // The message handler and the input tick both need these, and neither should
+  // be torn down and rebuilt when they change — hence refs rather than state.
   const youRef = useRef(-1);
+  const hzRef = useRef(60);
+  const arenaRef = useRef<Arena | null>(null);
+
+  // reconcile folds in an authoritative position: rewind to what the server
+  // says, then re-apply the inputs it has not seen yet. Those inputs WILL be
+  // applied, so replaying them is not guesswork — it is the same arithmetic the
+  // server is about to do, run early.
+  const reconcile = useCallback((mine: PlayerDTO, snap: Snapshot) => {
+    const pred = self.current;
+    pred.speed = mine.v;
+    unacked.current = unacked.current.filter((p) => p.seq > mine.q);
+
+    const playable = snap.ph === "play" && mine.a;
+    if (!playable || !pred.active) {
+      // Nothing worth predicting from — a new round, a death, or the first
+      // snapshot. Adopt the server's position outright.
+      pred.x = mine.x;
+      pred.y = mine.y;
+      pred.active = playable;
+      unacked.current = [];
+      return;
+    }
+
+    const board = arenaRef.current;
+    if (!board) return;
+    const blocked = makeBlocked(board, world.current.crates, snap.b ?? [], youRef.current);
+    const replay: Movable = { x: mine.x, y: mine.y, speed: mine.v };
+    for (const p of unacked.current) stepMovement(replay, p.input, hzRef.current, blocked);
+    pred.x = replay.x;
+    pred.y = replay.y;
+  }, []);
 
   useEffect(() => {
     // live gates every callback on this socket still being the current one.
@@ -81,6 +132,9 @@ export function useGame(code: string, name: string, animal: string): Connection 
     const ws = new WebSocket(socketURL(code, name, animal));
     sock.current = ws;
     world.current = newWorld();
+    self.current = { active: false, x: 0, y: 0, speed: 0 };
+    unacked.current = [];
+    seq.current = 0;
     setStatus("connecting");
     setError(null);
 
@@ -100,11 +154,14 @@ export function useGame(code: string, name: string, animal: string): Connection 
       switch (msg.t) {
         case "welcome":
           youRef.current = msg.you;
+          hzRef.current = msg.hz;
+          arenaRef.current = msg.arena;
           setYou(msg.you);
           setHost(msg.host);
           setArena(msg.arena);
           setRoster(msg.roster);
           setTickMs(1000 / msg.hz);
+          setFuseTicks(msg.fuse);
           break;
 
         case "roster":
@@ -119,6 +176,7 @@ export function useGame(code: string, name: string, animal: string): Connection 
           w.next = msg;
           w.nextAt = performance.now();
           if (msg.c !== undefined) w.crates = msg.c;
+
           // Phase and winner change rarely; the identity returns let React skip
           // the re-render on every other tick.
           setPhase((p) => (p === msg.ph ? p : msg.ph));
@@ -126,7 +184,10 @@ export function useGame(code: string, name: string, animal: string): Connection 
 
           const mine = msg.p?.find((p) => p.s === youRef.current);
           if (mine) {
-            setStats((s) => (s.bombs === mine.b && s.power === mine.p ? s : { bombs: mine.b, power: mine.p }));
+            reconcile(mine, msg);
+            setStats((s) =>
+              s.bombs === mine.b && s.power === mine.p ? s : { bombs: mine.b, power: mine.p },
+            );
           }
           break;
         }
@@ -142,32 +203,47 @@ export function useGame(code: string, name: string, animal: string): Connection 
       ws.close();
       sock.current = null;
     };
-  }, [code, name, animal]);
+  }, [code, name, animal, reconcile]);
 
-  const sendInput = useCallback((dx: number, dy: number, bomb: boolean) => {
+  // tickInput is called once per client tick with whatever is held down. It
+  // sends the input, keeps a copy for replay, and applies it locally straight
+  // away — that local application is the whole point: the player sees their
+  // own move on the next frame instead of a round trip later.
+  const tickInput = useCallback((input: Input) => {
+    seq.current += 1;
+    const n = seq.current;
+
     const ws = sock.current;
     if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ t: "input", dx, dy, bomb }));
+      ws.send(JSON.stringify({ t: "input", seq: n, dx: input.dx, dy: input.dy, bomb: input.bomb }));
     }
+
+    const pred = self.current;
+    const board = arenaRef.current;
+    if (!pred.active || !board) return;
+
+    unacked.current.push({ seq: n, input });
+    if (unacked.current.length > maxUnacked) unacked.current.shift();
+
+    const blocked = makeBlocked(board, world.current.crates, world.current.next?.b ?? [], youRef.current);
+    stepMovement(pred, input, hzRef.current, blocked);
   }, []);
 
   const sendStart = useCallback(() => {
     const ws = sock.current;
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ t: "start" }));
-    }
+    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "start" }));
   }, []);
 
   return {
-    status, error, you, host, arena, roster, phase, winner, tickMs, stats,
-    world, sendInput, sendStart,
+    status, error, you, host, arena, roster, phase, winner, tickMs, fuseTicks, stats,
+    world, self, tickInput, sendStart,
   };
 }
 
-// sample reconstructs the state to draw: player positions are interpolated one
-// tick behind the server, which converts arrival jitter into smooth motion
-// instead of sprites snapping between tiles. Discrete things (bombs, flames,
-// pickups) are taken verbatim from the newer snapshot.
+// sample reconstructs the state to draw. Other players are interpolated one
+// tick behind the server, which converts arrival jitter into smooth motion;
+// the local player is NOT drawn from here (see Predicted). Discrete things —
+// bombs, flames, pickups — are taken verbatim from the newer snapshot.
 export function sample(w: World, now: number, tickMs: number): Snapshot | null {
   const { prev, next } = w;
   if (!next) return null;

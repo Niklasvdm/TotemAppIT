@@ -151,7 +151,7 @@ func gameReadPump(ctx context.Context, conn *websocket.Conn, room *game.Room, sl
 		}
 		switch msg.T {
 		case game.MsgInput:
-			room.Input(slot, game.Input{DX: msg.DX, DY: msg.DY, Bomb: msg.Bomb})
+			room.Input(slot, msg.Seq, game.Input{DX: msg.DX, DY: msg.DY, Bomb: msg.Bomb})
 		case game.MsgStart, game.MsgRestart:
 			room.Begin(slot) // the room enforces that only the host may start
 		}

@@ -9,6 +9,11 @@ import (
 
 const frameWait = 2 * time.Second
 
+// pushSeq mimics a client's monotonically rising input counter.
+var roomSeq uint32
+
+func pushSeq() uint32 { roomSeq++; return roomSeq }
+
 func testRegistry(t *testing.T) *Registry {
 	t.Helper()
 	reg := NewRegistry()
@@ -202,7 +207,7 @@ func TestRoomTicksAndAppliesInput(t *testing.T) {
 	// Hold right for a while; the room's own tick loop should move the player.
 	deadline := time.After(frameWait)
 	for {
-		r.Input(c0.Slot(), Input{DX: 1})
+		r.Input(c0.Slot(), pushSeq(), Input{DX: 1})
 		select {
 		case <-deadline:
 			t.Fatal("player never moved under held input")

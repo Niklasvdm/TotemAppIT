@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import type { Input } from "../types";
 import { SLOT_COLORS } from "../types";
 import { sample, useGame } from "./net";
 import { draw, readPalette } from "./render";
@@ -20,6 +21,10 @@ const KEYS: Record<string, string> = {
   KeyK: "bomb",
 };
 
+// maxCatchUp caps how much simulated time one frame may make up. Without it, a
+// backgrounded tab returns and fires hundreds of input ticks at once.
+const maxCatchUp = 250;
+
 export default function GameRoom({
   code,
   name,
@@ -35,7 +40,7 @@ export default function GameRoom({
 }) {
   const { t } = useTranslation();
   const g = useGame(code, name, animal);
-  const { arena, roster, you, phase, winner, world, tickMs, sendInput, sendStart } = g;
+  const { arena, roster, you, phase, winner, world, self, tickMs, fuseTicks, tickInput, sendStart } = g;
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,56 +48,39 @@ export default function GameRoom({
   const tileRef = useRef(26);
 
   const held = useRef<Set<string>>(new Set());
-  const sent = useRef({ dx: 0, dy: 0, bomb: false });
+  // bombTap latches a press so one shorter than a tick is not missed between
+  // two samples — the mirror of the server's own latch.
+  const bombTap = useRef(false);
 
-  // The server holds the last input until it changes, so only transitions need
-  // to go on the wire.
-  const flush = useCallback(() => {
-    const h = held.current;
-    const dx = (h.has("right") ? 1 : 0) - (h.has("left") ? 1 : 0);
-    const dy = (h.has("down") ? 1 : 0) - (h.has("up") ? 1 : 0);
-    const bomb = h.has("bomb");
-    const last = sent.current;
-    if (last.dx === dx && last.dy === dy && last.bomb === bomb) return;
-    sent.current = { dx, dy, bomb };
-    sendInput(dx, dy, bomb);
-  }, [sendInput]);
+  const press = (token: string) => {
+    held.current.add(token);
+    if (token === "bomb") bombTap.current = true;
+  };
+  const release = (token: string) => held.current.delete(token);
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       const token = KEYS[e.code];
       if (!token || e.repeat) return;
       e.preventDefault(); // stop space and the arrows from scrolling the page
-      held.current.add(token);
-      flush();
+      press(token);
     };
     const onUp = (e: KeyboardEvent) => {
       const token = KEYS[e.code];
-      if (!token) return;
-      held.current.delete(token);
-      flush();
+      if (token) release(token);
     };
     // Losing focus mid-press would otherwise leave the player walking forever.
-    const release = () => {
-      held.current.clear();
-      flush();
-    };
+    const clear = () => held.current.clear();
 
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
-    window.addEventListener("blur", release);
+    window.addEventListener("blur", clear);
     return () => {
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
-      window.removeEventListener("blur", release);
+      window.removeEventListener("blur", clear);
     };
-  }, [flush]);
-
-  const touch = (token: string, down: boolean) => {
-    if (down) held.current.add(token);
-    else held.current.delete(token);
-    flush();
-  };
+  }, []);
 
   // Size the board to the container, keeping tiles square and crisp on HiDPI.
   useEffect(() => {
@@ -136,31 +124,68 @@ export default function GameRoom({
 
   useEffect(() => {
     if (!arena) return;
-    let raf = requestAnimationFrame(function loop() {
-      raf = requestAnimationFrame(loop);
+    let raf = 0;
+    let last = performance.now();
+    let carry = 0;
+
+    const sampleInput = (): Input => {
+      const h = held.current;
+      const bomb = h.has("bomb") || bombTap.current;
+      bombTap.current = false;
+      return {
+        dx: (h.has("right") ? 1 : 0) - (h.has("left") ? 1 : 0),
+        dy: (h.has("down") ? 1 : 0) - (h.has("up") ? 1 : 0),
+        bomb,
+      };
+    };
+
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame);
+
+      // Input runs on a fixed step at the server's rate, not at whatever the
+      // display refreshes at — prediction only matches if each local tick
+      // corresponds to exactly one server tick.
+      carry = Math.min(carry + (now - last), maxCatchUp);
+      last = now;
+      while (carry >= tickMs) {
+        carry -= tickMs;
+        tickInput(sampleInput());
+      }
+
       const ctx = canvasRef.current?.getContext("2d");
       if (!ctx) return;
-      const now = performance.now();
       const snap = sample(world.current, now, tickMs);
       if (!snap) return;
+
+      // Everyone else is interpolated a tick behind; the local player is drawn
+      // from prediction, which is what removes the felt input delay.
+      const me = self.current;
+      const shown =
+        me.active && snap.p
+          ? { ...snap, p: snap.p.map((p) => (p.s === you ? { ...p, x: me.x, y: me.y } : p)) }
+          : snap;
+
       draw({
         ctx,
         arena,
         crates: world.current.crates,
-        snap,
+        snap: shown,
         roster,
         emoji,
         you,
         pal: palRef.current,
         tile: tileRef.current,
         now,
+        fuseTicks,
       });
-    });
+    };
+
+    raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [arena, roster, emoji, you, tickMs, world]);
+  }, [arena, roster, emoji, you, tickMs, fuseTicks, world, self, tickInput]);
 
   const isHost = you >= 0 && you === g.host;
-  const me = roster.find((r) => r.s === you);
+  const mine = roster.find((r) => r.s === you);
   const winnerEntry = roster.find((r) => r.s === winner);
 
   if (g.error) {
@@ -255,9 +280,9 @@ export default function GameRoom({
 
       <div className="game-footer">
         <div className="game-stats">
-          {me && (
+          {mine && (
             <>
-              <span>{emoji[me.m] ?? "🐾"}</span>
+              <span>{emoji[mine.m] ?? "🐾"}</span>
               <span>💣 {g.stats.bombs}</span>
               <span>🔥 {g.stats.power}</span>
             </>
@@ -279,11 +304,11 @@ export default function GameRoom({
               className={`game-dkey ${cls}`}
               onPointerDown={(e) => {
                 e.preventDefault();
-                touch(token, true);
+                press(token);
               }}
-              onPointerUp={() => touch(token, false)}
-              onPointerLeave={() => touch(token, false)}
-              onPointerCancel={() => touch(token, false)}
+              onPointerUp={() => release(token)}
+              onPointerLeave={() => release(token)}
+              onPointerCancel={() => release(token)}
               aria-label={token}
             >
               {glyph}
@@ -294,10 +319,10 @@ export default function GameRoom({
           className="game-bombkey"
           onPointerDown={(e) => {
             e.preventDefault();
-            touch("bomb", true);
+            press("bomb");
           }}
-          onPointerUp={() => touch("bomb", false)}
-          onPointerCancel={() => touch("bomb", false)}
+          onPointerUp={() => release("bomb")}
+          onPointerCancel={() => release("bomb")}
           aria-label="bomb"
         >
           💣

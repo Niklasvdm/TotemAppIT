@@ -59,6 +59,7 @@ export interface DrawArgs {
   pal: Palette;
   tile: number;
   now: number;
+  fuseTicks: number; // full fuse length, so the countdown is tick-rate agnostic
 }
 
 export function draw(a: DrawArgs) {
@@ -141,12 +142,12 @@ function drawPower({ ctx, tile }: DrawArgs, x: number, y: number, icon: string) 
   glyph(ctx, icon, cx, cy, tile * 0.42);
 }
 
-function drawBomb({ ctx, tile, now }: DrawArgs, x: number, y: number, fuse: number) {
+function drawBomb({ ctx, tile, now, fuseTicks }: DrawArgs, x: number, y: number, fuse: number) {
   const cx = x * tile + tile / 2;
   const cy = y * tile + tile / 2;
 
   // The closer the fuse is to zero, the harder the bomb pulses.
-  const urgency = Math.max(0, 1 - fuse / 60);
+  const urgency = Math.max(0, 1 - fuse / fuseTicks);
   const pulse = 1 + 0.1 * urgency * Math.sin(now / (90 - 60 * urgency));
   const r = tile * 0.3 * pulse;
 

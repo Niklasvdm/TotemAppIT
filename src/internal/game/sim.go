@@ -24,6 +24,7 @@ func (m *Match) Step() {
 	case PhasePlay:
 		m.expireFlames()
 		for _, p := range m.ordered() {
+			p.takeInput()
 			m.movePlayer(p)
 			m.tryBomb(p)
 		}

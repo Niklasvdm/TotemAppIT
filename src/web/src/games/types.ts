@@ -24,12 +24,22 @@ export interface PlayerDTO {
   a: boolean; // alive
   b: number; // bomb stock
   p: number; // blast radius
+  q: number; // last input sequence folded into this position
+  v: number; // movement speed, tiles per second
+}
+
+// Input is one client tick's intent. Mirrors game.Input in Go.
+export interface Input {
+  dx: number;
+  dy: number;
+  bomb: boolean;
 }
 
 export interface BombDTO {
   x: number;
   y: number;
   f: number; // fuse ticks remaining
+  s: number; // bitmask of slots still allowed to step off this bomb
 }
 
 export interface FlameDTO {
@@ -61,6 +71,7 @@ export interface WelcomeMsg {
   code: string;
   host: number;
   hz: number;
+  fuse: number; // bomb fuse length in ticks
   arena: Arena;
   roster: RosterEntry[];
 }

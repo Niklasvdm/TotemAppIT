@@ -8,7 +8,17 @@ import (
 // Simulation constants. Durations are expressed in ticks so the simulation is
 // fully integer-driven and reproducible; TickHz is the only bridge to wall time.
 const (
-	TickHz = 30
+	// TickHz is the authoritative simulation rate. Every duration below is
+	// expressed in ticks, so changing this rate does not change how long
+	// anything takes — it only changes how finely it is sampled. 60 halves both
+	// the wait for the next tick and the client's interpolation buffer, which is
+	// most of the input latency a player actually feels.
+	TickHz = 60
+
+	// maxPending bounds a player's unconsumed input queue. One input is consumed
+	// per tick, so this is how far ahead of the server a client may run before
+	// its oldest intent is dropped.
+	maxPending = 8
 
 	fuseTicks  = TickHz * 2        // bomb detonates 2s after it is dropped
 	flameTicks = TickHz * 45 / 100 // flames linger ~0.45s
@@ -86,6 +96,22 @@ type Player struct {
 	// key is otherwise sampled once per tick, so a tap shorter than 1/TickHz
 	// would land and clear before the tick ever saw it.
 	bombLatch bool
+
+	// pending holds sequenced inputs the client has sent but the tick loop has
+	// not consumed yet. Exactly one is taken per tick: that 1:1 relationship is
+	// what lets the client replay its unacknowledged inputs after a correction
+	// and arrive at the same position the server will.
+	pending []seqInput
+
+	// ack is the sequence number of the last input actually consumed. It rides
+	// in every snapshot so a client knows which of its inputs to replay.
+	ack uint32
+}
+
+// seqInput is one client tick's intent, tagged with the client's own counter.
+type seqInput struct {
+	seq uint32
+	in  Input
 }
 
 // Bomb is a placed bomb occupying exactly one tile.
@@ -167,17 +193,45 @@ func (m *Match) RemovePlayer(slot int) {
 	delete(m.Players, slot)
 }
 
-// SetInput records a client's intent for the next tick. Direction is a level
-// (whatever is held when the tick runs), but a bomb press latches, so a quick
-// tap between two ticks still drops a bomb.
-func (m *Match) SetInput(slot int, in Input) {
+// QueueInput appends one of a client's sequenced inputs. It is not applied
+// here: the tick loop consumes exactly one per tick, which keeps the server in
+// step with the client's own tick count and makes replay on the client exact.
+// A client that runs ahead loses its oldest intent rather than the freshest.
+func (m *Match) QueueInput(slot int, seq uint32, in Input) {
 	p, ok := m.Players[slot]
 	if !ok {
 		return
 	}
-	p.in = in.clamp()
+	if len(p.pending) >= maxPending {
+		p.pending = p.pending[1:]
+	}
+	p.pending = append(p.pending, seqInput{seq: seq, in: in.clamp()})
+}
+
+// takeInput consumes one queued input. When the queue has run dry — a late or
+// lost packet — the previous input is held rather than cleared: a player
+// mid-stride should keep moving through a dropped frame, not stutter. The ack
+// then stays put, so the client replays that input itself and the two converge.
+func (p *Player) takeInput() {
+	if len(p.pending) == 0 {
+		return
+	}
+	next := p.pending[0]
+	p.pending = p.pending[1:]
+	p.in = next.in
+	p.ack = next.seq
 	if p.in.Bomb {
 		p.bombLatch = true
+	}
+}
+
+// dropPending discards queued inputs while acknowledging them, so a client
+// whose player was just teleported (a new round) does not replay intent aimed
+// at the position they held before.
+func (p *Player) dropPending() {
+	if n := len(p.pending); n > 0 {
+		p.ack = p.pending[n-1].seq
+		p.pending = nil
 	}
 }
 
@@ -191,6 +245,7 @@ func (m *Match) resetPlayer(p *Player) {
 	p.in = Input{}
 	p.bombHeld = false
 	p.bombLatch = false
+	p.dropPending()
 }
 
 // Start begins a round: a fresh map, everyone back to their corner with base
@@ -236,6 +291,17 @@ type PlayerDTO struct {
 	A bool    `json:"a"`
 	B int     `json:"b"`
 	P int     `json:"p"`
+
+	// Q is the last input sequence folded into this position. Only a player's
+	// own value is of use to them, but snapshots are marshalled once and sent
+	// to everyone, so it is cheaper to carry four of these than to build a
+	// per-client frame.
+	Q uint32 `json:"q"`
+
+	// V is movement speed in tiles per second. The client predicts its own
+	// movement, so it needs the same speed the server is using — pickups
+	// change it mid-round.
+	V float64 `json:"v"`
 }
 
 // BombDTO carries the fuse so the client can pulse the sprite in sync.
@@ -243,6 +309,11 @@ type BombDTO struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 	F int `json:"f"`
+
+	// S is a bitmask of the slots still allowed to step off this bomb. The
+	// client predicts its own collisions, so without this its prediction would
+	// fight the server for as long as it stood on a bomb it had just dropped.
+	S int `json:"s"`
 }
 
 type FlameDTO struct {
@@ -272,10 +343,17 @@ func (m *Match) Snapshot() Snapshot {
 		if !ok {
 			continue
 		}
-		s.P = append(s.P, PlayerDTO{S: p.Slot, X: r2(p.X), Y: r2(p.Y), A: p.Alive, B: p.Bombs, P: p.Power})
+		s.P = append(s.P, PlayerDTO{
+			S: p.Slot, X: r2(p.X), Y: r2(p.Y), A: p.Alive,
+			B: p.Bombs, P: p.Power, Q: p.ack, V: r2(p.Speed),
+		})
 	}
 	for _, b := range m.Bombs {
-		s.B = append(s.B, BombDTO{X: b.X, Y: b.Y, F: b.Fuse})
+		mask := 0
+		for slot := range b.standing {
+			mask |= 1 << slot
+		}
+		s.B = append(s.B, BombDTO{X: b.X, Y: b.Y, F: b.Fuse, S: mask})
 	}
 	for _, f := range m.Flames {
 		s.F = append(s.F, FlameDTO{X: f.X, Y: f.Y})
