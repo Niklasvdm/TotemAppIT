@@ -63,6 +63,24 @@ func recvTyped(t *testing.T, c *Conn, want string) map[string]any {
 	}
 }
 
+// recvPlaying drains frames until a snapshot from a running round arrives.
+// Joining now delivers a lobby snapshot first, which these tests must skip past.
+func recvPlaying(t *testing.T, c *Conn) map[string]any {
+	t.Helper()
+	deadline := time.After(frameWait)
+	for {
+		frame := recvTyped(t, c, MsgState)
+		if frame["ph"] == string(PhasePlay) {
+			return frame
+		}
+		select {
+		case <-deadline:
+			t.Fatal("no snapshot from a running round arrived")
+		default:
+		}
+	}
+}
+
 func TestRoomCodesAreWellFormedAndUnique(t *testing.T) {
 	reg := testRegistry(t)
 
@@ -240,10 +258,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 	}
 
 	r.Begin(c0.Slot())
-	state := recvTyped(t, c0, MsgState)
-	if state["ph"] != string(PhasePlay) {
-		t.Fatalf("phase = %v after the host started, want %q", state["ph"], PhasePlay)
-	}
+	state := recvPlaying(t, c0)
 	if state["c"] == nil {
 		t.Fatal("first snapshot of a round omitted the crate layer")
 	}
@@ -299,7 +314,7 @@ func TestTickSnapshotsOmitUnchangedCrateLayer(t *testing.T) {
 	c0, _ := mustJoin(t, r, "aap")
 	r.Begin(c0.Slot())
 
-	if first := recvTyped(t, c0, MsgState); first["c"] == nil {
+	if first := recvPlaying(t, c0); first["c"] == nil {
 		t.Fatal("first snapshot of a round omitted the crate layer")
 	}
 	for i := 0; i < 3; i++ {
@@ -309,17 +324,36 @@ func TestTickSnapshotsOmitUnchangedCrateLayer(t *testing.T) {
 	}
 }
 
-func TestLobbyDoesNotStreamSnapshots(t *testing.T) {
+func TestLobbyTicksOverSlowlyRatherThanStreaming(t *testing.T) {
+	r := mustCreate(t, testRegistry(t))
+	c0, _ := mustJoin(t, r, "aap")
+	recvTyped(t, c0, MsgRoster)
+	recvTyped(t, c0, MsgState) // the join frame
+
+	// The lobby keeps a slow pulse so a client can tell a quiet connection from
+	// a dead one, but it must not push a frame every tick at an idle room.
+	time.Sleep(1200 * time.Millisecond)
+	n := len(c0.Out())
+	if n == 0 {
+		t.Fatal("lobby went completely silent; a dead link would be undetectable")
+	}
+	if n > 4 {
+		t.Fatalf("lobby emitted %d frames in 1.2s, want a slow pulse not a stream", n)
+	}
+}
+
+func TestLobbyJoinCarriesTheBoard(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
 
-	// Drain the join roster frame, then confirm the lobby stays quiet rather
-	// than pushing 30 snapshots a second at an idle room.
-	recvTyped(t, c0, MsgRoster)
-	select {
-	case b := <-c0.Out():
-		t.Fatalf("lobby emitted an unexpected frame: %s", b)
-	case <-time.After(300 * time.Millisecond):
+	// Without this frame the client has no crate layer and draws an empty box
+	// behind the "waiting for players" overlay.
+	frame := recvTyped(t, c0, MsgState)
+	if frame["c"] == nil {
+		t.Fatal("lobby snapshot carried no crate layer")
+	}
+	if players, _ := frame["p"].([]any); len(players) != 1 {
+		t.Fatalf("lobby snapshot listed %d players, want 1", len(players))
 	}
 }
 

@@ -24,6 +24,11 @@ const (
 	// marches them into blasts they never chose to walk into.
 	holdTicks = 4
 
+	// lobbyKeepaliveTicks is how often an idle lobby emits a snapshot: often
+	// enough that a client can tell a quiet connection from a dead one, rare
+	// enough to cost nothing.
+	lobbyKeepaliveTicks = TickHz // once a second
+
 	// maxPending bounds a player's unconsumed input queue. One input is consumed
 	// per tick, so this is how far ahead of the server a client may run before
 	// its oldest intent is dropped.

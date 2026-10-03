@@ -263,12 +263,14 @@ export default function GameRoom({
           {roster.map((r) => (
             <div
               key={r.s}
-              className={`game-score ${r.s === you ? "mine" : ""}`}
+              className={`game-score ${r.s === you ? "mine" : ""} ${r.gone ? "gone" : ""}`}
+              title={r.gone ? t("gameSeatWaiting") : undefined}
               style={{ borderColor: SLOT_COLORS[r.s % SLOT_COLORS.length] }}
             >
               <span className="game-score-animal">{emoji[r.m] ?? "🐾"}</span>
               <span className="game-score-name">{r.n}</span>
               <span className="game-score-wins">{r.w}</span>
+              {r.gone && <span className="game-score-gone">⏳</span>}
             </div>
           ))}
         </div>
@@ -277,17 +279,18 @@ export default function GameRoom({
         </button>
       </div>
 
+      {showStats && (
+        <NetHud
+          net={net}
+          pace={pace}
+          hz={Math.round(1000 / tickMs)}
+          predicting={self.current.active}
+          serverBuild={g.serverBuild}
+        />
+      )}
+
       <div className="game-stage" ref={wrapRef}>
         <canvas ref={canvasRef} className="game-canvas" />
-        {showStats && (
-          <NetHud
-            net={net}
-            pace={pace}
-            hz={Math.round(1000 / tickMs)}
-            predicting={self.current.active}
-            serverBuild={g.serverBuild}
-          />
-        )}
 
         {g.status === "reconnecting" && (
           <div className="game-overlay">

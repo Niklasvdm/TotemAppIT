@@ -47,6 +47,10 @@ type RosterEntry struct {
 	N string `json:"n"`
 	M string `json:"m"`
 	W int    `json:"w"`
+	// Gone marks a player whose socket dropped and whose seat is being held
+	// for them, so the list reads as "waiting for them" rather than as a
+	// duplicate player.
+	Gone bool `json:"gone,omitempty"`
 }
 
 // WelcomeMsg is the first frame a client receives: who it is, the map, and the

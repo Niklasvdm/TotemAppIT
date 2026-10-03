@@ -127,9 +127,16 @@ func (r *Room) do(fn func()) bool {
 }
 
 func (r *Room) step() {
-	// The lobby has nothing in motion; its state travels in roster frames, so
-	// idle rooms stay silent instead of pushing 30 snapshots a second.
+	// The lobby has nothing in motion, so it ticks over at a crawl rather than
+	// pushing a snapshot every frame at a room where nobody is moving. It is not
+	// silent, though: a connection that dies without closing (a VPN dropping, a
+	// NAT forgetting its mapping) fires no event at all, and the only evidence
+	// left is an absence of traffic — so clients need something to miss.
 	if r.match.Phase == PhaseLobby {
+		if r.match.Tick++; r.match.Tick%lobbyKeepaliveTicks != 0 {
+			return
+		}
+		r.broadcastSnapshot()
 		return
 	}
 	was := r.match.Phase
@@ -227,7 +234,10 @@ func (r *Room) reapHeld(now time.Time) {
 		r.match.RemovePlayer(slot)
 		r.reassignHost()
 		r.broadcast(r.rosterMsg())
-		if r.match.Phase == PhasePlay {
+		if len(r.conns) == 0 && len(r.held) == 0 {
+			// The last hope of a reconnect has expired: now the round is over.
+			r.match.Phase = PhaseLobby
+		} else if r.match.Phase == PhasePlay {
 			r.match.checkRoundEnd()
 		}
 	}
@@ -246,8 +256,20 @@ func (r *Room) reassignHost() {
 	}
 }
 
+// roster lists the seated players, marking the ones whose socket has dropped
+// and whose seat is merely being held. Without that flag a held seat looks like
+// a second, identical player in the list.
+func (r *Room) roster() []RosterEntry {
+	entries := r.match.Roster()
+	for i := range entries {
+		_, live := r.conns[entries[i].S]
+		entries[i].Gone = !live
+	}
+	return entries
+}
+
 func (r *Room) rosterMsg() RosterMsg {
-	return RosterMsg{T: MsgRoster, Host: r.host, Roster: r.match.Roster()}
+	return RosterMsg{T: MsgRoster, Host: r.host, Roster: r.roster()}
 }
 
 // Join seats a player and returns their connection plus the welcome frame.
@@ -277,14 +299,14 @@ func (r *Room) Join(name, animal, resume string) (*Conn, WelcomeMsg, error) {
 		wm = WelcomeMsg{
 			T: MsgWelcome, You: slot, Code: r.code, Host: r.host, Hz: TickHz, Fuse: fuseTicks,
 			Build: buildinfo.String(), Token: conn.token,
-			Arena: r.match.Grid.ArenaDTO(), Roster: r.match.Roster(),
+			Arena: r.match.Grid.ArenaDTO(), Roster: r.roster(),
 		}
 		r.broadcast(r.rosterMsg())
-		if r.match.Phase != PhaseLobby {
-			// Mid-round joiner has seen nothing, so they get the complete
-			// state — crate layer included — addressed only to them.
-			r.sendTo(conn, r.match.Snapshot())
-		}
+		// One snapshot, addressed to this client alone: it has seen nothing, so
+		// it needs the complete state including the crate layer. This happens in
+		// the lobby too — the lobby streams nothing, and without a first frame
+		// the client has no board to draw and shows an empty box while waiting.
+		r.sendTo(conn, r.match.Snapshot())
 	}) {
 		return nil, WelcomeMsg{}, ErrRoomClosed
 	}
@@ -325,9 +347,13 @@ func (r *Room) Leave(slot int) {
 		r.reassignHost()
 		if len(r.conns) == 0 {
 			r.emptyAt = time.Now()
-			// Nobody left to play it out; park the match back in the lobby so a
-			// rejoin doesn't resume a round with no players.
-			r.match.Phase = PhaseLobby
+			// Park the match only once nobody is coming back. While a seat is
+			// still being held, the round belongs to whoever dropped out of it:
+			// resetting to the lobby would hand them back a dead game, which is
+			// a strange reward for reconnecting inside the grace period.
+			if len(r.held) == 0 {
+				r.match.Phase = PhaseLobby
+			}
 			return
 		}
 		r.broadcast(r.rosterMsg())

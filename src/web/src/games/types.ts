@@ -15,6 +15,7 @@ export interface RosterEntry {
   n: string; // name
   m: string; // animal slug
   w: number; // rounds won
+  gone?: boolean; // socket dropped; their seat is being held for them
 }
 
 export interface PlayerDTO {

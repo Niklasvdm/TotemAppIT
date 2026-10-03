@@ -17,7 +17,18 @@ export type ConnStatus = "connecting" | "open" | "reconnecting" | "closed";
 // Reconnect backoff. A dropped socket is usually a blip — a VPN re-keying, a
 // laptop waking — and the server holds the seat for a while, so the right
 // response is to walk straight back in rather than end the session.
-const retryDelays = [250, 500, 1000, 2000, 4000, 8000];
+// The tail is flat on purpose: the server holds a dropped player's seat for 30
+// seconds, so the client should still be knocking when that window closes.
+// Giving up sooner strands someone whose seat was waiting for them.
+const retryDelays = [250, 500, 1000, 2000, 4000, 8000, 8000, 8000];
+
+// staleAfter is how long a silent socket is given before it is presumed dead.
+// A connection that dies without closing — a VPN dropping, a NAT forgetting the
+// mapping, a laptop sleeping — fires no event at all, so the only evidence is
+// the absence of traffic. The server sends at least once a second even in an
+// idle lobby, so several seconds of nothing means the link is gone.
+const staleAfter = 2500;
+const watchdogEvery = 1000;
 
 // maxUnacked bounds the replay buffer at roughly two seconds of input. If the
 // server has not acknowledged anything in that long, the connection is gone and
@@ -278,6 +289,21 @@ export function useGame(
     let live = true;
     let attempt = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // A refusal from the server (room full, unknown code) is final; retrying it
+    // would just be refused again.
+    let terminal = false;
+    let lastFrameAt = performance.now();
+    // Retires whichever socket is current; reassigned by each connect().
+    let retire: () => void = () => {};
+
+    // Nothing else notices a socket that stops delivering without closing. The
+    // server sends at least once a second even in an idle lobby, so a long
+    // silence means the link is gone whatever the socket claims its state is.
+    const watchdog = setInterval(() => {
+      if (!live) return;
+      if (performance.now() - lastFrameAt < staleAfter) return;
+      retire();
+    }, watchdogEvery);
 
     try {
       resumeToken.current =
@@ -307,20 +333,33 @@ export function useGame(
 
       ws.onopen = () => {
         if (!live) return;
+        lastFrameAt = performance.now();
         attempt = 0;
         setRetries(0);
         setStatus("open");
         setError(null);
       };
 
-      ws.onclose = () => {
-        if (!live) return;
-        // The seat is held server-side for a grace period, so keep trying; the
-        // resume token walks us back into the same slot, score and all.
-        if (attempt >= retryDelays.length) {
+      // giveUpOn retires THIS socket and queues the next attempt. It is driven
+      // from two places — the socket closing, and the watchdog deciding it has
+      // gone quiet — because neither is reliable alone: closing a socket whose
+      // link is already dead leaves it in CLOSING forever and never fires
+      // onclose at all. Whichever gets there first wins; `done` ignores the other.
+      let done = false;
+      const giveUpOn = () => {
+        if (!live || done) return;
+        done = true;
+        try {
+          ws.close();
+        } catch {
+          /* already going */
+        }
+        if (terminal || attempt >= retryDelays.length) {
           setStatus("closed");
           return;
         }
+        // The seat is held server-side for a grace period, so keep trying; the
+        // resume token walks us back into the same slot, score and all.
         const wait = retryDelays[attempt];
         attempt += 1;
         setRetries(attempt);
@@ -328,12 +367,18 @@ export function useGame(
         timer = setTimeout(connect, wait);
       };
 
-      // A failed socket always also closes, so recovery is driven from onclose
-      // alone; this only records why for the HUD.
-      ws.onerror = () => live && setError((e) => e ?? "connection lost");
+      retire = giveUpOn;
+      ws.onclose = giveUpOn;
+
+      // Deliberately silent: a socket error is always followed by a close or
+      // caught by the watchdog, and surfacing it would replace the reconnecting
+      // state with a dead end on the very first retry.
+      ws.onerror = () => {};
 
       ws.onmessage = (ev) => {
         if (!live) return;
+        // Any frame at all proves the link is alive; the watchdog reads this.
+        lastFrameAt = performance.now();
         let msg: ServerMsg;
         try {
           msg = JSON.parse(ev.data as string) as ServerMsg;
@@ -410,6 +455,7 @@ export function useGame(
     return () => {
       live = false;
       clearTimeout(timer);
+      clearInterval(watchdog);
       // Say goodbye so the server releases the seat rather than holding it for
       // a reconnect that is never coming. Without this, navigating away or
       // refreshing leaves a ghost occupying a slot until its grace period
