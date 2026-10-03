@@ -14,7 +14,8 @@ const STORAGE_KEY = "totem-game-stats";
 export function useStatsFlag(): boolean {
   const [on, setOn] = useState(() => {
     try {
-      if (new URLSearchParams(location.search).get("stats") === "1") return true;
+      if (new URLSearchParams(location.search).get("stats") === "1")
+        return true;
       return localStorage.getItem(STORAGE_KEY) === "1";
     } catch {
       return false;
@@ -41,7 +42,15 @@ export function useStatsFlag(): boolean {
   return on;
 }
 
-function Row({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+function Row({
+  label,
+  value,
+  warn,
+}: {
+  label: string;
+  value: string;
+  warn?: boolean;
+}) {
   return (
     <div className={`nethud-row ${warn ? "warn" : ""}`}>
       <span>{label}</span>
@@ -89,7 +98,12 @@ export default function NetHud({
           jumps: (m.bigCorrections - prev.current.jumps) / dt,
         });
       }
-      prev.current = { frames: m.frames, stalls: m.stalls, jumps: m.bigCorrections, at: now };
+      prev.current = {
+        frames: m.frames,
+        stalls: m.stalls,
+        jumps: m.bigCorrections,
+        at: now,
+      };
       redraw((n) => n + 1);
     }, SAMPLE_MS);
     return () => clearInterval(id);
@@ -111,7 +125,11 @@ export default function NetHud({
         netcode · {hz}Hz {predicting ? "· predicted" : "· idle"}
       </div>
       <Row label="client" value={client} />
-      <Row label="server" value={serverBuild} warn={serverBuild !== client && serverBuild !== "?"} />
+      <Row
+        label="server"
+        value={serverBuild}
+        warn={serverBuild !== client && serverBuild !== "?"}
+      />
       <Row label="fps" value={String(fps)} warn={fps > 0 && fps < hz * 0.8} />
       <Row
         label="ping"
@@ -125,14 +143,24 @@ export default function NetHud({
         value={gap ? `${ms(gap.avg)} p95 ${ms(gap.p95)}` : "–"}
         warn={!!gap && gap.p95 > tickMs * 2}
       />
-      <Row label="stalls" value={`${rates.stalls.toFixed(1)}/s`} warn={rates.stalls > 2} />
+      <Row
+        label="stalls"
+        value={`${rates.stalls.toFixed(1)}/s`}
+        warn={rates.stalls > 2}
+      />
       <Row
         label="correction"
-        value={corr ? `${corr.avg.toFixed(3)} max ${corr.max.toFixed(3)} tiles` : "–"}
+        value={
+          corr ? `${corr.avg.toFixed(3)} max ${corr.max.toFixed(3)} tiles` : "–"
+        }
         // Visible corrections are the jump a player feels.
         warn={!!corr && corr.max > 0.08}
       />
-      <Row label="jumps" value={`${rates.jumps.toFixed(1)}/s`} warn={rates.jumps > 0.5} />
+      <Row
+        label="jumps"
+        value={`${rates.jumps.toFixed(1)}/s`}
+        warn={rates.jumps > 0.5}
+      />
       <Row
         label="queue"
         // Server-side depth is the client/server clock drift made visible, and

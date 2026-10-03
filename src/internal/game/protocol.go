@@ -6,6 +6,7 @@ const (
 	MsgInput   = "input"   // movement/bomb intent for the next tick
 	MsgStart   = "start"   // host begins the first round
 	MsgRestart = "restart" // host begins another round after the scoreboard
+	MsgBye     = "bye"     // leaving on purpose: release the seat, don't hold it
 
 	// server -> client
 	MsgWelcome = "welcome"
@@ -58,6 +59,7 @@ type WelcomeMsg struct {
 	Hz     int           `json:"hz"`
 	Fuse   int           `json:"fuse"`  // bomb fuse in ticks, for the client's countdown
 	Build  string        `json:"build"` // server build stamp, shown next to the client's
+	Token  string        `json:"token"` // secret for reclaiming this seat after a drop
 	Arena  ArenaDTO      `json:"arena"`
 	Roster []RosterEntry `json:"roster"`
 }

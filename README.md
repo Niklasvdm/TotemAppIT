@@ -401,6 +401,18 @@ The fix is a feedback loop. The server reports its queue depth in every snapshot
 
 The client also stops sending inputs entirely outside a round, with one neutral input on the way out: the server holds the last input it consumed when its queue runs dry, so a stale direction would otherwise keep walking you after you died.
 
+That hold is **bounded**. Riding out a dropped frame keeps a player mid-stride moving; holding indefinitely walks their character across the arena while their client is stalled, and the moment it catches up the sprite teleports — measured at up to 1.45 tiles over a VPN, which is the largest visible jump there was. After a few ticks of silence the input is simply cleared and the player stands still, which is both what they expect and what their own prediction assumed.
+
+#### Smoothing what is left
+
+Over a real link some correction always survives. Applying it straight to the drawn position is what reads as the character snapping about, so the correction goes to the **simulation** immediately — it is authoritative and collision depends on it — while the **sprite** keeps its old position and glides onto the new one over ~70 ms. Past 1.25 tiles it is not a correction but a teleport (a respawn, a new round), and that snaps.
+
+### Reconnecting
+
+A dropped socket used to end the session permanently, which is a harsh penalty for a VPN re-keying or a laptop waking up. Now the server issues a **resume token** in every welcome frame and, when a socket drops, holds that seat — slot, name, totem and win tally — for 30 seconds, freezing the player in place rather than deleting them. The client reconnects on its own with a backoff, presents the token, and walks back into the same seat; the UI says it is reconnecting instead of offering a dead end. Tokens are compared in constant time, since the token is the only thing between a stranger and someone else's seat.
+
+A seat is only held for a client that **actually occupied it**. One that says goodbye is leaving on purpose, and one that never sent a single frame never really arrived — a page torn down mid-handshake, or React's development double-mount. Both release the seat immediately. Without that rule each reload leaves a ghost squatting a slot, and a four-seat room fills up with nobody in it.
+
 That 1:1 input-to-tick relationship is what makes replay exact. It is also why `movement.ts` is a careful port of `movePlayer` in `sim.go`: **both sides run the same rules, in the same order**, and a change to one without the other shows up immediately as the sprite being yanked backwards several times a second. JavaScript numbers are IEEE 754 doubles like Go's `float64`, so identical operations in identical order give identical results.
 
 Two details that prediction forces into the protocol: each player's **speed** (pickups change it, and the client cannot predict movement without it) and each bomb's **pass-through bitmask** (you may step off a bomb you just dropped, so without it prediction would fight the server for as long as you stood on one).

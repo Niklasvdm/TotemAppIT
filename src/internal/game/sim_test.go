@@ -153,6 +153,34 @@ func TestBombPressAndReleaseInTheSameFrameStillCounts(t *testing.T) {
 	}
 }
 
+// A client that stops talking must not keep walking. Holding the last input
+// smooths over a dropped frame, but holding it indefinitely marches the player
+// across the arena and lands as a teleport when their client catches up.
+func TestStarvedPlayerStopsInsteadOfRunningOn(t *testing.T) {
+	m := openMatch(t, 1)
+	p := m.Players[0]
+
+	stepN(m, 5, 0, Input{DX: 1}) // moving, with input arriving every tick
+
+	// The client goes quiet. The hold carries the player a little further...
+	before := p.X
+	for i := 0; i < holdTicks; i++ {
+		m.Step()
+	}
+	if p.X <= before {
+		t.Fatal("player stopped dead the instant input stopped, losing the stride")
+	}
+
+	// ...and then they stand still, however long the silence lasts.
+	held := p.X
+	for i := 0; i < TickHz*2; i++ {
+		m.Step()
+	}
+	if p.X != held {
+		t.Fatalf("player kept walking without input: %v -> %v", held, p.X)
+	}
+}
+
 func TestAckReportsTheLastConsumedInput(t *testing.T) {
 	m := openMatch(t, 1)
 

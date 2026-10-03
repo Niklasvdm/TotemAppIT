@@ -74,6 +74,7 @@ export interface WelcomeMsg {
   hz: number;
   fuse: number; // bomb fuse length in ticks
   build: string; // server build stamp
+  token: string; // secret for reclaiming this seat after a drop
   arena: Arena;
   roster: RosterEntry[];
 }

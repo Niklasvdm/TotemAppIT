@@ -32,7 +32,7 @@ func mustCreate(t *testing.T, reg *Registry) *Room {
 
 func mustJoin(t *testing.T, r *Room, name string) (*Conn, WelcomeMsg) {
 	t.Helper()
-	c, wm, err := r.Join(name, "vos")
+	c, wm, err := r.Join(name, "vos", "")
 	if err != nil {
 		t.Fatalf("Join(%s): %v", name, err)
 	}
@@ -144,25 +144,78 @@ func TestJoinRefusedWhenFull(t *testing.T) {
 	for i := 0; i < MaxPlayers; i++ {
 		mustJoin(t, r, "p")
 	}
-	if _, _, err := r.Join("late", "vos"); err != ErrRoomFull {
+	if _, _, err := r.Join("late", "vos", ""); err != ErrRoomFull {
 		t.Fatalf("Join on a full room: err = %v, want %v", err, ErrRoomFull)
 	}
 }
 
-func TestLeaveReassignsHostAndFreesSlot(t *testing.T) {
+func TestLeaveReassignsHostAndHoldsTheSeat(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
 	_, _ = mustJoin(t, r, "beer")
 
 	r.Leave(c0.Slot())
 
-	// The remaining player becomes host, and the freed slot is reusable.
+	// The remaining player takes over as host, and the vacated seat is NOT
+	// handed to a stranger: it is being kept warm for whoever just dropped.
 	_, w := mustJoin(t, r, "cavia")
 	if w.Host != 1 {
 		t.Fatalf("host = %d after the host left, want 1", w.Host)
 	}
-	if w.You != 0 {
-		t.Fatalf("rejoined into slot %d, want the freed slot 0", w.You)
+	if w.You == c0.Slot() {
+		t.Fatalf("a new player was given slot %d, which is being held", w.You)
+	}
+}
+
+func TestDroppedPlayerReclaimsTheirSeat(t *testing.T) {
+	r := mustCreate(t, testRegistry(t))
+	c0, w0 := mustJoin(t, r, "aap")
+	if w0.Token == "" {
+		t.Fatal("welcome carried no resume token")
+	}
+	// Win tallies and totem live on the Player, so they must survive the drop.
+	r.do(func() { r.match.Players[c0.Slot()].Wins = 3 })
+
+	r.Leave(c0.Slot())
+
+	conn, w1, err := r.Join("aap", "vos", w0.Token)
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if conn.Slot() != c0.Slot() {
+		t.Fatalf("resumed into slot %d, want the original %d", conn.Slot(), c0.Slot())
+	}
+	var wins int
+	r.do(func() { wins = r.match.Players[conn.Slot()].Wins })
+	if wins != 3 {
+		t.Fatalf("win tally = %d after reconnect, want 3", wins)
+	}
+	if w1.Token == w0.Token {
+		t.Fatal("the resume token was reused; each seating should mint a fresh one")
+	}
+}
+
+func TestStaleOrWrongTokenDoesNotStealASeat(t *testing.T) {
+	r := mustCreate(t, testRegistry(t))
+	c0, w0 := mustJoin(t, r, "aap")
+
+	// While the original holder is still connected, their token must not seat
+	// anyone else into that slot.
+	conn, _, err := r.Join("imposter", "vos", w0.Token)
+	if err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	if conn.Slot() == c0.Slot() {
+		t.Fatal("a live player's seat was taken by replaying their token")
+	}
+
+	// And a garbage token is simply a normal join.
+	other, _, err := r.Join("stranger", "vos", "not-a-real-token")
+	if err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	if other.Slot() == c0.Slot() {
+		t.Fatal("an invalid token resumed someone else's seat")
 	}
 }
 
@@ -295,7 +348,7 @@ func TestJoinAfterCloseIsRefused(t *testing.T) {
 	r := mustCreate(t, reg)
 	reg.Close()
 
-	if _, _, err := r.Join("aap", "vos"); err != ErrRoomClosed {
+	if _, _, err := r.Join("aap", "vos", ""); err != ErrRoomClosed {
 		t.Fatalf("Join on a closed room: err = %v, want %v", err, ErrRoomClosed)
 	}
 }

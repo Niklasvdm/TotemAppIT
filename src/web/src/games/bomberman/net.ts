@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
-import type { Arena, Input, Phase, PlayerDTO, RosterEntry, ServerMsg, Snapshot } from "../types";
+import type {
+  Arena,
+  Input,
+  Phase,
+  PlayerDTO,
+  RosterEntry,
+  ServerMsg,
+  Snapshot,
+} from "../types";
 import { makeBlocked, stepMovement, type Movable } from "./movement";
 import { bigCorrection, newStats, type NetStats } from "./stats";
 
-export type ConnStatus = "connecting" | "open" | "closed";
+export type ConnStatus = "connecting" | "open" | "reconnecting" | "closed";
+
+// Reconnect backoff. A dropped socket is usually a blip — a VPN re-keying, a
+// laptop waking — and the server holds the seat for a while, so the right
+// response is to walk straight back in rather than end the session.
+const retryDelays = [250, 500, 1000, 2000, 4000, 8000];
 
 // maxUnacked bounds the replay buffer at roughly two seconds of input. If the
 // server has not acknowledged anything in that long, the connection is gone and
@@ -20,6 +33,16 @@ const maxUnacked = 120;
 // So the client steers it. The server reports its depth in every snapshot; the
 // local tick interval is nudged until that depth settles at a shallow target.
 // The adjustment is capped, so a bad reading can never run the clock away.
+// Visual smoothing. Over a real link some correction always survives, and
+// applying it straight to the drawn position reads as the character teleporting.
+// The correction is applied to the simulation immediately — it is authoritative,
+// and collision must use it — while the SPRITE keeps its old position and glides
+// onto the new one over smoothTau. Beyond snapTiles it is not a correction but a
+// genuine teleport (a respawn, a new round), which should snap.
+const smoothTau = 70; // ms to decay a correction to ~37% of its size
+const snapTiles = 1.25;
+const maxOffset = 1.0; // never trail the true position by more than this
+
 const queueTarget = 1.5;
 const paceGain = 0.05;
 const paceLimit = 0.2;
@@ -33,6 +56,10 @@ export interface World {
   prevAt: number;
   nextAt: number;
   crates: string; // last crate layer seen; the server resends it only on change
+}
+
+function clamp(v: number, limit: number): number {
+  return Math.max(-limit, Math.min(limit, v));
 }
 
 export function newWorld(): World {
@@ -51,9 +78,23 @@ export interface Pace {
 
 export interface Predicted {
   active: boolean;
+  /** Authoritative predicted position: what collision and replay use. */
   x: number;
   y: number;
+  /** Visual offset, decayed toward zero every frame. Render at x+ox, y+oy. */
+  ox: number;
+  oy: number;
   speed: number;
+}
+
+/** decayOffset eases the drawn position onto the simulated one. */
+export function decayOffset(p: Predicted, dtMs: number) {
+  if (p.ox === 0 && p.oy === 0) return;
+  const k = Math.exp(-dtMs / smoothTau);
+  p.ox *= k;
+  p.oy *= k;
+  if (Math.abs(p.ox) < 1e-4) p.ox = 0;
+  if (Math.abs(p.oy) < 1e-4) p.oy = 0;
 }
 
 export interface Stats {
@@ -61,9 +102,15 @@ export interface Stats {
   power: number;
 }
 
-export function socketURL(code: string, name: string, animal: string): string {
+export function socketURL(
+  code: string,
+  name: string,
+  animal: string,
+  resume = "",
+): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const q = new URLSearchParams({ code, name, animal });
+  if (resume) q.set("resume", resume);
   // Same origin, so the server's Origin check passes and dev goes through the
   // Vite proxy without extra configuration.
   return `${proto}//${location.host}/api/v1/games/ws?${q}`;
@@ -81,6 +128,8 @@ export interface Connection {
   tickMs: number;
   fuseTicks: number;
   serverBuild: string;
+  /** How many reconnect attempts have been made since the last good frame. */
+  retries: number;
   stats: Stats;
   net: MutableRefObject<NetStats>;
   pace: MutableRefObject<Pace>;
@@ -91,7 +140,11 @@ export interface Connection {
 }
 
 // useGame owns one WebSocket for the life of a joined room.
-export function useGame(code: string, name: string, animal: string): Connection {
+export function useGame(
+  code: string,
+  name: string,
+  animal: string,
+): Connection {
   const [status, setStatus] = useState<ConnStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
   const [you, setYou] = useState(-1);
@@ -103,12 +156,20 @@ export function useGame(code: string, name: string, animal: string): Connection 
   const [tickMs, setTickMs] = useState(1000 / 60);
   const [fuseTicks, setFuseTicks] = useState(120);
   const [serverBuild, setServerBuild] = useState("?");
+  const [retries, setRetries] = useState(0);
   const [stats, setStats] = useState<Stats>({ bombs: 0, power: 0 });
 
   const net = useRef<NetStats>(newStats());
   const pace = useRef<Pace>({ factor: 1, depth: queueTarget });
   const world = useRef<World>(newWorld());
-  const self = useRef<Predicted>({ active: false, x: 0, y: 0, speed: 0 });
+  const self = useRef<Predicted>({
+    active: false,
+    x: 0,
+    y: 0,
+    ox: 0,
+    oy: 0,
+    speed: 0,
+  });
   // Each unacked input remembers when it was sent, which is where the RTT
   // measurement comes from: no ping/pong frame is needed, the ack already is one.
   const unacked = useRef<{ seq: number; input: Input; at: number }[]>([]);
@@ -118,6 +179,13 @@ export function useGame(code: string, name: string, animal: string): Connection 
   // The message handler and the input tick both need these, and neither should
   // be torn down and rebuilt when they change — hence refs rather than state.
   const youRef = useRef(-1);
+  // Issued by the server in every welcome; presenting it on reconnect reclaims
+  // the same seat, totem and win tally. It is persisted per tab so that a page
+  // refresh — or React StrictMode remounting the effect in development — walks
+  // back into the existing seat instead of leaving a ghost holding it and
+  // taking a fresh slot, which would fill a four-seat room after two reloads.
+  const resumeToken = useRef("");
+  const tokenKey = `totem-game-seat:${code}`;
   // Whether a round is actually running for us. Outside one there is nothing to
   // simulate, so feeding the server's queue would only add latency to the next.
   const playingRef = useRef(false);
@@ -136,7 +204,8 @@ export function useGame(code: string, name: string, animal: string): Connection 
 
     // The newest input this snapshot acknowledges tells us the round trip.
     const acked = unacked.current.filter((p) => p.seq <= mine.q);
-    if (acked.length) m.rtt.push(performance.now() - acked[acked.length - 1].at);
+    if (acked.length)
+      m.rtt.push(performance.now() - acked[acked.length - 1].at);
 
     unacked.current = unacked.current.filter((p) => p.seq > mine.q);
     m.localQueue = unacked.current.length;
@@ -161,6 +230,8 @@ export function useGame(code: string, name: string, animal: string): Connection 
       // snapshot. Adopt the server's position outright.
       pred.x = mine.x;
       pred.y = mine.y;
+      pred.ox = 0;
+      pred.oy = 0;
       pred.active = playable;
       unacked.current = [];
       return;
@@ -168,114 +239,193 @@ export function useGame(code: string, name: string, animal: string): Connection 
 
     const board = arenaRef.current;
     if (!board) return;
-    const blocked = makeBlocked(board, world.current.crates, snap.b ?? [], youRef.current);
+    const blocked = makeBlocked(
+      board,
+      world.current.crates,
+      snap.b ?? [],
+      youRef.current,
+    );
     const replay: Movable = { x: mine.x, y: mine.y, speed: mine.v };
-    for (const p of unacked.current) stepMovement(replay, p.input, hzRef.current, blocked);
+    for (const p of unacked.current)
+      stepMovement(replay, p.input, hzRef.current, blocked);
 
     // How far the authoritative answer moved us. Near zero means the two rule
     // sets agree; anything visible here is the stutter a player complains about.
-    const moved = Math.hypot(replay.x - pred.x, replay.y - pred.y);
+    const dx = replay.x - pred.x;
+    const dy = replay.y - pred.y;
+    const moved = Math.hypot(dx, dy);
     m.correction.push(moved);
     if (moved > bigCorrection) m.bigCorrections++;
 
+    if (moved > snapTiles) {
+      // Too far to be a correction — this is a teleport, so go there.
+      pred.ox = 0;
+      pred.oy = 0;
+    } else {
+      // Keep the sprite where it is and let it glide onto the new truth.
+      pred.ox = clamp(pred.ox - dx, maxOffset);
+      pred.oy = clamp(pred.oy - dy, maxOffset);
+    }
     pred.x = replay.x;
     pred.y = replay.y;
   }, []);
 
   useEffect(() => {
-    // live gates every callback on this socket still being the current one.
-    // Closing a socket that is still CONNECTING fires error and close events,
-    // and without this guard a discarded socket reports "connection failed"
-    // over a healthy replacement. React 18 StrictMode remounts effects, so in
-    // development that happens on every mount.
+    // live gates every callback on the CURRENT socket. Closing one that is
+    // still CONNECTING fires error and close events, and without this guard a
+    // discarded socket reports failure over a healthy replacement. React 18
+    // StrictMode remounts effects, so in development that happens every mount.
     let live = true;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const ws = new WebSocket(socketURL(code, name, animal));
-    sock.current = ws;
-    world.current = newWorld();
-    net.current = newStats();
-    pace.current = { factor: 1, depth: queueTarget };
-    playingRef.current = false;
-    sentIdle.current = false;
-    self.current = { active: false, x: 0, y: 0, speed: 0 };
-    unacked.current = [];
-    seq.current = 0;
-    setStatus("connecting");
-    setError(null);
+    try {
+      resumeToken.current =
+        sessionStorage.getItem(tokenKey) || resumeToken.current;
+    } catch {
+      /* private mode — reconnects still work within this page's lifetime */
+    }
 
-    ws.onopen = () => live && setStatus("open");
-    ws.onclose = () => live && setStatus("closed");
-    ws.onerror = () => live && setError((e) => e ?? "connection failed");
-
-    ws.onmessage = (ev) => {
+    const connect = () => {
       if (!live) return;
-      let msg: ServerMsg;
-      try {
-        msg = JSON.parse(ev.data as string) as ServerMsg;
-      } catch {
-        return; // a frame we can't read is a frame we ignore
-      }
 
-      switch (msg.t) {
-        case "welcome":
-          youRef.current = msg.you;
-          hzRef.current = msg.hz;
-          arenaRef.current = msg.arena;
-          setYou(msg.you);
-          setHost(msg.host);
-          setArena(msg.arena);
-          setRoster(msg.roster);
-          setTickMs(1000 / msg.hz);
-          setFuseTicks(msg.fuse);
-          setServerBuild(msg.build || "?");
-          break;
+      const ws = new WebSocket(
+        socketURL(code, name, animal, resumeToken.current),
+      );
+      sock.current = ws;
+      // Simulation state is rebuilt from the first snapshot after the handshake,
+      // so none of it should survive a reconnect.
+      world.current = newWorld();
+      net.current = newStats();
+      pace.current = { factor: 1, depth: queueTarget };
+      playingRef.current = false;
+      sentIdle.current = false;
+      self.current = { active: false, x: 0, y: 0, ox: 0, oy: 0, speed: 0 };
+      unacked.current = [];
+      seq.current = 0;
+      setStatus(attempt === 0 ? "connecting" : "reconnecting");
 
-        case "roster":
-          setHost(msg.host);
-          setRoster(msg.roster);
-          break;
+      ws.onopen = () => {
+        if (!live) return;
+        attempt = 0;
+        setRetries(0);
+        setStatus("open");
+        setError(null);
+      };
 
-        case "state": {
-          const w = world.current;
-          const at = performance.now();
-          if (w.nextAt) {
-            const gap = at - w.nextAt;
-            net.current.snapGap.push(gap);
-            if (gap > (1000 / hzRef.current) * 2) net.current.stalls++;
-          }
-          w.prev = w.next;
-          w.prevAt = w.nextAt;
-          w.next = msg;
-          w.nextAt = at;
-          if (msg.c !== undefined) w.crates = msg.c;
+      ws.onclose = () => {
+        if (!live) return;
+        // The seat is held server-side for a grace period, so keep trying; the
+        // resume token walks us back into the same slot, score and all.
+        if (attempt >= retryDelays.length) {
+          setStatus("closed");
+          return;
+        }
+        const wait = retryDelays[attempt];
+        attempt += 1;
+        setRetries(attempt);
+        setStatus("reconnecting");
+        timer = setTimeout(connect, wait);
+      };
 
-          // Phase and winner change rarely; the identity returns let React skip
-          // the re-render on every other tick.
-          setPhase((p) => (p === msg.ph ? p : msg.ph));
-          setWinner((x) => (x === msg.win ? x : msg.win));
+      // A failed socket always also closes, so recovery is driven from onclose
+      // alone; this only records why for the HUD.
+      ws.onerror = () => live && setError((e) => e ?? "connection lost");
 
-          const mine = msg.p?.find((p) => p.s === youRef.current);
-          if (mine) {
-            reconcile(mine, msg);
-            setStats((s) =>
-              s.bombs === mine.b && s.power === mine.p ? s : { bombs: mine.b, power: mine.p },
-            );
-          }
-          break;
+      ws.onmessage = (ev) => {
+        if (!live) return;
+        let msg: ServerMsg;
+        try {
+          msg = JSON.parse(ev.data as string) as ServerMsg;
+        } catch {
+          return; // a frame we can't read is a frame we ignore
         }
 
-        case "error":
-          setError(msg.err);
-          break;
-      }
+        switch (msg.t) {
+          case "welcome":
+            youRef.current = msg.you;
+            hzRef.current = msg.hz;
+            arenaRef.current = msg.arena;
+            setYou(msg.you);
+            setHost(msg.host);
+            setArena(msg.arena);
+            setRoster(msg.roster);
+            setTickMs(1000 / msg.hz);
+            setFuseTicks(msg.fuse);
+            setServerBuild(msg.build || "?");
+            if (msg.token) {
+              resumeToken.current = msg.token;
+              try {
+                sessionStorage.setItem(tokenKey, msg.token);
+              } catch {
+                /* private mode */
+              }
+            }
+            break;
+
+          case "roster":
+            setHost(msg.host);
+            setRoster(msg.roster);
+            break;
+
+          case "state": {
+            const w = world.current;
+            const at = performance.now();
+            if (w.nextAt) {
+              const gap = at - w.nextAt;
+              net.current.snapGap.push(gap);
+              if (gap > (1000 / hzRef.current) * 2) net.current.stalls++;
+            }
+            w.prev = w.next;
+            w.prevAt = w.nextAt;
+            w.next = msg;
+            w.nextAt = at;
+            if (msg.c !== undefined) w.crates = msg.c;
+
+            // Phase and winner change rarely; the identity returns let React skip
+            // the re-render on every other tick.
+            setPhase((p) => (p === msg.ph ? p : msg.ph));
+            setWinner((x) => (x === msg.win ? x : msg.win));
+
+            const mine = msg.p?.find((p) => p.s === youRef.current);
+            if (mine) {
+              reconcile(mine, msg);
+              setStats((s) =>
+                s.bombs === mine.b && s.power === mine.p
+                  ? s
+                  : { bombs: mine.b, power: mine.p },
+              );
+            }
+            break;
+          }
+
+          case "error":
+            setError(msg.err);
+            break;
+        }
+      };
     };
 
+    connect();
     return () => {
       live = false;
-      ws.close();
+      clearTimeout(timer);
+      // Say goodbye so the server releases the seat rather than holding it for
+      // a reconnect that is never coming. Without this, navigating away or
+      // refreshing leaves a ghost occupying a slot until its grace period
+      // lapses — four reloads would fill the room with nobody.
+      const ws = sock.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(JSON.stringify({ t: "bye" }));
+        } catch {
+          /* already going away */
+        }
+      }
+      ws?.close();
       sock.current = null;
     };
-  }, [code, name, animal, reconcile]);
+  }, [code, name, animal, tokenKey, reconcile]);
 
   // tickInput is called once per client tick with whatever is held down. It
   // sends the input, keeps a copy for replay, and applies it locally straight
@@ -294,7 +444,15 @@ export function useGame(code: string, name: string, animal: string): Connection 
       unacked.current = [];
       if (open) {
         seq.current += 1;
-        ws!.send(JSON.stringify({ t: "input", seq: seq.current, dx: 0, dy: 0, bomb: false }));
+        ws!.send(
+          JSON.stringify({
+            t: "input",
+            seq: seq.current,
+            dx: 0,
+            dy: 0,
+            bomb: false,
+          }),
+        );
       }
       return;
     }
@@ -303,7 +461,15 @@ export function useGame(code: string, name: string, animal: string): Connection 
     seq.current += 1;
     const n = seq.current;
     if (open) {
-      ws!.send(JSON.stringify({ t: "input", seq: n, dx: input.dx, dy: input.dy, bomb: input.bomb }));
+      ws!.send(
+        JSON.stringify({
+          t: "input",
+          seq: n,
+          dx: input.dx,
+          dy: input.dy,
+          bomb: input.bomb,
+        }),
+      );
     }
 
     const pred = self.current;
@@ -313,18 +479,41 @@ export function useGame(code: string, name: string, animal: string): Connection 
     unacked.current.push({ seq: n, input, at: performance.now() });
     if (unacked.current.length > maxUnacked) unacked.current.shift();
 
-    const blocked = makeBlocked(board, world.current.crates, world.current.next?.b ?? [], youRef.current);
+    const blocked = makeBlocked(
+      board,
+      world.current.crates,
+      world.current.next?.b ?? [],
+      youRef.current,
+    );
     stepMovement(pred, input, hzRef.current, blocked);
   }, []);
 
   const sendStart = useCallback(() => {
     const ws = sock.current;
-    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "start" }));
+    if (ws?.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({ t: "start" }));
   }, []);
 
   return {
-    status, error, you, host, arena, roster, phase, winner, tickMs, fuseTicks, serverBuild, stats,
-    net, pace, world, self, tickInput, sendStart,
+    status,
+    error,
+    you,
+    host,
+    arena,
+    roster,
+    phase,
+    winner,
+    tickMs,
+    fuseTicks,
+    serverBuild,
+    retries,
+    stats,
+    net,
+    pace,
+    world,
+    self,
+    tickInput,
+    sendStart,
   };
 }
 
@@ -348,7 +537,11 @@ export function sample(w: World, now: number, tickMs: number): Snapshot | null {
     p: next.p.map((p) => {
       const q = before.get(p.s);
       if (!q) return p;
-      return { ...p, x: q.x + (p.x - q.x) * alpha, y: q.y + (p.y - q.y) * alpha };
+      return {
+        ...p,
+        x: q.x + (p.x - q.x) * alpha,
+        y: q.y + (p.y - q.y) * alpha,
+      };
     }),
   };
 }

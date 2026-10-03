@@ -15,6 +15,15 @@ const (
 	// most of the input latency a player actually feels.
 	TickHz = 60
 
+	// holdTicks is how long the server keeps re-applying a player's last input
+	// after their queue runs dry. A couple of ticks rides out ordinary jitter
+	// and keeps a player mid-stride moving. Beyond that the client has genuinely
+	// stopped talking, and walking their character onward is actively wrong: it
+	// diverges from whatever they are predicting (a 300ms stall is over a tile
+	// of drift, which lands as a visible teleport when they reconnect) and it
+	// marches them into blasts they never chose to walk into.
+	holdTicks = 4
+
 	// maxPending bounds a player's unconsumed input queue. One input is consumed
 	// per tick, so this is how far ahead of the server a client may run before
 	// its oldest intent is dropped.
@@ -106,6 +115,10 @@ type Player struct {
 	// ack is the sequence number of the last input actually consumed. It rides
 	// in every snapshot so a client knows which of its inputs to replay.
 	ack uint32
+
+	// starved counts consecutive ticks with nothing queued, bounding how long
+	// the last input is held (see holdTicks).
+	starved int
 }
 
 // seqInput is one client tick's intent, tagged with the client's own counter.
@@ -214,8 +227,14 @@ func (m *Match) QueueInput(slot int, seq uint32, in Input) {
 // then stays put, so the client replays that input itself and the two converge.
 func (p *Player) takeInput() {
 	if len(p.pending) == 0 {
+		// Hold the last input briefly, then stand still rather than running on
+		// without the player.
+		if p.starved++; p.starved > holdTicks {
+			p.in = Input{}
+		}
 		return
 	}
+	p.starved = 0
 	next := p.pending[0]
 	p.pending = p.pending[1:]
 	p.in = next.in
@@ -245,6 +264,7 @@ func (m *Match) resetPlayer(p *Player) {
 	p.in = Input{}
 	p.bombHeld = false
 	p.bombLatch = false
+	p.starved = 0
 	p.dropPending()
 }
 

@@ -87,13 +87,27 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	seat, welcome, err := room.Join(name, animal)
+	// A resume token reclaims the seat this client held before its socket
+	// dropped. It is the player's own secret, issued in their last welcome.
+	seat, welcome, err := room.Join(name, animal, q.Get("resume"))
 	if err != nil {
 		_ = writeWSJSON(ctx, conn, game.ErrorMsg{T: game.MsgError, Err: err.Error()})
 		_ = conn.Close(websocket.StatusTryAgainLater, "room unavailable")
 		return
 	}
-	defer room.Leave(seat.Slot())
+	// A seat is only worth holding open for someone who actually occupied it.
+	// A client that says goodbye is leaving on purpose, and one that never sent
+	// a single frame never really arrived — a page torn down mid-handshake, or
+	// React's development double-mount. Either way, release the seat; holding
+	// it would leave a ghost squatting a slot until its grace period lapsed.
+	var deliberate, spoke bool
+	defer func() {
+		if deliberate || !spoke {
+			room.Quit(seat.Slot())
+			return
+		}
+		room.Leave(seat.Slot())
+	}()
 
 	if err := writeWSJSON(ctx, conn, welcome); err != nil {
 		return
@@ -105,7 +119,7 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		gameWritePump(ctx, conn, seat)
 	}()
-	gameReadPump(ctx, conn, room, seat.Slot())
+	deliberate, spoke = gameReadPump(ctx, conn, room, seat.Slot())
 }
 
 // gameWritePump forwards the room's frames to the socket until the room hangs
@@ -132,17 +146,25 @@ func gameWritePump(ctx context.Context, conn *websocket.Conn, seat *game.Conn) {
 }
 
 // gameReadPump applies client intent to the room. Unparseable frames are
-// skipped; sustained flooding closes the socket.
-func gameReadPump(ctx context.Context, conn *websocket.Conn, room *game.Room, slot int) {
+// skipped; sustained flooding closes the socket. It reports whether the client
+// left deliberately and whether it ever spoke at all — together those decide
+// whether its seat is released or held open for a reconnect.
+func gameReadPump(
+	ctx context.Context,
+	conn *websocket.Conn,
+	room *game.Room,
+	slot int,
+) (deliberate, spoke bool) {
 	var lim msgLimiter
 	for {
 		_, data, err := conn.Read(ctx)
 		if err != nil {
-			return
+			return false, spoke
 		}
+		spoke = true
 		if !lim.allow(time.Now(), maxClientMsgRate) {
 			_ = conn.Close(websocket.StatusPolicyViolation, "message rate exceeded")
-			return
+			return false, spoke
 		}
 
 		var msg game.ClientMsg
@@ -154,6 +176,8 @@ func gameReadPump(ctx context.Context, conn *websocket.Conn, room *game.Room, sl
 			room.Input(slot, msg.Seq, game.Input{DX: msg.DX, DY: msg.DY, Bomb: msg.Bomb})
 		case game.MsgStart, game.MsgRestart:
 			room.Begin(slot) // the room enforces that only the host may start
+		case game.MsgBye:
+			return true, spoke
 		}
 	}
 }

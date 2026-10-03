@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Input } from "../types";
 import { SLOT_COLORS } from "../types";
-import { sample, useGame } from "./net";
+import { decayOffset, sample, useGame } from "./net";
 import NetHud, { useStatsFlag } from "./NetHud";
 import { draw, readPalette } from "./render";
 
@@ -41,7 +41,21 @@ export default function GameRoom({
 }) {
   const { t } = useTranslation();
   const g = useGame(code, name, animal);
-  const { arena, roster, you, phase, winner, world, self, net, pace, tickMs, fuseTicks, tickInput, sendStart } = g;
+  const {
+    arena,
+    roster,
+    you,
+    phase,
+    winner,
+    world,
+    self,
+    net,
+    pace,
+    tickMs,
+    fuseTicks,
+    tickInput,
+    sendStart,
+  } = g;
   const showStats = useStatsFlag();
 
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -63,8 +77,12 @@ export default function GameRoom({
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       const token = KEYS[e.code];
-      if (!token || e.repeat) return;
-      e.preventDefault(); // stop space and the arrows from scrolling the page
+      if (!token) return;
+      // Suppress the browser's own action FIRST: holding a key fires repeat
+      // events continuously, and returning early on those let every one of them
+      // through to scroll the page out from under the board.
+      e.preventDefault();
+      if (e.repeat) return;
       press(token);
     };
     const onUp = (e: KeyboardEvent) => {
@@ -93,7 +111,12 @@ export default function GameRoom({
     const resize = () => {
       const tile = Math.max(
         14,
-        Math.floor(Math.min(wrap.clientWidth / arena.w, (window.innerHeight * 0.68) / arena.h)),
+        Math.floor(
+          Math.min(
+            wrap.clientWidth / arena.w,
+            (window.innerHeight * 0.68) / arena.h,
+          ),
+        ),
       );
       tileRef.current = tile;
       const dpr = window.devicePixelRatio || 1;
@@ -120,7 +143,10 @@ export default function GameRoom({
     const obs = new MutationObserver(() => {
       palRef.current = readPalette();
     });
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     return () => obs.disconnect();
   }, []);
 
@@ -148,8 +174,11 @@ export default function GameRoom({
       // Input runs on a fixed step at the server's rate, not at whatever the
       // display refreshes at — prediction only matches if each local tick
       // corresponds to exactly one server tick.
-      carry = Math.min(carry + (now - last), maxCatchUp);
+      const dt = now - last;
+      carry = Math.min(carry + dt, maxCatchUp);
       last = now;
+      // Ease the drawn position onto the simulated one; see net.ts.
+      decayOffset(self.current, dt);
       // pace.factor steers this interval so the server's input queue stays
       // shallow; see the clock-sync note in net.ts.
       const step = tickMs * pace.current.factor;
@@ -168,7 +197,12 @@ export default function GameRoom({
       const me = self.current;
       const shown =
         me.active && snap.p
-          ? { ...snap, p: snap.p.map((p) => (p.s === you ? { ...p, x: me.x, y: me.y } : p)) }
+          ? {
+              ...snap,
+              p: snap.p.map((p) =>
+                p.s === you ? { ...p, x: me.x + me.ox, y: me.y + me.oy } : p,
+              ),
+            }
           : snap;
 
       draw({
@@ -188,7 +222,19 @@ export default function GameRoom({
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [arena, roster, emoji, you, tickMs, fuseTicks, world, self, net, pace, tickInput]);
+  }, [
+    arena,
+    roster,
+    emoji,
+    you,
+    tickMs,
+    fuseTicks,
+    world,
+    self,
+    net,
+    pace,
+    tickInput,
+  ]);
 
   const isHost = you >= 0 && you === g.host;
   const mine = roster.find((r) => r.s === you);
@@ -243,6 +289,13 @@ export default function GameRoom({
           />
         )}
 
+        {g.status === "reconnecting" && (
+          <div className="game-overlay">
+            <h2>{t("gameReconnecting")}</h2>
+            <p className="muted-note">{t("gameSeatHeld", { n: g.retries })}</p>
+          </div>
+        )}
+
         {g.status === "closed" && (
           <div className="game-overlay">
             <h2>{t("gameDisconnected")}</h2>
@@ -252,7 +305,7 @@ export default function GameRoom({
           </div>
         )}
 
-        {g.status !== "closed" && phase === "lobby" && (
+        {g.status === "open" && phase === "lobby" && (
           <div className="game-overlay">
             <h2>{t("gameWaiting")}</h2>
             <p className="game-share">
@@ -260,7 +313,10 @@ export default function GameRoom({
             </p>
             <div className="game-lobby-list">
               {roster.map((r) => (
-                <span key={r.s} style={{ color: SLOT_COLORS[r.s % SLOT_COLORS.length] }}>
+                <span
+                  key={r.s}
+                  style={{ color: SLOT_COLORS[r.s % SLOT_COLORS.length] }}
+                >
                   {emoji[r.m] ?? "🐾"} {r.n}
                 </span>
               ))}
@@ -275,7 +331,7 @@ export default function GameRoom({
           </div>
         )}
 
-        {g.status !== "closed" && phase === "over" && (
+        {g.status === "open" && phase === "over" && (
           <div className="game-overlay">
             <h2>
               {winnerEntry
@@ -308,12 +364,14 @@ export default function GameRoom({
 
       <div className="game-pad">
         <div className="game-dpad">
-          {([
-            ["up", "▲", "u"],
-            ["left", "◀", "l"],
-            ["down", "▼", "d"],
-            ["right", "▶", "r"],
-          ] as const).map(([token, glyph, cls]) => (
+          {(
+            [
+              ["up", "▲", "u"],
+              ["left", "◀", "l"],
+              ["down", "▼", "d"],
+              ["right", "▶", "r"],
+            ] as const
+          ).map(([token, glyph, cls]) => (
             <button
               key={token}
               className={`game-dkey ${cls}`}
