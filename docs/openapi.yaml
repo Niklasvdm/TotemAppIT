@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: Totem Finder API
-  version: "1.0.0"
+  version: "1.1.0"
   description: >
-    Read API for the totem catalogue (animals, traits, similarity, images, emoji)
-    plus two hardened public write endpoints for community feedback
-    (new-animal suggestions and reports on existing animals). All read endpoints
-    are unauthenticated and idempotent. Admin review of feedback is out of band
-    via the `totem-admin` CLI, so there is no admin HTTP surface.
+    Read API for the totem catalogue (animals, traits, similarity, images, emoji),
+    two hardened public write endpoints for community feedback (new-animal
+    suggestions and reports on existing animals), and the multiplayer game
+    transport (create a room over HTTP, then play over a WebSocket). All read
+    endpoints are unauthenticated and idempotent. Admin review of feedback is out
+    of band via the `totem-admin` CLI, so there is no admin HTTP surface.
   contact:
     name: Niklas
 servers:
@@ -21,6 +22,7 @@ servers:
 tags:
   - name: catalogue
   - name: feedback
+  - name: games
 
 paths:
   /healthz:
@@ -233,6 +235,83 @@ paths:
         "429": { $ref: "#/components/responses/RateLimited" }
         "500": { $ref: "#/components/responses/ServerError" }
 
+  /api/v1/games/rooms:
+    post:
+      tags: [games]
+      summary: Create a game room
+      description: >
+        Opens a new Bomberman room and returns its join code. Creating a room
+        allocates a server-side goroutine and tick loop, so it is rate limited to
+        20 requests/minute per IP. Idle rooms are reaped automatically. No request
+        body. Join the returned code over the WebSocket endpoint.
+      operationId: createRoom
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomCreated" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503":
+          description: No free game rooms right now (server at capacity)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/games/ws:
+    get:
+      tags: [games]
+      summary: Join a room (WebSocket)
+      description: >
+        Upgrades to a WebSocket for one player's session in a room. Not a REST
+        call: on success the server replies `101 Switching Protocols` and then
+        speaks the game protocol (JSON text frames). The `Origin` must match the
+        server's `Host` (same-origin); extra origins are allowlisted server-side
+        only for the dev proxy (`TOTEM_ALLOWED_ORIGINS`), empty in production.
+
+        After the upgrade the server sends a `welcome` frame (your slot, the
+        arena, the tick rate, and a `token` to reclaim this seat after a drop),
+        then `state` snapshots ~30x/second and `roster` frames on membership
+        changes. The client sends `input` frames (a direction + a bomb flag) plus
+        `start`/`restart`/`bye`. Each connection has a per-second frame budget and
+        a 512-byte frame cap; the full message shapes live in
+        `src/internal/game/protocol.go` and `src/web/src/games/types.ts`.
+      operationId: gameWebSocket
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: Room code (case-insensitive; normalised to upper case).
+          schema: { type: string, pattern: "^[A-Za-z0-9]+$", example: K7QM }
+        - name: name
+          in: query
+          required: true
+          description: Player nickname (1–16 runes; letters/marks/digits, space and ' ’ . _ -).
+          schema: { type: string, minLength: 1, maxLength: 16, example: Niklas }
+        - name: animal
+          in: query
+          description: Totem slug for the player's sprite; an unknown value is dropped, not refused.
+          schema: { type: string, pattern: "^[a-z0-9-]+$", example: bever }
+        - name: resume
+          in: query
+          description: Seat-resume token from a previous `welcome`, to reclaim a dropped seat.
+          schema: { type: string }
+      responses:
+        "101":
+          description: Switching protocols — the WebSocket is open.
+        "400":
+          description: Invalid player name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Origin not allowed (cross-origin WebSocket refused)
+        "404":
+          description: Unknown room code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 components:
   parameters:
     Lang:
@@ -359,6 +438,14 @@ components:
       type: object
       properties:
         status: { type: string, example: received }
+    RoomCreated:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: The room's join code (pass as `code` to the WebSocket endpoint).
+          example: K7QM
     Error:
       type: object
       properties:

@@ -1,5 +1,11 @@
 import type { Arena, RosterEntry, Snapshot } from "../types";
 import { POWER_ICONS, SLOT_COLORS } from "../types";
+import { loadSprites, pickFrame } from "./sprites";
+
+// How large a totem sprite is drawn, in tiles (the frame is square; the drawn
+// character is ~90% of it after the atlas padding). Tune here if sprites feel
+// too big or small on the board.
+const SPRITE_TILES = 1.2;
 
 export interface Palette {
   floorA: string;
@@ -64,6 +70,8 @@ export interface DrawArgs {
 
 export function draw(a: DrawArgs) {
   const { ctx, arena, crates, snap, tile } = a;
+
+  loadSprites(); // one-time; until it's ready, players draw as emoji discs
 
   ctx.clearRect(0, 0, arena.w * tile, arena.h * tile);
   drawFloor(a);
@@ -191,43 +199,80 @@ function drawFlame({ ctx, tile, now }: DrawArgs, x: number, y: number) {
 }
 
 function drawPlayer(a: DrawArgs, slot: number, x: number, y: number, alive: boolean) {
-  const { ctx, roster, emoji, you, tile } = a;
+  const { ctx, roster, emoji, you, tile, now } = a;
   const cx = x * tile;
   const cy = y * tile;
   const color = SLOT_COLORS[slot % SLOT_COLORS.length];
   const entry = roster.find((r) => r.s === slot);
-  const icon = (entry && emoji[entry.m]) || "🐾";
+
+  // A sprite only if the atlas is loaded and knows this animal; otherwise null,
+  // and we draw the emoji disc exactly as before.
+  const blit = entry ? pickFrame(slot, entry.m, x, y, alive, now) : null;
 
   ctx.save();
-  if (!alive) ctx.globalAlpha = 0.3;
+  // A ghost stays faint but readable; the sprite's own despair is the defeated
+  // frame, so it need not fade as hard as the emoji 💀 did.
+  if (!alive) ctx.globalAlpha = blit ? 0.5 : 0.3;
 
   ctx.fillStyle = "rgba(0,0,0,.2)";
   ctx.beginPath();
   ctx.ellipse(cx, cy + tile * 0.32, tile * 0.27, tile * 0.1, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Slot-coloured disc: the animal glyph alone isn't enough to tell four
-  // players apart at a glance.
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(cx, cy, tile * 0.33, 0, Math.PI * 2);
-  ctx.fill();
+  if (blit) {
+    // No slot-coloured disc behind a sprite — it would show through the art's
+    // transparency. A coloured ground ring carries the same "who is who", and
+    // the local player's ring is white like their disc outline used to be.
+    ctx.strokeStyle = slot === you ? "#fff" : color;
+    ctx.lineWidth = Math.max(2, tile * (slot === you ? 0.1 : 0.07));
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + tile * 0.3, tile * 0.26, tile * 0.095, 0, 0, Math.PI * 2);
+    ctx.stroke();
 
-  ctx.strokeStyle = slot === you ? "#fff" : "rgba(0,0,0,.25)";
-  ctx.lineWidth = Math.max(1.5, tile * (slot === you ? 0.08 : 0.04));
-  ctx.stroke();
+    // A player occupies about one tile; the frame (content ~85% of it after the
+    // atlas padding) is drawn roughly tile-sized so the character reads without
+    // dwarfing the board. Feet rest at the shadow. Smoothing ON: cartoon art,
+    // not pixel art.
+    const span = tile * SPRITE_TILES;
+    const top = cy + tile * 0.33 - span; // bottom of the frame sits at the feet
+    ctx.imageSmoothingEnabled = true;
+    if (blit.flip) {
+      ctx.save();
+      ctx.translate(cx, 0);
+      ctx.scale(-1, 1); // mirror around cx; the art faces right by default
+      ctx.drawImage(blit.img, blit.sx, blit.sy, blit.sw, blit.sh, -span / 2, top, span, span);
+      ctx.restore();
+    } else {
+      ctx.drawImage(blit.img, blit.sx, blit.sy, blit.sw, blit.sh, cx - span / 2, top, span, span);
+    }
+  } else {
+    const icon = (entry && emoji[entry.m]) || "🐾";
 
-  glyph(ctx, alive ? icon : "💀", cx, cy, tile * 0.42);
+    // Slot-coloured disc: the animal glyph alone isn't enough to tell four
+    // players apart at a glance.
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, tile * 0.33, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = slot === you ? "#fff" : "rgba(0,0,0,.25)";
+    ctx.lineWidth = Math.max(1.5, tile * (slot === you ? 0.08 : 0.04));
+    ctx.stroke();
+
+    glyph(ctx, alive ? icon : "💀", cx, cy, tile * 0.42);
+  }
 
   if (entry) {
+    // A sprite is taller than a disc, so its name clears the head.
+    const labelY = blit ? cy - tile * 0.98 : cy - tile * 0.38;
     ctx.font = `800 ${Math.max(8, tile * 0.24)}px Nunito, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.lineWidth = Math.max(2, tile * 0.09);
     ctx.strokeStyle = "rgba(0,0,0,.55)";
-    ctx.strokeText(entry.n, cx, cy - tile * 0.38);
+    ctx.strokeText(entry.n, cx, labelY);
     ctx.fillStyle = "#fff";
-    ctx.fillText(entry.n, cx, cy - tile * 0.38);
+    ctx.fillText(entry.n, cx, labelY);
   }
 
   ctx.restore();

@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.3.8
+version: 0.3.9
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -462,6 +462,121 @@ Room codes are drawn from `crypto/rand` over a 32-symbol alphabet with no look-a
 ### Adding another game
 
 The seam is `src/web/src/games/GamesPage.tsx` (the index) plus a route in `App.tsx`. A game that needs its own server rules gets a sibling package to `internal/game`; one that doesn't needs no backend at all.
+
+### Totem sprites
+
+Players are drawn from a shared texture atlas (`src/web/public/sprites/totems.png` + `totems.json`): one PNG, one row per animal, one column per pose. Any animal without frames falls back to the emoji-on-a-disc, so the catalogue never needs full coverage. The loader and the per-slot animation state machine live in `src/web/src/games/bomberman/sprites.ts`; the blit is in `drawPlayer` (`render.ts`).
+
+**The four poses the game understands**, left to right: `front` (toward the camera, for standing and downward movement), `back` (away, for upward movement), `side` (profile **facing right**, mirrored in-game for leftward movement), `defeated` (knocked out). You can ship a subset; a missing pose falls back (`back` → `front`), and a missing animal falls back to the emoji disc.
+
+**Generating the art.** Feed this to an image model, replacing `{ANIMAL}`. The even spacing, the shared baseline, and the *absence of any baked-in shadow* are what make the result usable, so keep them:
+
+```
+A sprite sheet for a 2D top-down arcade game, drawn as ONE image containing
+exactly 4 character poses in a single horizontal row, evenly spaced, each in
+its own invisible 256x256 square cell.
+
+CHARACTER: a friendly cartoon {ANIMAL}. STOCKY, BROAD and ROUNDED - chubby and
+wide rather than tall or slender, short-limbed, with a big head and large dark
+eyes and clear, readable species features. Natural fur / skin colours for the
+animal, flat-filled. No clothing, no accessories, no props.
+
+VIEW: three-quarter top-down perspective, camera roughly 35 degrees above the
+horizon, looking slightly down at the character. The SAME camera for all 4
+poses.
+
+THE 4 POSES, left to right, in this exact order:
+1. FRONT   - standing, facing the viewer, mid-stride walking, one foot forward,
+             both eyes visible.
+2. BACK    - facing directly away from the viewer, mid-stride walking, seen
+             from behind.
+3. SIDE    - in profile FACING RIGHT, mid-stride walking, legs clearly apart,
+             one eye visible.
+4. DEFEATED- knocked out, lying on its back, eyes as simple X marks, limbs
+             splayed, comic and harmless, not gory or distressing.
+
+STYLE: flat vector cartoon illustration, bold uniform dark outline, flat colour
+fill with minimal soft shading, no gradients, no texture, no cross-hatching.
+Warm, friendly, kid-appropriate, like a modern indie party-game mascot. Clean
+and highly readable as a tiny icon.
+
+COMPOSITION: draw the character LARGE - it should fill about 85-90% of its cell
+in BOTH width and height, with only a thin margin, not a small figure floating
+in empty space. Centred in its cell, feet resting on the SAME horizontal
+baseline across all four poses. Full body visible, nothing cropped.
+
+BACKGROUND: fully transparent. NO ground, NO drop shadow under the character,
+no scenery, no frame, no cell borders, no grid lines, no labels or text
+anywhere. (The game draws its own ground shadow; a baked-in one would double up
+and look wrong.)
+```
+
+Notes:
+- **No neckerchief / scouting kit in the prompt.** The first Beaver was drawn wearing one, but it does not belong on every animal; leave the character plain and let the species carry it. Add themed accessories by hand only for animals where you actually want them.
+- Most models ignore "transparent" and hand back a flat **white** background; the splitter strips it with `--whitebg`. If your tool really does export transparency, drop that flag.
+
+**Splitting and installing.** One command does background removal, cropping, scaling, baseline alignment, and the atlas update. It finds each figure as a **connected blob** (so a figure stays whole whatever its spacing, size or walk pose) and orders them the way you read: **rows top-to-bottom, figures left-to-right** — so a 2D grid is fine, not just a single row. It scales every frame to one size with feet on the floor and writes the row into `totems.png` + `totems.json`. Re-running an animal replaces its row; a new animal is appended. **Usually you don't pass `--poses` at all** — the script reads the frame count from how many figures it finds:
+
+```bash
+python3 scripts/make_sprites.py path/to/{animal}_sheet.png {slug} --whitebg
+```
+
+`--whitebg` strips the background to transparency, and handles both a solid colour **and a transparency checkerboard** — image tools often hand back a flattened JPEG with the checker baked in, and keying it back out is clean because those greys are far from the character's colours. Drop the flag only if the file already has a real alpha channel.
+
+For the standard layout (same number of walk frames for `front`, then `back`, then `side`, then one `defeated`), auto-detect just works: **4 figures → statics, 7 → 2-frame walk, 10 → 3-frame walk**. For a non-standard sheet — a subset of directions, or **uneven counts** — name every figure in reading order (top-to-bottom, left-to-right), repeating a pose for its walk frames. For example a 2-row sheet of 3 front, 3 back, 4 side and 1 defeated:
+
+```bash
+python3 scripts/make_sprites.py path/to/{animal}_sheet.png {slug} --whitebg \
+  --poses front,front,front,back,back,back,side,side,side,side,defeated
+```
+
+Then rebuild the SPA (`cd src/web && npm run build`) so the atlas is bundled and embedded, or reload the Vite dev server, and pick that animal in the lobby. No code change is needed to add an animal.
+
+**Walk cycles.** Give each direction more than one frame and the game cycles them while the player moves (and stands on the first frame when idle). Recommended: **3 frames per direction** — `contact-left`, a symmetric `feet-together` passing pose, `contact-right` — which loops cleanly both ways; 2 is the readable minimum if the generator struggles to keep the character consistent across more cells. Cadence is `walkMs` in `sprites.ts` (140 ms/frame). The generation prompt for the 3-frame version (10 cells), replacing `{ANIMAL}`:
+
+```
+A sprite sheet for a 2D top-down arcade game, drawn as ONE image containing
+exactly 10 frames of the SAME character in a single horizontal row, evenly
+spaced, each in its own invisible 256x256 square cell, with a clear wide empty
+gap between every frame.
+
+CHARACTER: a friendly cartoon {ANIMAL}. STOCKY, BROAD and ROUNDED - chubby and
+wide rather than tall or slender, short-limbed, with a big head and large dark
+eyes and clear, readable species features. Natural fur / skin colours,
+flat-filled. No clothing, no accessories, no props. It MUST look like the exact
+same character in every single frame: identical colours, proportions and
+features throughout.
+
+VIEW: three-quarter top-down perspective, camera ~35 degrees above the horizon,
+the SAME for all 10 frames.
+
+THE 10 FRAMES, left to right, are three 3-step walk cycles plus one defeated
+pose, in this exact order:
+  1-3  FRONT walk (facing the viewer):   1 left foot forward, 2 both feet
+       together mid-step, 3 right foot forward.
+  4-6  BACK walk (facing away, seen from behind): 4 left foot forward, 5 feet
+       together, 6 right foot forward.
+  7-9  SIDE walk (profile FACING RIGHT): 7 left leg forward, 8 legs passing
+       close together, 9 right leg forward.
+  10   DEFEATED: knocked out, lying on its back, eyes as simple X marks, limbs
+       splayed, comic and harmless, not gory.
+
+STYLE: flat vector cartoon, bold uniform dark outline, flat colour fill, minimal
+soft shading, no gradients or texture. Kid-appropriate indie party-game mascot,
+highly readable as a tiny icon.
+
+COMPOSITION: draw the character LARGE - it should fill about 85-90% of its cell
+in BOTH width and height, with only a thin margin, not a small figure floating in
+empty space. Centred in its cell, feet on the SAME horizontal baseline across ALL
+frames. Full body visible, nothing cropped.
+
+BACKGROUND: fully transparent. NO ground, NO drop shadow under the character, no
+scenery, frame, borders, grid or text anywhere. (The game draws its own shadow.)
+```
+
+For a 2-frame walk, ask for **7 frames** instead: drop the middle (feet-together) frame from each direction, so each walk is just `left foot forward` then `right foot forward`, plus the defeated pose.
+
+> Smoothing is left **on** for these (`imageSmoothingEnabled = true` in `drawPlayer`) because they are smooth cartoon drawings, not pixel art; nearest-neighbour would make them jagged at tile size.
 
 ## Database & encryption
 
@@ -1026,14 +1141,13 @@ Mitigations, best-first:
 Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEMENT]` improve existing · `[CHORE]` infra/cleanup.
 
 ### Open
-- `[FEATURE]` **Animated 2D sprites for the totems in Bomberman** — replace the slot-coloured disc and emoji glyph with real walk cycles, for a chosen handful of animals.
-  - **The game code is nearly ready.** Positions are already continuous floats in tile units rather than grid snaps, so there is somewhere for animation to live, and the renderer already has per-frame time plus each player's slot and animal slug. Swapping the disc for a sprite blit is one function (`drawPlayer` in `render.ts`), roughly 40 lines.
-  - **Missing: facing.** The server tracks position but not which way a player faces. Add the last non-zero input direction to `PlayerDTO` — one byte, and the local player can derive it from its own input without waiting for the server.
-  - **Engineering, about half a day:** a sprite-sheet loader and one texture atlas (a single PNG plus a JSON frame map — 472 separate requests is not an option); a per-player animation state machine (idle / walk / die) advanced by wall time; `ctx.drawImage` with source rects instead of `fillText`, with `imageSmoothingEnabled = false` for crisp pixel art; and a **fallback to today's emoji disc** for any animal without a sprite, which is not optional — the catalogue will never be fully covered.
-  - **The real cost is art, and it does not scale.** A readable 4-direction walk cycle is ~4 frames × 4 directions, plus a death animation, at 32×32 or 48×48. That is a few hours per animal for a competent pixel artist. **Pick 8–12 totems that are popular at camp** rather than attempting the catalogue; a board mixing sprites and discs reads as "these ones are special", not as "the rest are broken". *(Niklas to choose the animals.)*
-  - **Cheaper first step, no art at all:** keep the emoji and give it squash-and-stretch — scale it on a sine wave while walking, tilt toward the direction of travel, flip horizontally for left/right. ~20 lines in `drawPlayer`, and it buys most of the "it feels alive" effect. Worth doing first to see whether real sprites are still wanted.
+- `[FEATURE]` **2D sprites for the totems in Bomberman** — the pipeline shipped in 0.3.9 with the Beaver (`bever`) as the first animal; what remains is art for more animals and, optionally, real walk cycles.
+  - **Built:** a single-PNG + JSON frame-map atlas (`src/web/public/sprites/totems.{png,json}`), a one-time loader + per-slot animation state machine (`sprites.ts`), and the `ctx.drawImage` blit path in `drawPlayer` (`render.ts`). Facing is derived client-side from per-frame movement, so **no `PlayerDTO` change was needed** — idle/vertical → front, horizontal → side (mirrored), dead → defeated. Smoothing is **on** (cartoon art, not pixel art). Any animal without frames falls back to the emoji disc, which is not optional — the catalogue will never be fully covered.
+  - **Adding an animal is now art-only + two files:** cut `front`/`side`/`defeated` frames (transparent bg, feet at the bottom), append a row to `totems.png`, add the slug's rects to `totems.json`.
+  - **The real cost is art, and it does not scale.** Three static frames per animal is a modest ask; a readable 4-direction *walk cycle* (~4 frames × 4 directions + a death animation, 32×32–48×48) is a few hours per animal for a competent artist. **Pick 8–12 totems popular at camp** rather than the whole catalogue; a board mixing sprites and discs reads as "these ones are special", not "the rest are broken". *(Niklas to choose the animals.)*
+  - **Optional next steps:** real multi-frame walk cycles (the frame map and state machine already allow N frames per state — advance by wall time); and if remote players' facing ever looks off under latency, add the last input direction to `PlayerDTO` (one byte) rather than inferring it from interpolated motion.
 - `[ENHANCEMENT]` **Prod `:8683` is reachable directly on the LAN** — `totemd` binds `0.0.0.0` and the WAF runs on a separate host, so the API can be hit without passing through the WAF (no TLS, ModSecurity or edge rate-limiting; and the future [auth-header trust](#extensibility) would be spoofable). Restrict prod `:8683` to the ReverseProxy-WAF only (host firewall allowing just the WAF IP, or a tunnel with `totemd` bound to it). Deferred 2026-10-03.
-- `[ENHANCEMENT]` **Frontend dev-only vuln** — the `esbuild`/`vite` dev-server advisory ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)) remains after the react-router fix. It affects only the Vite dev server, **not** the embedded prod binary. The fix is a `vite 5 → 7+` major upgrade (config/plugin migration + test pass). Deferred.
+- `[ENHANCEMENT]` ~~**Frontend dev-only vuln** — the `esbuild`/`vite` dev-server advisory ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)) remains after the react-router fix.~~ — **done (0.3.9)**: upgraded `vite 5 → 7.3.6` + `@vitejs/plugin-react 4 → 5.2.0`, which also cleared a **high**-severity Vite advisory (path traversal in optimized-deps `.map` handling). `npm audit` now reports **0 vulnerabilities**.
 - `[BUG]` 31 animals lack an `en`/`nl` description — the API now falls back to Italian so nothing is blank, but they should be properly translated per language (DeepL). (Reported example: Mink in English.)
 - `[BUG]` Italian animal names are largely unvalidated — Wikidata's Italian vernacular coverage is sparse (only 1 IT name could be fixed). Re-validate via it.wikipedia titles.
 - `[ENHANCEMENT]` **Paw fallbacks now 0** (hand-tuned in 0.2.26+); the remaining ~316 "category" emoji are family-level approximations that could still be refined from `data/emoji-review.md`.
@@ -1069,6 +1183,20 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.3.9 — 2026-10-03
+- `[TEST]` **Frontend test suite (Vitest).** Added `vitest` + `jsdom`, an `npm test` script, and the first 22 frontend tests, covering the previously-untested pure logic: the client-side movement prediction (`movement.ts`, pinned against `sim.go`'s rules — clamp-flush, no wall penetration, corridor re-centring, per-tick step), the finder filter/pill store (`store.ts` include/exclude/synonym-group bookkeeping), game nickname validation (`validate.ts`), and quiz-data integrity (`quiz.ts`). Also added Go unit tests for the API validation helpers and the rate-limiter window (`api_helpers_test.go`).
+- `[DOCS]` **OpenAPI contract → 1.1.0**: documented the multiplayer endpoints that were missing — `POST /api/v1/games/rooms` (create a room) and the `GET /api/v1/games/ws` WebSocket handshake (query params, origin rule, and a pointer to the message protocol).
+- `[SECURITY]` **vite 5 → 7.3.6** (+ `@vitejs/plugin-react` 4 → 5.2.0). Clears the last two advisories, including a **high**: Vite path traversal in optimized-deps `.map` handling, the Windows-only `launch-editor`/`server.fs.deny` issues, and the `esbuild` dev-server advisory ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)). All dev-server only, never in the embedded prod binary, but now fixed. The config needed no migration (standard `define`/`proxy`/`allowedHosts`/`outDir`); `tsc` + `vite build` pass, dev server boots and serves 200, and `npm audit` is **0 vulnerabilities** (was 4 at the start of the 0.3.x security pass).
+- `[FEATURE]` **First totem sprite in Bomberman: the Beaver (`bever`).** Players with a sprited animal now draw from a real texture atlas instead of the emoji-on-a-disc; every other animal keeps the emoji disc, which is the non-optional fallback. New pieces: a single-PNG + JSON frame-map atlas (`src/web/public/sprites/totems.{png,json}`, bundled into the SPA and embedded in the prod binary), a one-time loader + per-slot animation state machine (`sprites.ts`), and a `ctx.drawImage` blit path in `drawPlayer` (`render.ts`). Facing is derived client-side from per-frame movement (no `PlayerDTO` change needed yet): idle/vertical → front, horizontal → side (mirrored for left), dead → defeated. A slot-coloured **ground ring** replaces the disc so four players stay tellable apart.
+  - **Deviation from the original plan:** these are smooth cartoon drawings, not pixel art, so they draw with `imageSmoothingEnabled = true`; nearest-neighbour would make them jagged at tile size.
+- `[FEATURE]` **Sprite pipeline: `scripts/make_sprites.py`.** One command turns an animal's sheet into an atlas row: it finds figures as connected blobs (robust to spacing, size and walk pose), orders them in reading order so a **2D grid** works, normalises every frame to one scale with feet on the floor, and writes `totems.png` + `totems.json`. Adding an animal is now art plus one command, no code change. `--whitebg` strips a solid background **or a baked-in transparency checkerboard** (the usual flattened-JPEG case). It **auto-detects the frame count** from the figures (4 → statics, 7 → 2-frame walk, 10 → 3-frame walk); `--poses` (in reading order) covers subsets and uneven counts. See [Totem sprites](#totem-sprites) for the generation prompts.
+- `[FEATURE]` **Walk-cycle animation.** A pose can hold several frames; the renderer cycles them by wall clock (`walkMs`, 140 ms) while a player moves and rests on the first frame when idle. `totems.json` poses are now frame lists; `sprites.ts` drives the cycle. Static single-frame sprites still work unchanged (a list of one).
+- `[BUG]` **Front frame caught the neighbour's tail.** The first atlas was cropped on arithmetic thirds, but the side figure starts before the one-third line, so its tail bled into the front frame. The splitter now cuts on the real transparent gutters, so an overhanging tail or paw can't cross into the next pose.
+- `[BUG]` **Sprite strobed left/right while walking.** Facing was taken from the raw per-frame position delta, which reverses sign under latency as interpolation jitters the drawn position. Facing now comes from a smoothed velocity and is sticky: it only flips on a sustained push the other way, and the pose holds through a brief stop instead of snapping to front. Also added the `back` pose (upward movement) to the state machine.
+- `[BUG]` **Sprite draw size.** Tuned to `1.2 × tile` (`SPRITE_TILES` in `render.ts`, down from an initial 1.3, up from 1.0 which read too small), and atlas cell padding cut to 6 px so slender AI art fills more of its frame. The generation prompt now asks for a stocky, wide character that fills the cell.
+- `[DOCS]` The generation prompt no longer puts a Scout neckerchief on every animal; the character is drawn plain and the prompt forbids baked-in shadows (the board draws its own).
+- `[CHORE]` `tsc` + `vite build` pass; bundle 321 → 329 KB (atlas is a separate asset, not in the JS).
 
 ### 0.3.8 — 2026-10-03
 - `[SECURITY]` **react-router 6 → 7** (`react-router-dom` `7.18.4`) — patches two advisories carried by 6.x: the open redirect via backslash in `<Link>`/`useNavigate`, and the `deserializeErrors()` constructor-injection (the latter needs SSR hydration, which this SPA does not use). All usage is v7-compatible (`BrowserRouter`/`Routes`/`Route`/`Link`/`useParams`/`useSearchParams`), so **no code changes**; `tsc` + `vite build` pass and the dev routes (`/`, `/games`, `/games/bomberman`, `/animal/:slug`) were verified 200. `npm audit` 4 → 2; the remaining two are the **dev-only** `esbuild`/`vite` chain (one advisory, not in the prod binary) — tracked in [Issues](#open).
