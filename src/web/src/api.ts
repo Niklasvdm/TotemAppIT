@@ -116,3 +116,11 @@ export function suggestAnimal(name: string, note: string): Promise<void> {
 export function reportAnimal(slug: string, reason: ReportReason, note: string): Promise<void> {
   return postJSON(`/api/v1/animals/${encodeURIComponent(slug)}/reports`, { reason, note });
 }
+
+// Games. Creating a room allocates a tick loop on the server, so this is
+// rate-limited there; the returned code is what other players type to join.
+export async function createGameRoom(): Promise<{ code: string }> {
+  const res = await fetch(`/api/v1/games/rooms`, { method: "POST" });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<{ code: string }>;
+}

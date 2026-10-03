@@ -301,8 +301,10 @@ The full contract is an **OpenAPI 3.1** spec at [`docs/openapi.yaml`](docs/opena
 | `GET /api/v1/emoji` | slug → emoji map | — |
 | `POST /api/v1/suggestions` | Suggest a new animal | `{name, note?}` |
 | `POST /api/v1/animals/{slug}/reports` | Report an animal | `{reason, note?}` |
+| `POST /api/v1/games/rooms` | Open a game room | — → `{code}` |
+| `GET /api/v1/games/ws` | Join a room (WebSocket) | `code`, `name`, `animal` |
 
-Reads are unauthenticated and idempotent. The two writes are public but hardened (see [Community feedback](#community-feedback-suggestions--reports)). Admin review has **no HTTP surface** — it's the `totem-admin` CLI.
+Reads are unauthenticated and idempotent. The two writes are public but hardened (see [Community feedback](#community-feedback-suggestions--reports)). Admin review has **no HTTP surface** — it's the `totem-admin` CLI. The game routes are described in [Games](#games-multiplayer).
 
 ## Community feedback (suggestions & reports)
 
@@ -345,6 +347,55 @@ totem-admin accept-suggestion <id> | reject-suggestion <id>
 totem-admin accept-report <id>     | reject-report <id>
 ```
 It opens the same encrypted DB (needs `TOTEM_DB_KEY`) and lists entries sorted by count.
+
+## Games (multiplayer)
+
+The totem catalog is the content; the games are what gets people to open it at camp. The first one is a **Bomberman-style arena** where up to four players each pick a totem animal and fight on a 15×13 grid.
+
+**Server-authoritative, by design.** Clients send *intent* (a direction and whether the bomb key is down) and render what comes back. All movement, collision, fuses, blasts and deaths are decided by the server, so a tampered client cannot walk through walls, teleport, drop infinite bombs or survive a blast. The cost is one round trip of input latency, which is nothing on the LAN these games are played on.
+
+### Layering
+
+`internal/game` is split so the rules are testable without a network:
+
+| File | Responsibility |
+| ---- | -------------- |
+| `arena.go` | Static wall lattice + destructible crate layer, generated from a seed |
+| `state.go` | Match state and the DTOs that go on the wire |
+| `sim.go` | The tick function — a pure `(state, inputs) → state`, no I/O |
+| `protocol.go` | Client/server message envelopes |
+| `room.go` | One goroutine per room, owning a `Match` and running the tick loop |
+| `registry.go` | Room codes → rooms, with idle reaping |
+| `internal/api/games.go` | HTTP/WebSocket transport |
+
+Only `room.go` touches concurrency. Each room **owns its `Match` on a single goroutine** and every mutation is funnelled through an action channel, so the simulation needs no locks. Everything that can resolve a tie (who grabs a powerup on the same tick) iterates players in slot order, and crate drops come from a per-match seeded RNG — so a seed reproduces a whole round, which is what the tests lean on.
+
+### Netcode
+
+- **30 Hz** authoritative tick. Snapshots go out every tick during play; the lobby is silent (its state travels in roster frames) so idle rooms cost nothing.
+- Snapshots use **single-letter JSON keys**, and the crate layer is sent **only on the ticks where it changed** — WebSocket delivery is ordered, so the client holds the last value it saw.
+- A client that stalls has its snapshots **dropped, not queued**: each one is a complete picture, so the newest is always the one worth having.
+- The browser renders **one tick behind** and interpolates between the two most recent snapshots, which turns arrival jitter into smooth motion instead of sprites snapping between tiles. Snapshots live in a ref, never React state — at 30/s, `setState` would re-render the tree continuously.
+- A bomb press **latches** on the server. Direction is a level sampled at tick time, but a tap that starts and ends inside one 33 ms tick would otherwise be swallowed entirely.
+
+### Two things that will bite you again
+
+- **WebSockets inherit `http.Server`'s timeouts.** `totemd` sets `ReadTimeout`/`WriteTimeout` to 10s, and hijacking a connection does *not* clear the deadlines already on it — every game socket would die after ten seconds. `gameWS` clears them per-connection via `http.ResponseController` *before* the upgrade, rather than weakening the timeouts that protect the JSON API.
+- **The dev proxy breaks the same-origin check.** The WebSocket library only accepts an `Origin` whose host matches the `Host` the backend sees. In production that holds (the WAF forwards its own Host), but Vite's proxy rewrites Host to `127.0.0.1:8683` while the browser's Origin stays the dev server — a 403. `TOTEM_ALLOWED_ORIGINS` allowlists the dev origins explicitly; `run-dev.sh` sets it. It is **empty in production**, where same-origin is the whole policy.
+
+### Rules
+
+Classic: bombs have a 2s fuse, blast in a cross that stops at the first crate it destroys, and chain-detonate anything caught in the blast. Destroyed crates drop extra bombs, longer range or speed. You can step off a bomb you just dropped, but not back onto it. Last player standing takes the round; the host starts the next one.
+
+The crate-free pocket around each spawn reaches **two tiles** along both axes, which must stay larger than the starting blast radius — otherwise a player's opening bomb has no survivable tile to retreat to. `TestSpawnHasARetreatFromTheOpeningBomb` pins that invariant across 200 seeds.
+
+### Security
+
+Room codes are drawn from `crypto/rand` over a 32-symbol alphabet with no look-alike glyphs (no `0`/`O`, no `1`/`I`), because the code is the only thing guarding a room and it gets read aloud across a field. Creating a room allocates a goroutine, so it is rate-limited per IP; each connection has its own per-second frame budget, a 512-byte frame cap, and nicknames are validated server-side.
+
+### Adding another game
+
+The seam is `src/web/src/games/GamesPage.tsx` (the index) plus a route in `App.tsx`. A game that needs its own server rules gets a sibling package to `internal/game`; one that doesn't needs no backend at all.
 
 ## Database & encryption
 
@@ -603,7 +654,7 @@ curl "localhost:8683/api/v1/animals/adder?lang=it"
 curl "localhost:8683/api/v1/animals/adder/similar?lang=it&limit=3"
 ```
 
-Config is env-only: `TOTEM_ADDR` (default `127.0.0.1:8683`), `TOTEM_DB_PATH`, `TOTEM_IMAGE_DIR` (default `../data/images`), and the key as either `TOTEM_DB_KEY` or `TOTEM_DB_KEY_FILE` (a path — used by the systemd credential in deploy).
+Config is env-only: `TOTEM_ADDR` (default `127.0.0.1:8683`), `TOTEM_DB_PATH`, `TOTEM_IMAGE_DIR` (default `../data/images`), `TOTEM_ALLOWED_ORIGINS` (dev-only; see [Games](#games-multiplayer)), and the key as either `TOTEM_DB_KEY` or `TOTEM_DB_KEY_FILE` (a path — used by the systemd credential in deploy).
 
 **Design Decision — schema-first in Python.** Go is not yet installed in the dev environment, and the schema/data are identical whether the file is later opened plain or through the Adiantum VFS. So Phase 1 nails the data model against the real 471-animal dataset using Python's built-in `sqlite3`, fully tested, before any Go exists. Encryption is a *how-you-open-it* concern layered on in Phase 1b once the Go toolchain is in place — it does not change a single table.
 

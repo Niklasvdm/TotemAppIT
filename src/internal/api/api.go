@@ -21,6 +21,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/Niklasvdm/TotemAppIT/internal/game"
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
 )
 
@@ -45,14 +46,47 @@ type Server struct {
 	cat    Catalog
 	images fs.FS             // <slug>.webp files; nil when images aren't deployed
 	emoji  map[string]string // slug -> emoji, served at /api/v1/emoji
+	spa    fs.FS             // embedded SPA; nil → API-only (non-API routes 404)
+	games  *game.Registry    // live multiplayer game rooms
 	Router http.Handler
+
+	// gameOrigins are extra host patterns allowed to open a game WebSocket, on
+	// top of the always-permitted same-origin case. See WithGameOrigins.
+	gameOrigins []string
+}
+
+// Option adjusts a Server at construction. Options keep New's signature stable
+// as the server grows optional dependencies.
+type Option func(*Server)
+
+// WithGameOrigins authorises extra Origin host patterns for the game
+// WebSocket (e.g. "127.0.0.1:5173" for the Vite dev proxy, which forwards its
+// own Host so the browser's Origin no longer matches). Same-origin requests are
+// always allowed, so this only ever widens access — leave it empty in
+// production.
+func WithGameOrigins(patterns []string) Option {
+	return func(s *Server) { s.gameOrigins = patterns }
+}
+
+// WithSPA serves the embedded single-page app for all non-API routes. Pass the
+// build's filesystem (from the `web` package, compiled with -tags embed); nil
+// leaves the API headless, as in dev where Vite serves the UI.
+func WithSPA(spa fs.FS) Option {
+	return func(s *Server) { s.spa = spa }
 }
 
 // New wires the routes and middleware. images is the filesystem of animal images
-// (nil → the image route 404s); emoji is the slug→emoji map for /api/v1/emoji;
-// spa is the embedded SPA filesystem (nil → non-API routes 404, API-only mode).
-func New(cat Catalog, images fs.FS, emoji map[string]string, spa fs.FS) *Server {
-	s := &Server{cat: cat, images: images, emoji: emoji}
+// (nil → the image route 404s); emoji is the slug→emoji map for /api/v1/emoji.
+// Options add the embedded SPA (WithSPA) and extra game WebSocket origins
+// (WithGameOrigins).
+//
+// The returned Server owns a game registry with background goroutines; callers
+// that outlive a single request should Close it.
+func New(cat Catalog, images fs.FS, emoji map[string]string, opts ...Option) *Server {
+	s := &Server{cat: cat, images: images, emoji: emoji, games: game.NewRegistry()}
+	for _, opt := range opts {
+		opt(s)
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
@@ -74,16 +108,30 @@ func New(cat Catalog, images fs.FS, emoji map[string]string, spa fs.FS) *Server 
 			r.Post("/suggestions", s.createSuggestion)
 			r.Post("/animals/{slug}/reports", s.createReport)
 		})
+
+		// Multiplayer games. Creating a room allocates a goroutine and a tick
+		// loop, so it is rate-limited; the socket itself is not, since a long
+		// -lived connection is the point (it has its own per-frame budget).
+		r.Route("/games", func(r chi.Router) {
+			r.With(newRateLimiter(20, time.Minute).middleware).Post("/rooms", s.createRoom)
+			r.Get("/ws", s.gameWS)
+		})
 	})
 
 	// Serve the embedded SPA for everything that isn't an API/health route.
 	// Registered routes above take precedence; this catch-all handles the rest.
-	if spa != nil {
-		r.Handle("/*", spaHandler(spa))
+	if s.spa != nil {
+		r.Handle("/*", spaHandler(s.spa))
 	}
 
 	s.Router = r
 	return s
+}
+
+// Close releases the server's background resources (the game registry's reaper
+// and every open room).
+func (s *Server) Close() {
+	s.games.Close()
 }
 
 // --- DTOs (JSON shapes; separate from the domain types) ---------------------

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { useFinder } from "../store";
 import Flag from "./Flag";
 import type { Lang } from "../api";
@@ -62,6 +63,9 @@ export default function Header({
             </button>
           ))}
         </div>
+        <Link className="iconbtn" to="/games" title={t("gamesTitle")}>
+          🎲
+        </Link>
         <button className="iconbtn" onClick={onSuggest} title="Suggest an animal">
           ➕
         </button>

@@ -8,6 +8,8 @@ import DetailPage from "./pages/DetailPage";
 import Quiz from "./components/Quiz";
 import AboutTotems from "./components/AboutTotems";
 import SuggestModal from "./components/SuggestModal";
+import GamesPage from "./games/GamesPage";
+import BombermanPage from "./games/bomberman/BombermanPage";
 
 export default function App() {
   // Load the slug->emoji map once; cards fall back to 🐾 if it's unavailable.
@@ -42,6 +44,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<FinderPage emoji={emoji} />} />
         <Route path="/animal/:slug" element={<DetailPage emoji={emoji} />} />
+        <Route path="/games" element={<GamesPage />} />
+        <Route path="/games/bomberman" element={<BombermanPage emoji={emoji} />} />
       </Routes>
       {quizOpen && <Quiz onClose={() => setQuizOpen(false)} />}
       {aboutOpen && <AboutTotems onClose={closeAbout} />}

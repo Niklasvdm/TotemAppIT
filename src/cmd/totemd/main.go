@@ -44,9 +44,15 @@ func main() {
 		log.Println("no embedded SPA (API-only build); the UI is served by the Vite dev server in dev")
 	}
 
+	apiSrv := api.New(st, cfg.Images, cfg.Emoji, api.WithSPA(spa), api.WithGameOrigins(cfg.GameOrigins))
+	defer apiSrv.Close()
+
+	// The read/write timeouts suit the JSON API. The WebSocket game route
+	// clears them per-connection (see api.gameWS), so game sockets are not
+	// capped at 10s.
 	srv := &http.Server{
 		Addr:         cfg.Addr,
-		Handler:      api.New(st, cfg.Images, cfg.Emoji, spa).Router,
+		Handler:      apiSrv.Router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

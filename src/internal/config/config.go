@@ -19,6 +19,13 @@ type Config struct {
 	Images   fs.FS             // TOTEM_IMAGE_DIR (nil when unset/missing)
 	Emoji    map[string]string // TOTEM_EMOJI_FILE (nil when missing)
 	Warnings []string          // non-fatal config problems for the caller to log
+
+	// GameOrigins are extra host patterns allowed to open a game WebSocket,
+	// from TOTEM_ALLOWED_ORIGINS. Same-origin is always permitted; this is
+	// only needed where the browser's Origin and the Host the backend sees
+	// differ, as with the Vite dev proxy. Empty in production, where the WAF
+	// forwards its own Host.
+	GameOrigins []string
 }
 
 // Load resolves the full configuration for the server. Missing optional assets
@@ -31,9 +38,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	c := Config{
-		Addr:   env("TOTEM_ADDR", "127.0.0.1:8683"), // 8683 = "TOTE"; below the ephemeral range
-		DBPath: env("TOTEM_DB_PATH", "totem.db"),
-		DBKey:  key,
+		Addr:        env("TOTEM_ADDR", "127.0.0.1:8683"), // 8683 = "TOTE"; below the ephemeral range
+		DBPath:      env("TOTEM_DB_PATH", "totem.db"),
+		DBKey:       key,
+		GameOrigins: splitList(env("TOTEM_ALLOWED_ORIGINS", "")),
 	}
 
 	emojiPath := env("TOTEM_EMOJI_FILE", "../data/emoji.json")
@@ -67,6 +75,17 @@ func DBKey() (string, error) {
 		return strings.TrimSpace(string(b)), nil
 	}
 	return "", fmt.Errorf("set TOTEM_DB_KEY or TOTEM_DB_KEY_FILE (the Adiantum encryption key)")
+}
+
+// splitList parses a comma-separated env value into trimmed, non-empty items.
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func env(key, def string) string {
