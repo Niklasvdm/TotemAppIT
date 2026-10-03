@@ -2489,7 +2489,7 @@
       "amante della libertà"
     ],
     "slug": "condor",
-    "desc_nl": "",
+    "desc_nl": "De condor is een grote Amerikaanse gier met een indrukwekkende spanwijdte. Hij vliegt urenlang door op meesterlijke wijze en met veel uithoudingsvermogen gebruik te maken van thermiek. Hij is geduldig in het afwachten en onafhankelijk in zijn eenzame leven. Een symbool van vrijheid en majesteit.",
     "desc_it": "Il condor è un grande avvoltoio americano con un'apertura alare imponente. Vola per ore sfruttando le correnti termiche con maestria e resistenza. È paziente nell'attendere e indipendente nella sua vita solitaria. Simbolo di libertà e maestosità.",
     "en": "Condor",
     "traits_en": [
@@ -2502,7 +2502,8 @@
       "independent",
       "enduring",
       "freedom-loving"
-    ]
+    ],
+    "desc_en": "The condor is a large American vulture with an impressive wingspan. It flies for hours, skilfully and tirelessly riding the thermal currents. It is patient whilst waiting and independent in its solitary life. A symbol of freedom and majesty."
   },
   {
     "nl": "Coscoroba",
@@ -2601,7 +2602,7 @@
       "ingegnoso"
     ],
     "slug": "coypu",
-    "desc_nl": "",
+    "desc_nl": "De nutria is een sociaal en aanpasbaar waterknaagdier. Het is altijd druk bezig met het bouwen van schuilplaatsen langs de oevers. Het leeft in kleine familiegroepen. Het past zich op vindingrijke wijze aan nieuwe omgevingen aan.",
     "desc_it": "La nutria è un roditore acquatico socievole e adattabile. È sempre indaffarata nella costruzione di rifugi lungo le rive. Vive in piccoli gruppi familiari. È ingegnosa nell'adattarsi a nuovi ambienti.",
     "en": "Coypu",
     "traits_en": [
@@ -2609,7 +2610,8 @@
       "bustling",
       "social",
       "resourceful"
-    ]
+    ],
+    "desc_en": "The nutria is a sociable and adaptable aquatic rodent. It is always busy building burrows along the riverbanks. It lives in small family groups. It is resourceful when it comes to adapting to new environments."
   },
   {
     "nl": "Dagpauwoog",
@@ -3132,7 +3134,7 @@
       "resistente"
     ],
     "slug": "dromedaris",
-    "desc_nl": "",
+    "desc_nl": "De dromedaris is een volhardend en weerbaar woestijndier. Hij kan de heetste hitte verdragen en dagenlang zonder water uitkomen. Hij kan koppig zijn, maar is zeer nuttig als werkdier. Hij past zich perfect aan de zwaarste omstandigheden aan.",
     "desc_it": "Il dromedario è un animale tenace e resistente del deserto. È capace di sopportare il caldo più feroce e di andare giorni senza bere. Può essere cocciuto ma è molto utile come animale da lavoro. Si adatta perfettamente alle condizioni più dure.",
     "en": "Dromedary",
     "traits_en": [
@@ -3144,7 +3146,8 @@
       "useful",
       "tough",
       "enduring"
-    ]
+    ],
+    "desc_en": "The dromedary is a tenacious and hardy desert animal. It can withstand the most intense heat and go for days without drinking. It can be stubborn, but it is very useful as a working animal. It adapts perfectly to the harshest conditions."
   },
   {
     "nl": "Drongo",
@@ -3330,7 +3333,7 @@
       "territoriale"
     ],
     "slug": "dwergneushoorn",
-    "desc_nl": "",
+    "desc_nl": "De Sumatraanse neushoorn is de kleinste van alle neushoorns, maar daarom niet minder sterk. Hij is een solitair en territoriaal dier en leeft het liefst in dichte bossen. Hij is voorzichtig en flexibel, maar kan agressief worden als hij zich bedreigd voelt. Het is een van de zeldzaamste dieren ter wereld.",
     "desc_it": "Il rinoceronte di Sumatra è il più piccolo dei rinoceronti, ma non per questo meno forte. È solitario e territoriale, preferisce vivere nelle foreste dense. È cauto e adattabile, ma può essere aggressivo se minacciato. È uno degli animali più rari al mondo.",
     "en": "Dwarf Rhinoceros",
     "traits_en": [
@@ -3340,7 +3343,8 @@
       "strong",
       "tough",
       "territorial"
-    ]
+    ],
+    "desc_en": "The Sumatran rhino is the smallest of the rhino species, but no less strong for that. It is solitary and territorial, preferring to live in dense forests. It is cautious and adaptable, but can be aggressive if threatened. It is one of the rarest animals in the world."
   },
   {
     "nl": "Dziggetai",
@@ -4003,7 +4007,7 @@
       "territoriale"
     ],
     "slug": "fosse",
-    "desc_nl": "",
+    "desc_nl": "De fossa is het belangrijkste roofdier van Madagaskar. Hij kan goed klimmen en jaagt zowel in bomen als op de grond. Hij leeft solitair en verdedigt zijn territorium krachtig. Hij is een nachtdier en laat zich zelden zien.",
     "desc_it": "La fossa è il principale predatore del Madagascar. È abile nell'arrampicarsi e nel cacciare sia sugli alberi che a terra. Vive da sola e difende il suo territorio con forza. È notturna e difficile da incontrare.",
     "en": "Fossa",
     "traits_en": [
@@ -4013,7 +4017,8 @@
       "solitary",
       "strong",
       "territorial"
-    ]
+    ],
+    "desc_en": "The fossa is Madagascar’s main predator. It is adept at climbing and hunting both in trees and on the ground. It lives alone and fiercely defends its territory. It is nocturnal and rarely seen."
   },
   {
     "nl": "Franjeaap",
@@ -4497,7 +4502,7 @@
       "resistente"
     ],
     "slug": "galapagosschildpad",
-    "desc_nl": "",
+    "desc_nl": "De Galápagos-schildpad is een van de langstlevende dieren ter wereld. Hij beweegt zich langzaam en zonder haast voort, vol rust. Hij blijft onverstoorbaar in moeilijke omstandigheden. Zijn uithoudingsvermogen en geduld zijn legendarisch.",
     "desc_it": "La tartaruga delle Galápagos è uno degli animali più longevi del pianeta. Si muove lentamente e senza fretta, con grande tranquillità. È imperturbabile di fronte alle difficoltà. La sua resistenza e la sua pazienza sono leggendarie.",
     "en": "Galapagos tortoise",
     "traits_en": [
@@ -4508,7 +4513,8 @@
       "quiet",
       "tough",
       "enduring"
-    ]
+    ],
+    "desc_en": "The Galápagos tortoise is one of the longest-living animals on the planet. It moves slowly and unhurriedly, with great calm. It remains unflappable in the face of adversity. Its endurance and patience are legendary."
   },
   {
     "nl": "Gaur",
@@ -4638,7 +4644,7 @@
       "ingegnoso"
     ],
     "slug": "gecko",
-    "desc_nl": "",
+    "desc_nl": "De gekko is een kleine, aanpasbare en nachtactieve hagedis. Dankzij de zuignappen aan zijn poten kan hij op elk oppervlak klimmen. Hij is snel en nieuwsgierig, en altijd op zoek naar insecten. Hij leeft in veel verschillende omgevingen, van woestijnen tot tropische regenwouden.",
     "desc_it": "Il geco è una piccola lucertola adattabile e notturna. Grazie alle ventose sui piedi, si arrampica su qualsiasi superficie. È veloce e curioso, sempre in cerca di insetti. Vive in molti ambienti diversi, dai deserti alle foreste tropicali.",
     "en": "Gecko",
     "traits_en": [
@@ -4649,7 +4655,8 @@
       "curious",
       "fast",
       "resourceful"
-    ]
+    ],
+    "desc_en": "The gecko is a small, adaptable, nocturnal lizard. Thanks to the suction pads on its feet, it can climb on any surface. It is fast and curious, always on the lookout for insects. It lives in many different habitats, from deserts to tropical forests."
   },
   {
     "nl": "Geep",
@@ -4833,7 +4840,7 @@
       "territoriale"
     ],
     "slug": "gemsbok",
-    "desc_nl": "",
+    "desc_nl": "De oryx is een dappere en weerbarstige woestijnantilope. Hij jaagt in zijn eentje en kan onder extreme omstandigheden overleven. Hij is scherpzinnig en sterk, en kan zich met zijn lange hoorns tegen roofdieren verdedigen. Hij heeft een sterke band met zijn leefgebied.",
     "desc_it": "L'orice è un'antilope del deserto coraggiosa e resistente. Caccia in solitario e sa sopravvivere in condizioni estreme. È perspicace e forte, capace di difendersi dai predatori con le sue corna lunghe. Ha un forte legame con il territorio.",
     "en": "Gemsbok",
     "traits_en": [
@@ -4845,7 +4852,8 @@
       "strong",
       "tough",
       "territorial"
-    ]
+    ],
+    "desc_en": "The oryx is a brave and hardy desert antelope. It hunts alone and is able to survive in extreme conditions. It is alert and strong, capable of defending itself against predators with its long horns. It has a strong bond with its territory."
   },
   {
     "nl": "Genetkat",
@@ -5166,7 +5174,7 @@
       "solitario"
     ],
     "slug": "gordeldier",
-    "desc_nl": "",
+    "desc_nl": "Het gordeldier is een nachtdier dat zich beschermt met zijn benige pantser. Het is voorzichtig en rustig en vermijdt conflicten door zich op te rollen. Het leeft alleen en graaft ingewikkelde holen. Het past zich aan vele soorten omgevingen aan.",
     "desc_it": "L'armadillo è un mammifero notturno che si protegge con la sua corazza ossea. È cauto e tranquillo, evita i conflitti arrotolando su sé stesso. Vive da solo e scava tane elaborate. Si adatta a molti tipi di ambiente.",
     "en": "Armadillo",
     "traits_en": [
@@ -5176,7 +5184,8 @@
       "quiet",
       "shy",
       "solitary"
-    ]
+    ],
+    "desc_en": "The armadillo is a nocturnal mammal that protects itself with its bony armour. It is cautious and calm, and avoids conflict by curling up into a ball. It lives alone and digs elaborate burrows. It adapts to many different types of environment."
   },
   {
     "nl": "Gorilla",
@@ -5617,7 +5626,7 @@
       "prudente"
     ],
     "slug": "groene-schildpad",
-    "desc_nl": "",
+    "desc_nl": "De groene schildpad is een van de oudste reptielen op aarde. Hij zwemt gracieus duizenden kilometers door de oceaan. Hij is geduldig en voorzichtig, en keert elk jaar terug naar dezelfde stranden om zijn eieren te leggen. Hij is volhardend en veerkrachtig.",
     "desc_it": "La tartaruga verde è uno dei rettili più antichi del pianeta. Nuota con grazia nell'oceano per migliaia di chilometri. È paziente e prudente, torna ogni anno sulle stesse spiagge per deporre le uova. È tenace e resistente.",
     "en": "Green turtle",
     "traits_en": [
@@ -5627,7 +5636,8 @@
       "tough",
       "enduring",
       "careful"
-    ]
+    ],
+    "desc_en": "The green turtle is one of the oldest reptiles on the planet. It swims gracefully through the ocean for thousands of kilometres. It is patient and cautious, returning every year to the same beaches to lay its eggs. It is tenacious and resilient."
   },
   {
     "nl": "Groenling",
@@ -5773,7 +5783,7 @@
       "vigile"
     ],
     "slug": "grote-gehoornde-uil",
-    "desc_nl": "",
+    "desc_nl": "De Virginia-uil is de grootste uil van Noord-Amerika. Het is een nauwkeurige en geruisloze nachtjager. Hij leeft solitair en verdedigt zijn territorium vastberaden. Hij is waakzaam en intelligent, en beschikt over een uitzonderlijk nachtzicht.",
     "desc_it": "Il gufo della Virginia è il più grande gufo nordamericano. È un cacciatore notturno preciso e silenzioso. Vive da solo e difende il territorio con determinazione. È vigile e intelligente, dotato di una visione notturna eccezionale.",
     "en": "Great horned owl",
     "traits_en": [
@@ -5786,7 +5796,8 @@
       "solitary",
       "quiet",
       "watchful"
-    ]
+    ],
+    "desc_en": "The Virginia owl is the largest owl in North America. It is a precise and silent nocturnal hunter. It lives alone and defends its territory with determination. It is alert and intelligent, with exceptional night vision."
   },
   {
     "nl": "Guppy",
@@ -6161,7 +6172,7 @@
       "fedele"
     ],
     "slug": "hedendaagse-wolf",
-    "desc_nl": "",
+    "desc_nl": "De moderne wolf leeft in goed georganiseerde roedels met een strakke hiërarchie. Hij is trouw aan zijn familie en verdedigt zijn territorium met instinct en intelligentie. Hij jaagt in groep met een uitstekende coördinatie. Hij is moedig en waakzaam, en altijd bereid zich aan nieuwe situaties aan te passen.",
     "desc_it": "Il lupo moderno vive in branchi ben organizzati con una gerarchia rigida. È fedele alla famiglia e difende il territorio con istinto e intelligenza. Caccia in gruppo con grande coordinazione. È coraggioso e vigile, sempre pronto ad adattarsi a nuove situazioni.",
     "en": "Grey wolf",
     "traits_en": [
@@ -6173,7 +6184,8 @@
       "intelligent",
       "territorial",
       "loyal"
-    ]
+    ],
+    "desc_en": "The modern wolf lives in well-organised packs with a strict hierarchy. It is loyal to its family and defends its territory with instinct and intelligence. It hunts in packs with great coordination. It is brave and alert, always ready to adapt to new situations."
   },
   {
     "nl": "Herdershond",
@@ -6491,7 +6503,7 @@
       "resistente"
     ],
     "slug": "honingdas",
-    "desc_nl": "",
+    "desc_nl": "De ratel is een van de dapperste en meest onverschrokken dieren ter wereld. Hij gaat zonder aarzelen de strijd aan met veel grotere roofdieren. Hij is slim en gebruikt allerlei trucjes om bijenkasten te openen en aan honing te komen. Hij is sterk en bijna immuun voor gif.",
     "desc_it": "Il ratel è uno degli animali più coraggiosi e indomiti del pianeta. Affronta predatori molto più grandi senza esitazione. È furbo e usa vari espedienti per aprire gli alveari e procurarsi il miele. È resistente e quasi immune ai veleni.",
     "en": "Honey badger",
     "traits_en": [
@@ -6504,7 +6516,8 @@
       "smart",
       "strong",
       "tough"
-    ]
+    ],
+    "desc_en": "The honey badger is one of the bravest and most indomitable animals on the planet. It takes on much larger predators without hesitation. It is cunning and uses various tricks to break into beehives and obtain honey. It is hardy and almost immune to poisons."
   },
   {
     "nl": "Hop",
@@ -7243,7 +7256,7 @@
       "unico"
     ],
     "slug": "kakapo",
-    "desc_nl": "",
+    "desc_nl": "De kakapo is een nachtactieve papegaai, grappig en uniek in de wereld. Hij kan niet vliegen, maar kan wel goed in bomen klimmen. Hij is een eenling en avontuurlijk ingesteld, en verkent graag ’s nachts zijn territorium. Zijn eigenaardige gedrag maakt hem tot een van de meest fascinerende vogels.",
     "desc_it": "Il kakapo è un pappagallo notturno, buffo e unico al mondo. Non sa volare ma sa arrampicarsi bene sugli alberi. È solitario e avventuroso, ama esplorare il territorio di notte. Il suo comportamento peculiare lo rende uno degli uccelli più affascinanti.",
     "en": "Kakapo",
     "traits_en": [
@@ -7255,7 +7268,8 @@
       "fearless",
       "solitary",
       "unique"
-    ]
+    ],
+    "desc_en": "The kakapo is a nocturnal parrot – comical and unique in the world. It cannot fly but is a skilled tree-climber. It is solitary and adventurous, and loves to explore its territory at night. Its peculiar behaviour makes it one of the most fascinating birds."
   },
   {
     "nl": "Kaketoe",
@@ -7912,7 +7926,7 @@
       "vigile"
     ],
     "slug": "kerkuil",
-    "desc_nl": "",
+    "desc_nl": "De kerkuil is een stille en uiterst nauwkeurige uil. Hij jaagt ’s nachts zonder ook maar het minste geluid te maken. Hij leeft alleen in verlaten gebouwen of op het open platteland. Hij is waakzaam en oplettend, en heeft een buitengewoon goed gehoor.",
     "desc_it": "Il barbagianni è un gufo silenzioso e precisissimo. Caccia di notte senza fare il minimo rumore. Vive da solo in edifici abbandonati o nelle campagne aperte. È vigile e osservatore, con un udito straordinario.",
     "en": "Barn owl",
     "traits_en": [
@@ -7925,7 +7939,8 @@
       "solitary",
       "quiet",
       "watchful"
-    ]
+    ],
+    "desc_en": "The barn owl is a silent and extremely precise owl. It hunts at night without making the slightest sound. It lives alone in abandoned buildings or in open countryside. It is alert and observant, with extraordinary hearing."
   },
   {
     "nl": "Kever",
@@ -8549,7 +8564,7 @@
       "vigile"
     ],
     "slug": "komodovaran",
-    "desc_nl": "",
+    "desc_nl": "De Komodovaraan is het grootste nog levende reptiel. Het is een geduldig en instinctief roofdier dat met grote kalmte op zijn prooi wacht. Hij is sterk en territoriaal en verdedigt zijn territorium krachtig. Het is een oeroud en indrukwekkend dier.",
     "desc_it": "Il varano di Komodo è il più grande rettile vivente. È un predatore paziente e istintivo che attende le prede con grande calma. È forte e territoriale, difende il suo spazio con vigore. È un animale antico e imponente.",
     "en": "Komodovaran",
     "traits_en": [
@@ -8561,7 +8576,8 @@
       "strong",
       "territorial",
       "watchful"
-    ]
+    ],
+    "desc_en": "The Komodo dragon is the largest living reptile. It is a patient and instinctive predator that waits for its prey with great calm. It is strong and territorial, and defends its territory vigorously. It is an ancient and imposing animal."
   },
   {
     "nl": "Kongoni",
@@ -9082,7 +9098,7 @@
       "sorprendente"
     ],
     "slug": "kwal",
-    "desc_nl": "",
+    "desc_nl": "De kwal is een mysterieus en traag zeedier. Ze drijft op open zee en laat zich meevoeren door de stromingen, zonder echte richting. Ze is uniek in haar soort: ze heeft noch een brein, noch een hart. Haar doorzichtigheid en haar tentakels maken haar tot een fascinerend en verrassend wezen.",
     "desc_it": "La medusa è un animale marino misterioso e lento. Galleggia in mare aperto seguendo le correnti, senza una vera direzione. È unica nel suo genere: non ha né cervello né cuore. La sua trasparenza e i suoi tentacoli la rendono un essere affascinante e sorprendente.",
     "en": "Jellyfish",
     "traits_en": [
@@ -9092,7 +9108,8 @@
       "slow",
       "unique",
       "surprising"
-    ]
+    ],
+    "desc_en": "The jellyfish is a mysterious and slow-moving marine animal. It drifts in the open sea, carried by the currents, with no real direction. It is one of a kind: it has neither a brain nor a heart. Its transparency and its tentacles make it a fascinating and surprising creature."
   },
   {
     "nl": "Kwartel",
@@ -9415,7 +9432,7 @@
       "giocoso"
     ],
     "slug": "lemur",
-    "desc_nl": "",
+    "desc_nl": "De maki van Madagaskar is een nieuwsgierig en sociaal primaat. Hij leeft in luidruchtige en communicatieve familiegroepen. Hij is leergierig en past zich goed aan veranderingen aan. Hij is speels en levendig, en altijd in beweging tussen de bomen.",
     "desc_it": "Il lemure del Madagascar è un primate curioso e socievole. Vive in gruppi familiari rumorosi e comunicativi. È desideroso di imparare e si adatta bene ai cambiamenti. È giocoso e vivace, sempre in movimento tra gli alberi.",
     "en": "Lemur",
     "traits_en": [
@@ -9427,7 +9444,8 @@
       "curious",
       "social",
       "playful"
-    ]
+    ],
+    "desc_en": "The Madagascar lemur is a curious and sociable primate. It lives in noisy, communicative family groups. It is eager to learn and adapts well to change. It is playful and lively, always on the move amongst the trees."
   },
   {
     "nl": "Lepelaar",
@@ -10260,7 +10278,7 @@
       "territoriale"
     ],
     "slug": "mantiskreeft",
-    "desc_nl": "",
+    "desc_nl": "De reuzenkreeft is een buitengewoon krachtig zeekreeftachtig. Zijn slagen kunnen zeer harde materialen verbrijzelen. Hij is waakzaam en territoriaal en verdedigt zijn hol met grote moed. Hij is nauwkeurig en vastberaden in alles wat hij doet.",
     "desc_it": "La canocchia è un crostaceo marino straordinariamente potente. I suoi colpi possono frantumare materiali molto duri. È vigile e territoriale, difende la sua tana con grande coraggio. È precisa e decisa in ogni azione.",
     "en": "Mantis lobster",
     "traits_en": [
@@ -10272,7 +10290,8 @@
       "fearless",
       "strong",
       "territorial"
-    ]
+    ],
+    "desc_en": "The mantis shrimp is an extraordinarily powerful marine crustacean. Its strikes can shatter even the hardest materials. It is alert and territorial, defending its burrow with great courage. It is precise and decisive in everything it does."
   },
   {
     "nl": "Mara",
@@ -10860,7 +10879,7 @@
       "solitario"
     ],
     "slug": "mink",
-    "desc_nl": "",
+    "desc_nl": "De nerts is een behendig en nachtactief dier uit de familie van de marterachtigen. Hij jaagt zowel in het water als op het land met grote behendigheid. Hij is een eenling en scherpzinnig, en verdedigt zijn territorium krachtig. Hij is sluw en vasthoudend bij het achtervolgen van zijn prooien.",
     "desc_it": "Il visone è un mustelide agile e notturno. Caccia sia in acqua che sulla terraferma con grande abilità. È solitario e perspicace, difende il territorio con forza. È furbo e tenace nell'inseguire le prede.",
     "en": "Mink",
     "traits_en": [
@@ -10872,7 +10891,8 @@
       "perceptive",
       "smart",
       "solitary"
-    ]
+    ],
+    "desc_en": "The mink is an agile, nocturnal member of the weasel family. It hunts with great skill both in water and on land. It is solitary and shrewd, and defends its territory fiercely. It is cunning and tenacious when pursuing its prey."
   },
   {
     "nl": "Moeflon",
@@ -10901,7 +10921,7 @@
       "vigile"
     ],
     "slug": "moeflon",
-    "desc_nl": "",
+    "desc_nl": "Het moeflon is een trots en dapper wild schaap. Het leeft in kuddes in de rotsachtige bergen. De mannetjes vechten met hun hoorns om het leiderschap van de kudde. Het is waakzaam en sterk, en verdedigt zijn territorium tegen rivalen.",
     "desc_it": "Il muflone è un ovino selvatico fiero e coraggioso. Vive in branchi sulle montagne rocciose. I maschi si scontrano con colpi di corna per la leadership del branco. È vigile e forte, territoriale verso i rivali.",
     "en": "Mouflon",
     "traits_en": [
@@ -10914,7 +10934,8 @@
       "territorial",
       "proud",
       "watchful"
-    ]
+    ],
+    "desc_en": "The mouflon is a proud and courageous wild sheep. It lives in flocks in rocky mountains. The males lock horns to fight for leadership of the flock. It is alert and strong, and territorial towards rivals."
   },
   {
     "nl": "Mol",
@@ -11849,7 +11870,7 @@
       "forte"
     ],
     "slug": "orca",
-    "desc_nl": "",
+    "desc_nl": "De orka is het grootste roofdier in de oceaan. Hij leeft in hechte families met een complex communicatiesysteem. Hij is intelligent en krachtig, en jaagt in groepen met een uitstekende coördinatie. Hij blijft zijn hele leven trouw aan de groep.",
     "desc_it": "L'orca è il più grande predatore oceanico. Vive in famiglie strette con una comunicazione complessa. È intelligente e potente, caccia in gruppo con grande coordinazione. È fedele al branco per tutta la vita.",
     "en": "Orca",
     "traits_en": [
@@ -11861,7 +11882,8 @@
       "powerful",
       "social",
       "strong"
-    ]
+    ],
+    "desc_en": "The orca is the largest oceanic predator. It lives in close-knit families with a complex system of communication. It is intelligent and powerful, and hunts in groups with great coordination. It remains loyal to its pod for life."
   },
   {
     "nl": "Oribi",
@@ -12371,7 +12393,7 @@
       "forte"
     ],
     "slug": "panter",
-    "desc_nl": "",
+    "desc_nl": "De panter is een mysterieuze en stille grote katachtige. Hij jaagt in het holst van de nacht met grote precisie. Hij is onafhankelijk en een eenling, de absolute heerser over zijn territorium. Hij is elegant en krachtig, een meester in het onzichtbaar blijven.",
     "desc_it": "La pantera è un grande felino misterioso e silenzioso. Caccia nell'oscurità della notte con grande precisione. È indipendente e solitaria, padrona assoluta del suo territorio. È elegante e potente, maestra dell'invisibilità.",
     "en": "Panther",
     "traits_en": [
@@ -12386,7 +12408,8 @@
       "perceptive",
       "solitary",
       "strong"
-    ]
+    ],
+    "desc_en": "The panther is a mysterious and silent big cat. It hunts in the darkness of the night with great precision. It is independent and solitary, the absolute ruler of its territory. It is elegant and powerful, a master of stealth."
   },
   {
     "nl": "Papegaai",
@@ -13514,7 +13537,7 @@
       "ingegnoso"
     ],
     "slug": "rat",
-    "desc_nl": "",
+    "desc_nl": "De rat is een flexibel en buitengewoon intelligent zoogdier. Hij leeft in complexe sociale groepen met een sterk gemeenschapsgevoel. Hij is nieuwsgierig en vindingrijk, en in staat om nieuwe oplossingen voor problemen te bedenken. Hij is slim en vindingrijk en kan in vrijwel elke omgeving overleven.",
     "desc_it": "Il ratto è un mammifero adattabile e straordinariamente intelligente. Vive in gruppi sociali complessi con grande senso comunitario. È curioso e inventivo, capace di trovare soluzioni nuove ai problemi. È furbo e ingegnoso, sopravvive in quasi ogni ambiente.",
     "en": "Rat",
     "traits_en": [
@@ -13527,7 +13550,8 @@
       "social",
       "smart",
       "resourceful"
-    ]
+    ],
+    "desc_en": "The rat is an adaptable and extraordinarily intelligent mammal. It lives in complex social groups with a strong sense of community. It is curious and inventive, capable of finding new solutions to problems. It is cunning and resourceful, and can survive in almost any environment."
   },
   {
     "nl": "Ree",
@@ -13856,7 +13880,7 @@
       "vigile"
     ],
     "slug": "roofvogel-algemeen",
-    "desc_nl": "",
+    "desc_nl": "Roofvogels zijn trotse en nauwkeurige jachtvogels. Ze vliegen met hun scherpe ogen hoog boven het gebied. Ze zijn onafhankelijk en krachtig, en heersen met autoriteit over de lucht. Hun geduld bij het wachten op hun prooi is legendarisch.",
     "desc_it": "I rapaci sono cacciatori aerei fieri e precisi. Sorvolano il territorio dall'alto con occhi acutissimi. Sono indipendenti e potenti, dominano il cielo con autorità. La loro pazienza nell'attendere la preda è leggendaria.",
     "en": "Bird of prey",
     "traits_en": [
@@ -13869,7 +13893,8 @@
       "independent",
       "perceptive",
       "watchful"
-    ]
+    ],
+    "desc_en": "Birds of prey are proud and precise aerial hunters. They soar high above their territory with exceptionally keen eyesight. They are independent and powerful, ruling the skies with authority. Their patience in waiting for their prey is legendary."
   },
   {
     "nl": "Saiga",
@@ -14802,7 +14827,7 @@
       "perspicace"
     ],
     "slug": "slang-algemeen",
-    "desc_nl": "",
+    "desc_nl": "De slang is een onopvallend en aanpassingsvermogen reptiel. Hij beweegt zich geruisloos voort en maakt daarbij gebruik van de warmte uit zijn omgeving. Bij het jagen is hij geduldig en handelt hij op instinct. Hij komt in bijna alle delen van de wereld voor en past zich aan zeer uiteenlopende omstandigheden aan.",
     "desc_it": "Il serpente è un rettile discreto e adattabile. Si muove in silenzio sfruttando il calore dell'ambiente. È paziente e istintivo nella caccia. Vive in quasi ogni parte del mondo, adattandosi a condizioni molto diverse.",
     "en": "Snake",
     "traits_en": [
@@ -14814,7 +14839,8 @@
       "instinctive",
       "inconspicuous",
       "perceptive"
-    ]
+    ],
+    "desc_en": "The snake is a discreet and adaptable reptile. It moves silently, making use of the heat in its surroundings. It is patient and instinctive when hunting. It is found in almost every part of the world, adapting to a wide variety of conditions."
   },
   {
     "nl": "Slangehalsvogel",
@@ -15075,7 +15101,7 @@
       "forte"
     ],
     "slug": "sneeuwluipaard",
-    "desc_nl": "",
+    "desc_nl": "De sneeuwluipaard is een van de meest ongrijpbare katachtigen. Hij leeft solitair in de hoogste bergen van Centraal-Azië. Hij jaagt geruisloos en met groot vakmanschap op onbegaanbaar terrein. Hij is mysterieus en zeldzaam: slechts weinigen hebben het geluk hem te zien.",
     "desc_it": "Il leopardo delle nevi è uno dei felini più elusivi. Vive solitario nelle montagne più alte dell'Asia centrale. Caccia silenziosamente e con grande abilità su terreni impervi. È misterioso e raro: pochissimi hanno la fortuna di vederlo.",
     "en": "Snow leopard",
     "traits_en": [
@@ -15092,7 +15118,8 @@
       "shy",
       "solitary",
       "strong"
-    ]
+    ],
+    "desc_en": "The snow leopard is one of the most elusive of the big cats. It lives a solitary life in the highest mountains of Central Asia. It hunts silently and with great skill across rugged terrain. It is mysterious and rare: very few people are lucky enough to see it."
   },
   {
     "nl": "Sneeuwstormvogel",
@@ -16425,7 +16452,7 @@
       "difensivo"
     ],
     "slug": "stinkdier",
-    "desc_nl": "",
+    "desc_nl": "De stinkdier is een klein, nachtactief en solitair zoogdier. Zijn geur is zijn beste verdediging tegen roofdieren. Hij is voorzichtig en rustig, en zelden agressief tenzij hij wordt uitgedaagd. Hij leeft alleen en verdedigt zijn territorium zeer doeltreffend.",
     "desc_it": "La moffetta è un piccolo mammifero notturno e solitario. Il suo odore è la migliore difesa contro i predatori. È cauta e tranquilla, raramente aggressiva se non provocata. Vive da sola e difende il suo territorio con grande efficacia.",
     "en": "Skunk",
     "traits_en": [
@@ -16436,7 +16463,8 @@
       "shy",
       "solitary",
       "defensive"
-    ]
+    ],
+    "desc_en": "The skunk is a small, nocturnal and solitary mammal. Its scent is its best defence against predators. It is cautious and quiet, and rarely aggressive unless provoked. It lives alone and defends its territory very effectively."
   },
   {
     "nl": "Stokstaartje",
@@ -16847,7 +16875,7 @@
       "focoso"
     ],
     "slug": "tasmaanse-duivel",
-    "desc_nl": "",
+    "desc_nl": "De Tasmaanse duivel is het grootste roofdier onder de buideldieren ter wereld. Hij is moedig en temperamentvol en verdedigt zich met een krachtige beet. Hij is luidruchtig en strijdlustig en geeft niet snel op. Hij is weerbaar en standvastig in moeilijke omstandigheden.",
     "desc_it": "Il diavolo della Tasmania è il marsupiale predatore più grande del mondo. È coraggioso e focoso, si difende con un morso potentissimo. È rumoroso e combattivo, non cede facilmente. È resistente e tenace nelle avversità.",
     "en": "Tasmanian devil",
     "traits_en": [
@@ -16859,7 +16887,8 @@
       "strong",
       "tough",
       "spirited"
-    ]
+    ],
+    "desc_en": "The Tasmanian devil is the world’s largest predatory marsupial. It is brave and fiery, and defends itself with a powerful bite. It is boisterous and combative, and does not give in easily. It is resilient and tenacious in the face of adversity."
   },
   {
     "nl": "Termiet",
@@ -18011,7 +18040,7 @@
       "resistente"
     ],
     "slug": "wolharige-mammoet",
-    "desc_nl": "",
+    "desc_nl": "De wolharige mammoet was een prehistorisch zoogdier dat in de bevroren steppen leefde. Hij leefde in grote familiekuddes, waarin de dieren elkaar beschermden tegen de kou en roofdieren. Hij was krachtig en sterk, en goed aangepast aan de zwaarste weersomstandigheden. Een symbool van kracht en doorzettingsvermogen in een vijandige omgeving.",
     "desc_it": "Il mammut lanoso era un mammifero preistorico che viveva nelle steppe ghiacciate. Viveva in grandi branchi familiari, proteggendosi a vicenda dal freddo e dai predatori. Era potente e resistente, adatto alle condizioni climatiche più dure. Simbolo di forza e tenacia in un ambiente ostile.",
     "en": "Woolly mammoth",
     "traits_en": [
@@ -18022,7 +18051,8 @@
       "strong",
       "tough",
       "enduring"
-    ]
+    ],
+    "desc_en": "The woolly mammoth was a prehistoric mammal that lived on the frozen steppes. It lived in large family herds, protecting one another from the cold and predators. It was powerful and hardy, well-suited to the harshest climatic conditions. A symbol of strength and tenacity in a hostile environment."
   },
   {
     "nl": "Wombat",
@@ -18560,7 +18590,7 @@
       "ingegnoso"
     ],
     "slug": "zeeotter",
-    "desc_nl": "",
+    "desc_nl": "De zeeotter leeft in de wateren van de Noordelijke Stille Oceaan. Hij is vindingrijk: hij gebruikt stenen om schelpdieren open te maken terwijl hij op zijn rug drijft. Hij is sociaal en speels en leeft in grote groepen. Bij alles wat hij doet is hij enthousiast en levendig.",
     "desc_it": "La lontra marina vive nelle acque del Pacifico settentrionale. È ingegnosa: usa pietre per aprire i molluschi galleggiando sulla schiena. È socievole e giocosa, vive in gruppi numerosi. È entusiasta e vivace in ogni attività.",
     "en": "Sea otter",
     "traits_en": [
@@ -18572,7 +18602,8 @@
       "social",
       "playful",
       "resourceful"
-    ]
+    ],
+    "desc_en": "The sea otter lives in the waters of the North Pacific. It is resourceful: it uses stones to crack open shellfish whilst floating on its back. It is sociable and playful, and lives in large groups. It is enthusiastic and lively in everything it does."
   },
   {
     "nl": "Zeepaardje",

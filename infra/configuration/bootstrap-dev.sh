@@ -11,6 +11,7 @@
 #   $2  NODE_MAJOR   e.g. 22
 #   $3  TIMEZONE     e.g. Europe/Brussels
 #   $4  PUBLIC_HOST  e.g. dev.totem.nvdm.eu (this box's public hostname; may be empty)
+#   $5  DB_KEY       Adiantum DB key for /etc/totemd/totemd.env (may be empty)
 #
 # Requirements: Debian 12, run as root.
 # =============================================================================
@@ -20,6 +21,7 @@ GO_VERSION="${1:-1.26.8}"
 NODE_MAJOR="${2:-22}"
 TIMEZONE="${3:-Europe/Brussels}"
 PUBLIC_HOST="${4:-}"
+DB_KEY="${5:-}"
 ARCH="amd64"
 
 # Record this box's public host so the Vite dev server allowlists only it
@@ -27,6 +29,14 @@ ARCH="amd64"
 if [ -n "$PUBLIC_HOST" ]; then
   echo "VITE_ALLOWED_HOSTS=${PUBLIC_HOST}" > /etc/totem-web.env
   echo "[0/7] public host: wrote /etc/totem-web.env (VITE_ALLOWED_HOSTS=${PUBLIC_HOST})"
+fi
+
+# Write the Adiantum DB key where the totemd systemd unit reads it (mode 0600).
+# Comes from the Terraform `db_key` var (kept in the gitignored *.tfvars).
+if [ -n "$DB_KEY" ]; then
+  install -d -m 700 /etc/totemd
+  umask 177; printf 'TOTEM_DB_KEY=%s\n' "$DB_KEY" > /etc/totemd/totemd.env
+  echo "[0/7] db key: wrote /etc/totemd/totemd.env (mode 0600)"
 fi
 
 echo "[1/7] Timezone + apt base packages..."

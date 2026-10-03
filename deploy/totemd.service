@@ -3,19 +3,17 @@
 # /etc/systemd/system/totemd.service, then `systemctl enable --now totemd`.
 #
 # The Adiantum encryption key is injected via the ENVIRONMENT, never hardcoded
-# in the binary. Two ways to supply it — pick one:
+# in the binary. By DEFAULT it is read from the EnvironmentFile below
+# (/etc/totemd/totemd.env, mode 0600), which Terraform writes from the `db_key`
+# var (see infra/). The `-` prefix makes it optional, so the unit still loads if
+# the file is absent (totemd then exits with a clear "set TOTEM_DB_KEY" message).
 #
-#  (A) PRODUCTION — TPM-sealed systemd credential (recommended).
-#      Create it once on the host:
-#        printf '%s' "<your-key>" > /root/totem_db_key
-#        systemd-creds encrypt --name=totem_db_key /root/totem_db_key /etc/totemd/db_key.cred
-#        shred -u /root/totem_db_key
-#      The plaintext key then exists only in-memory for this one process.
-#      Uncomment the LoadCredentialEncrypted + the TOTEM_DB_KEY_FILE line below.
-#
-#  (B) DEV / simple — a root-only EnvironmentFile (quicker, less secure: the key
-#      sits in plaintext on disk at /etc/totemd/totemd.env, mode 0600).
-#      Use deploy/totemd.env.example as the template and uncomment EnvironmentFile.
+# HARDENED ALTERNATIVE — TPM-sealed systemd credential (keeps the key out of
+# plaintext on disk and out of Terraform state). Create it once on the host:
+#   printf '%s' "<your-key>" > /root/totem_db_key
+#   systemd-creds encrypt --name=totem_db_key /root/totem_db_key /etc/totemd/db_key.cred
+#   shred -u /root/totem_db_key
+# then comment the EnvironmentFile line and uncomment the two LoadCredential lines.
 
 [Unit]
 Description=Totem Finder API (totemd)
@@ -30,7 +28,7 @@ ExecStart=/usr/local/bin/totemd
 Restart=on-failure
 RestartSec=2
 
-Environment=TOTEM_ADDR=127.0.0.1:8683
+Environment=TOTEM_ADDR=0.0.0.0:8683
 Environment=TOTEM_DB_PATH=/var/lib/totemd/totem.db
 # Asset paths MUST be absolute: systemd gives the service no useful working
 # directory, so the app's CWD-relative defaults (../data/...) would resolve
@@ -39,12 +37,13 @@ Environment=TOTEM_DB_PATH=/var/lib/totemd/totem.db
 Environment=TOTEM_EMOJI_FILE=/var/lib/totemd/data/emoji.json
 Environment=TOTEM_IMAGE_DIR=/var/lib/totemd/data/images
 
-# --- (A) credential-based key (recommended) ---
+# DB key — env-file (default; written by Terraform's db_key var). Optional (-),
+# so a missing file yields totemd's own clear error rather than a unit failure.
+EnvironmentFile=-/etc/totemd/totemd.env
+
+# Hardened alternative — TPM-sealed credential (comment the line above, use these):
 #LoadCredentialEncrypted=totem_db_key:/etc/totemd/db_key.cred
 #Environment=TOTEM_DB_KEY_FILE=%d/totem_db_key
-
-# --- (B) env-file key (dev/simple) ---
-#EnvironmentFile=/etc/totemd/totemd.env
 
 # Hardening — the app only needs its data dir and a localhost socket.
 NoNewPrivileges=true

@@ -26,6 +26,10 @@ ostemplate    = "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
 root_password = "change-me-to-a-long-random-password"
 onboot        = true   # prod auto-starts on host reboot (dev stays false)
 public_host   = "totem.nvdm.eu"   # Vite dev-server allowlist for THIS box (never dev's host)
+# Adiantum DB encryption key — generate a strong one and KEEP IT SAFE (the DB is
+# unrecoverable without it). Lives in this gitignored tfvars (and in tfstate, so
+# protect state too). Generate with:  openssl rand -hex 32
+db_key = "CHANGE-ME-openssl-rand-hex-32"
 
 # SSH (public key injected; private key must be in your ssh-agent)
 ssh_public_key_path  = "~/.ssh/id_ed25519.pub"

@@ -12,6 +12,7 @@ import (
 	"github.com/Niklasvdm/TotemAppIT/internal/api"
 	"github.com/Niklasvdm/TotemAppIT/internal/config"
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
+	"github.com/Niklasvdm/TotemAppIT/internal/web"
 )
 
 func main() {
@@ -36,9 +37,16 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
+	spa, ok := web.FS()
+	if ok {
+		log.Println("serving embedded SPA (built with -tags embed)")
+	} else {
+		log.Println("no embedded SPA (API-only build); the UI is served by the Vite dev server in dev")
+	}
+
 	srv := &http.Server{
 		Addr:         cfg.Addr,
-		Handler:      api.New(st, cfg.Images, cfg.Emoji).Router,
+		Handler:      api.New(st, cfg.Images, cfg.Emoji, spa).Router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

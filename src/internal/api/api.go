@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -48,8 +49,9 @@ type Server struct {
 }
 
 // New wires the routes and middleware. images is the filesystem of animal images
-// (nil → the image route 404s); emoji is the slug→emoji map for /api/v1/emoji.
-func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
+// (nil → the image route 404s); emoji is the slug→emoji map for /api/v1/emoji;
+// spa is the embedded SPA filesystem (nil → non-API routes 404, API-only mode).
+func New(cat Catalog, images fs.FS, emoji map[string]string, spa fs.FS) *Server {
 	s := &Server{cat: cat, images: images, emoji: emoji}
 
 	r := chi.NewRouter()
@@ -73,6 +75,12 @@ func New(cat Catalog, images fs.FS, emoji map[string]string) *Server {
 			r.Post("/animals/{slug}/reports", s.createReport)
 		})
 	})
+
+	// Serve the embedded SPA for everything that isn't an API/health route.
+	// Registered routes above take precedence; this catch-all handles the rest.
+	if spa != nil {
+		r.Handle("/*", spaHandler(spa))
+	}
 
 	s.Router = r
 	return s
@@ -335,6 +343,33 @@ func (s *Server) createReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "received"})
+}
+
+// spaHandler serves the embedded single-page app. It returns the requested
+// static file when it exists, and otherwise falls back to index.html so the
+// client-side router can handle the path (deep links, refresh). fs.FS rejects
+// path traversal, so untrusted URL paths are safe.
+func spaHandler(dist fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(dist))
+	index, _ := fs.ReadFile(dist, "index.html")
+	serveIndex := func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		_, _ = w.Write(index)
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if p == "" || p == "." {
+			serveIndex(w)
+			return
+		}
+		if f, err := dist.Open(p); err == nil {
+			_ = f.Close()
+			fileServer.ServeHTTP(w, r) // real asset (hashed JS/CSS, favicon, …)
+			return
+		}
+		serveIndex(w) // unknown path → SPA route
+	})
 }
 
 // --- middleware -------------------------------------------------------------

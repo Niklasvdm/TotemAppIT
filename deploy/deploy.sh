@@ -41,13 +41,14 @@ trap 'rm -rf "$STAGE"' EXIT
 CMDS="totemd totem-admin totem-seed"
 
 if [ -n "$BUILDER" ]; then
-  echo "==> building on remote builder $BUILDER (no local Go needed)"
+  echo "==> building SPA + binaries on remote builder $BUILDER (no local Go/Node needed)"
   ssh "$BUILDER" "mkdir -p ~/totem-build/src"
   rsync -az --delete --exclude node_modules --exclude .git "$REPO_ROOT/src/" "$BUILDER:~/totem-build/src/"
-  ssh "$BUILDER" "source /etc/profile.d/go.sh 2>/dev/null || true
+  ssh "$BUILDER" "set -e; source /etc/profile.d/go.sh 2>/dev/null || true
+    cd ~/totem-build/src/web && npm ci && npm run build      # -> ../internal/web/dist
     cd ~/totem-build/src
     for c in $CMDS; do
-      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags '-s -w' -o \"../\$c\" \"./cmd/\$c\"
+      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags embed -trimpath -ldflags '-s -w' -o \"../\$c\" \"./cmd/\$c\"
     done"
   for cmd in $CMDS; do scp -q "$BUILDER:~/totem-build/$cmd" "$STAGE/$cmd"; done
 else
@@ -56,11 +57,16 @@ else
     echo "or build on a host that has Go:  ./deploy/deploy.sh $HOST --builder root@<buildbox>" >&2
     exit 1
   }
-  echo "==> building static linux/amd64 binaries locally"
+  command -v npm >/dev/null 2>&1 || {
+    echo "npm not found locally (needed to build the SPA). Use --builder root@<buildbox>." >&2
+    exit 1
+  }
+  echo "==> building SPA + static linux/amd64 binaries locally"
+  ( cd "$REPO_ROOT/src/web" && npm ci && npm run build )
   ( cd "$REPO_ROOT/src"
     for cmd in $CMDS; do
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-        go build -trimpath -ldflags "-s -w" -o "$STAGE/$cmd" "./cmd/$cmd"
+        go build -tags embed -trimpath -ldflags "-s -w" -o "$STAGE/$cmd" "./cmd/$cmd"
     done
   )
 fi
@@ -80,6 +86,10 @@ rsync -az "$REPO_ROOT/data/animals.json" "$HOST:$DATA_DIR/animals.json"
 rsync -az --delete "$REPO_ROOT/data/images/" "$HOST:$DATA_DIR/images/"
 
 if [ "$INSTALL_UNIT" = 1 ]; then
+  echo "==> ensuring 'totemd' system user (the unit runs as User=totemd)"
+  ssh "$HOST" "getent group totemd >/dev/null || groupadd --system totemd
+    id -u totemd >/dev/null 2>&1 || useradd --system --gid totemd --no-create-home --home-dir /var/lib/totemd --shell /usr/sbin/nologin totemd
+    mkdir -p /etc/totemd"
   echo "==> installing systemd unit (configure the DB key separately — it is NOT shipped)"
   scp -q "$REPO_ROOT/deploy/totemd.service" "$HOST:/etc/systemd/system/totemd.service"
   ssh "$HOST" "systemctl daemon-reload"
@@ -89,9 +99,18 @@ echo "==> fixing ownership + restarting totemd"
 ssh "$HOST" "chown -R totemd:totemd '$DATA_DIR' 2>/dev/null || true; systemctl restart totemd"
 
 echo "==> healthcheck"
-ssh "$HOST" "sleep 2; systemctl is-active totemd; curl -fsS http://127.0.0.1:8683/healthz && echo"
-
-echo "==> startup warnings (should be none):"
-ssh "$HOST" "journalctl -u totemd -n 20 --no-pager | grep -i warning || echo '  (none)'"
+if ssh "$HOST" "sleep 2; curl -fsS http://127.0.0.1:8683/healthz >/dev/null 2>&1"; then
+  echo "  healthy ✓"
+  ssh "$HOST" "journalctl -u totemd -n 20 --no-pager | grep -i warning || echo '  (no startup warnings)'"
+else
+  echo "  NOT healthy. On a FIRST-TIME box this is expected until you:"
+  echo "    1. Configure the DB key (see deploy/totemd.service): either a systemd"
+  echo "       credential, or an EnvironmentFile /etc/totemd/totemd.env with TOTEM_DB_KEY."
+  echo "    2. Seed the DB:  totem-seed --db /var/lib/totemd/totem.db \\"
+  echo "                       --data /var/lib/totemd/data/animals.json --merge"
+  echo "    3. systemctl restart totemd"
+  echo "  --- last log lines ---"
+  ssh "$HOST" "journalctl -u totemd -n 6 --no-pager | tail -6" || true
+fi
 
 echo "done."

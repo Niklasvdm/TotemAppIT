@@ -2,7 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Dev: proxy the API (and image/emoji routes) to the Go backend on :8683.
-// Build: emits to dist/, which totemd embeds via embed.FS in Phase 3.
+// Build: emits into the Go package src/internal/web/dist, which totemd embeds
+// via //go:embed (go build -tags embed). emptyOutDir is needed because the dir
+// is outside this project root.
 //
 // The WAF proxies here forwarding its own Host header, and Vite's dev server
 // blocks unknown hosts unless allowlisted. The allowed host is supplied PER
@@ -26,5 +28,5 @@ export default defineConfig({
       "/api": "http://127.0.0.1:8683",
     },
   },
-  build: { outDir: "dist" },
+  build: { outDir: "../internal/web/dist", emptyOutDir: true },
 });

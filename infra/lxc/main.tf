@@ -96,7 +96,7 @@ resource "proxmox_lxc" "totem_dev" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/bootstrap-dev.sh",
-      "/tmp/bootstrap-dev.sh '${var.go_version}' '${var.node_major}' '${var.timezone}' '${var.public_host}'",
+      "/tmp/bootstrap-dev.sh '${var.go_version}' '${var.node_major}' '${var.timezone}' '${var.public_host}' '${var.db_key}'",
       "rm -f /tmp/bootstrap-dev.sh",
     ]
   }

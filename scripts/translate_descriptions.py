@@ -9,6 +9,10 @@ Fields translated:
   en       — Dutch name → English
   traits_en — Dutch traits list → English (batched per animal)
 
+Italian-only fallback: a few animals have ONLY an Italian description (no Dutch).
+For those, this backfills desc_nl and desc_en FROM Italian (source_lang=IT), since
+there is no Dutch to translate from. Everything stays idempotent/safe to re-run.
+
 Usage:
     export DEEPL_API_KEY="your-key-here"   # free keys end with :fx
 
@@ -85,27 +89,28 @@ def _deepl_post(payload: bytes, api_key: str) -> list:
     raise RuntimeError("Still rate limited after 5 retries")
 
 
-def translate(text: str, target_lang: str, api_key: str) -> str:
-    """Translate a single text string."""
+def translate(text: str, target_lang: str, api_key: str, source_lang: str = "NL") -> str:
+    """Translate a single text string. Source defaults to Dutch; pass source_lang
+    to translate from another language (e.g. IT for Italian-only animals)."""
     if not text:
         return ""
     text = html.unescape(text)
     payload = json.dumps({
         "text": [text],
-        "source_lang": "NL",
+        "source_lang": source_lang,
         "target_lang": target_lang,
     }).encode()
     return _deepl_post(payload, api_key)[0]["text"]
 
 
-def translate_many(texts: list, target_lang: str, api_key: str) -> list:
+def translate_many(texts: list, target_lang: str, api_key: str, source_lang: str = "NL") -> list:
     """Translate a list of strings in a single DeepL request (batched)."""
     if not texts:
         return []
     decoded = [html.unescape(t) for t in texts]
     payload = json.dumps({
         "text": decoded,
-        "source_lang": "NL",
+        "source_lang": source_lang,
         "target_lang": target_lang,
     }).encode()
     return [t["text"] for t in _deepl_post(payload, api_key)]
@@ -169,17 +174,24 @@ def main() -> None:
     needs_en      = [a for a in animals if a.get("desc_nl") and not a.get("desc_en")]
     needs_en_name = [a for a in animals if a.get("nl") and not a.get("en")]
     needs_en_traits = [a for a in animals if a.get("traits_nl") and not a.get("traits_en")]
+    # Italian-only animals (no Dutch): backfill nl + en FROM Italian.
+    needs_nl_from_it = [a for a in animals if not a.get("desc_nl") and a.get("desc_it")]
+    needs_en_from_it = [a for a in animals if not a.get("desc_en") and not a.get("desc_nl") and a.get("desc_it")]
     chars_it      = sum(len(html.unescape(a["desc_nl"])) for a in needs_it)
     chars_en      = sum(len(html.unescape(a["desc_nl"])) for a in needs_en)
     chars_en_name = sum(len(a["nl"]) for a in needs_en_name)
     chars_en_traits = sum(sum(len(t) for t in a["traits_nl"]) for a in needs_en_traits)
-    chars_total   = chars_it + chars_en + chars_en_name + chars_en_traits
+    chars_backfill = (sum(len(html.unescape(a["desc_it"])) for a in needs_nl_from_it)
+                      + sum(len(html.unescape(a["desc_it"])) for a in needs_en_from_it))
+    chars_total   = chars_it + chars_en + chars_en_name + chars_en_traits + chars_backfill
 
     print(f"\nWork to do:")
     print(f"  IT descriptions : {len(needs_it):3d} animals  ({chars_it:,} chars)")
     print(f"  EN descriptions : {len(needs_en):3d} animals  ({chars_en:,} chars)")
     print(f"  EN names        : {len(needs_en_name):3d} animals  ({chars_en_name:,} chars)")
     print(f"  EN traits       : {len(needs_en_traits):3d} animals  ({chars_en_traits:,} chars)")
+    print(f"  NL from IT      : {len(needs_nl_from_it):3d} animals  (Italian-only backfill)")
+    print(f"  EN from IT      : {len(needs_en_from_it):3d} animals  (Italian-only backfill)")
     print(f"  Total           :             ({chars_total:,} chars)")
 
     if chars_total > remaining:
@@ -249,9 +261,10 @@ def main() -> None:
     counters = dict(
         desc_it_done=0, desc_it_skip=0,
         desc_en_done=0, desc_en_skip=0,
+        desc_nl_done=0,
         en_name_done=0, en_name_skip=0,
         en_traits_done=0, en_traits_skip=0,
-        no_nl=0,
+        no_src=0,
     )
     translated_count = 0
 
@@ -281,9 +294,10 @@ def main() -> None:
             time.sleep(0.5)
 
         # ── Descriptions ──────────────────────────────────────────────
-        if not desc_nl:
-            counters["no_nl"] += 1
-        else:
+        # Dutch is normally the source. A handful of animals are Italian-only
+        # (no Dutch at all): for those, backfill Dutch + English FROM Italian.
+        desc_it = animal.get("desc_it", "")
+        if desc_nl:
             if animal.get("desc_it"):
                 counters["desc_it_skip"] += 1
             else:
@@ -301,6 +315,22 @@ def main() -> None:
                 changed = True
                 print(f"[{i}/{total}] EN-desc  {slug}")
                 time.sleep(0.5)
+        elif desc_it:
+            # Italian-only animal: fill the missing Dutch and English from Italian.
+            if not animal.get("desc_nl"):
+                animal["desc_nl"] = translate(desc_it, "NL", api_key, source_lang="IT")
+                counters["desc_nl_done"] += 1
+                changed = True
+                print(f"[{i}/{total}] NL-desc  {slug}  (from IT)")
+                time.sleep(0.5)
+            if not animal.get("desc_en"):
+                animal["desc_en"] = translate(desc_it, "EN-GB", api_key, source_lang="IT")
+                counters["desc_en_done"] += 1
+                changed = True
+                print(f"[{i}/{total}] EN-desc  {slug}  (from IT)")
+                time.sleep(0.5)
+        else:
+            counters["no_src"] += 1
 
         # Save after every animal so progress survives interruption
         if changed:
@@ -313,12 +343,13 @@ def main() -> None:
 
     print(
         f"\nDone."
-        f"\n  IT descriptions : {counters['desc_it_done']} translated, {counters['desc_it_skip']} already existed"
-        f"\n  EN descriptions : {counters['desc_en_done']} translated, {counters['desc_en_skip']} already existed"
-        f"\n  EN names        : {counters['en_name_done']} translated, {counters['en_name_skip']} already existed"
-        f"\n  EN traits       : {counters['en_traits_done']} translated, {counters['en_traits_skip']} already existed"
-        f"\n  No desc_nl      : {counters['no_nl']} animals skipped (no Dutch description)"
-        f"\n\nNext step: python3 scripts/generate_pages.py"
+        f"\n  IT descriptions    : {counters['desc_it_done']} translated, {counters['desc_it_skip']} already existed"
+        f"\n  EN descriptions    : {counters['desc_en_done']} translated, {counters['desc_en_skip']} already existed"
+        f"\n  NL descriptions    : {counters['desc_nl_done']} backfilled from Italian"
+        f"\n  EN names           : {counters['en_name_done']} translated, {counters['en_name_skip']} already existed"
+        f"\n  EN traits          : {counters['en_traits_done']} translated, {counters['en_traits_skip']} already existed"
+        f"\n  No source at all   : {counters['no_src']} animals skipped (no nl and no it description)"
+        f"\n\nNext step: re-seed the DB (totem-seed --merge) so totemd serves the new text."
     )
 
 

@@ -180,3 +180,10 @@ variable "public_host" {
   default     = ""
   description = "Public hostname this box is served as (e.g. dev.totem.nvdm.eu / totem.nvdm.eu). Written to /etc/totem-web.env so the Vite dev server allowlists only this host — never cross-environment."
 }
+
+variable "db_key" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Adiantum DB encryption key. Written to /etc/totemd/totemd.env (mode 0600) and loaded by the totemd systemd unit. Keep it in the gitignored *.tfvars (like root_password). NOTE: it also lands in terraform.tfstate in plaintext — protect/gitignore state, or use the TPM-sealed credential method instead (see deploy/totemd.service). Empty = don't manage the key here."
+}

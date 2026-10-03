@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.3.6
+version: 0.3.7
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -11,9 +11,9 @@ relate to:
 
 # Totem Finder (IT)
 
-Italian translation of the Dutch **Scouts en Gidsen Vlaanderen** *Totemzoeker*. A searchable catalogue of ~471 animal totems, each with a set of character traits and a description in Italian, English and Dutch. Two search modes: **exact filter** (animals that have *all* included traits and *none* excluded) and **similarity** (animals closest to a chosen trait profile).
+Italian translation of the Dutch **Scouts en Gidsen Vlaanderen** *Totemzoeker*. A searchable catalogue of 472 animal totems, each with a set of character traits and a description in Italian, English and Dutch. Two search modes: **exact filter** (animals that have *all* included traits and *none* excluded) and **similarity** (animals closest to a chosen trait profile).
 
-This README describes the **target architecture** for the v2 rewrite — a Go backend + React frontend replacing the current single-file static site (see [Current state vs. target](#current-state-vs-target)). It is a living design document; the [Changelog](#changelog) tracks decisions. Work proceeds in [phases](#build-phases), one layer at a time — currently the **database**.
+This README describes the **target architecture** for the v2 rewrite — a Go backend + React frontend replacing the current single-file static site (see [Current state vs. target](#current-state-vs-target)). It is a living design document; the [Changelog](#changelog) tracks decisions. Work proceeds in [phases](#build-phases), one layer at a time — database and backend are **done**; currently the **frontend** (Phase 3), with the single-binary embed and CI still to come.
 
 ## Concepts
 
@@ -364,7 +364,7 @@ The database is a single SQLite file, **encrypted at rest** with the Adiantum VF
 
 ## Images
 
-A picture per animal — **implemented** (444/471 scraped; smoke-tested live).
+A picture per animal — **implemented** (445/472 with images; smoke-tested live).
 
 - **Schema:** migration `0002_add_images.sql` adds `image_path` + credit columns (`image_author`, `image_license`, `image_source`) to `animal` — the first use of the migration system beyond the initial schema.
 - **Serving:** `GET /api/v1/animals/{slug}/image` streams `<slug>.webp` from `TOTEM_IMAGE_DIR` (`404` when absent; slug validated against `^[a-z0-9-]+$` to block path traversal; `Cache-Control` set so the WAF can cache it). The animal-detail payload carries an `image` object with the URL **and** the attribution to display.
@@ -583,8 +583,8 @@ Work proceeds one layer at a time. Each phase is independently testable and leav
 | **1 — Database** | Normalised schema + migrations, seed from `data/animals.json`, data-integrity + query tests | SQL + Python (`sqlite3`, stdlib) | **Done — tests green** |
 | 1b — Encryption | Wrap DB access in `ncruces` + Adiantum (needs Go) | Go | **Done — encrypted store + tests green on the dev LXC** |
 | 2 — Backend | `Store` interface, queries, `chi` API, similarity/filter services, tests | Go | **Done — store/api/main + Go seeder; server smoke-tested on the box (all endpoints, encrypted DB)** |
-| 3 — Frontend | React SPA, embedded via `embed.FS` | React + Vite | **In progress — `src/web` scaffolded (finder + detail, wired to the live API)** |
-| 4 — CI/CD & deploy | Workflows, vuln scanning, LXC/systemd deploy | GitHub Actions, Terraform | Not started |
+| 3 — Frontend | React SPA, embedded via `embed.FS` | React + Vite | **In progress — finder, detail (multilingual names, images), quiz, info + suggest/report modals, i18n + SVG flags, all wired to the live API. Remaining: embed into the binary** |
+| 4 — CI/CD & deploy | Workflows, vuln scanning, LXC/systemd deploy | GitHub Actions, Terraform | **Partial — `deploy.sh`/`update.sh`/`backup.sh` + systemd unit done; GitHub Actions workflows not yet wired** |
 
 ### Running (dev)
 
@@ -611,7 +611,7 @@ Config is env-only: `TOTEM_ADDR` (default `127.0.0.1:8683`), `TOTEM_DB_PATH`, `T
 
 Mirrors the conventions of [[ReverseProxyWAF]] and the other repos so it is instantly familiar.
 
-All application code lives under `src/` (the Go module now; the React app joins it at `src/web/` in Phase 3). Everything else at the root is data, tooling, infra and docs.
+All application code lives under `src/`: the Go module, and the React app at `src/web/`. Everything else at the root is data, tooling, infra and docs.
 
 ```
 totem-it/
@@ -629,7 +629,7 @@ totem-it/
 │   │   └── profile/           #    (later) saved results + friends
 │   └── web/                   #    (Phase 3) React app; dist/ embedded via embed.FS
 ├── data/
-│   ├── animals.json           # canonical source-of-truth dataset (471 animals)
+│   ├── animals.json           # canonical source-of-truth dataset (472 animals)
 │   └── images/                # scraped animal images + attributions (gitignored)
 ├── scripts/
 │   ├── seed_db.py             # Phase 1: build & seed a plain SQLite DB (dev/testing)
@@ -811,7 +811,7 @@ Two environments from the **same Terraform config**, isolated by **workspace** (
 
 ```
 cd infra/lxc && terraform workspace new prod
-terraform apply -var-file=../env/prod.tfvars
+2026-10-02terraform apply -var-file=../env/prod.tfvars
 ./deploy/deploy.sh root@<prod-ip> --builder root@<dev-ip> --install-unit
 ```
 
@@ -900,10 +900,10 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 ### Open
 - `[BUG]` 31 animals lack an `en`/`nl` description — the API now falls back to Italian so nothing is blank, but they should be properly translated per language (DeepL). (Reported example: Mink in English.)
 - `[BUG]` Italian animal names are largely unvalidated — Wikidata's Italian vernacular coverage is sparse (only 1 IT name could be fixed). Re-validate via it.wikipedia titles.
-- `[BUG]` A few emoji still approximate the species — hand-tune from `data/emoji-review.md` (28 🐾 fallbacks + category guesses remain).
+- `[ENHANCEMENT]` **Paw fallbacks now 0** (hand-tuned in 0.2.26+); the remaining ~316 "category" emoji are family-level approximations that could still be refined from `data/emoji-review.md`.
 - `[FEATURE]` 27 animals have no image (names that are disambiguation pages in both nl+en) — manual sourcing, see `data/images/review.md`.
 - `[FEATURE]` Embed the built SPA into `totemd` via `embed.FS` + SPA-fallback routing → single-binary production (finishes Phase 3).
-- `[FEATURE]` Deploy: rsync `data/images/` to the box + systemd unit (`deploy/totemd.service`), behind the WAF (Phase 4).
+- `[FEATURE]` ~~Deploy: rsync `data/images/` + systemd unit behind the WAF~~ — **done (0.3.x)**: [`deploy/deploy.sh`](deploy/deploy.sh) (build/ship/restart), [`update.sh`](deploy/update.sh), [`backup.sh`](deploy/backup.sh), prod workspace + `prod.tfvars`. Still open: **GitHub Actions CI** (build/test/scan).
 - `[FEATURE]` **"Which animal are you?" quiz** — **v1 built** (finder pop-up, 10 EN dilemmas). TODO: morally-grey **exclude** ("you are not") questions; translate prompts/options to it/nl; move questions to `data/quiz.json` + a `/api/v1/quiz` endpoint; a mobile entry point; author more questions to cover `loyal`/`brave`/`deft`/`enduring`. Gates the German translation; profiles & friends later (auth delegated to [[AuthenticationServer]]).
 - `[ENHANCEMENT]` Free-text search (`q`) matches names only; consider matching descriptions too.
 - `[ENHANCEMENT]` CI/CD workflows + vuln scanning designed but not yet wired — see [CI/CD](#cicd-testing--supply-chain).
@@ -933,6 +933,9 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.3.7 — 2026-10-02
+- `[DOCS]` README freshness pass: animal count 471 → **472** (current-state spots), images **445/472**, intro now says database+backend done / frontend in progress (was "currently the database"), Phase 3 row lists what's actually built, Phase 4 marked **partial** (deploy scripts done, CI pending), emoji roadmap updated (**paw fallbacks now 0**), deploy roadmap item marked done. Historical changelog entries left as-is.
 
 ### 0.3.6 — 2026-10-02
 - `[BUG]` **Committed `src/web/package-lock.json`** — it was missing, so `update.sh`'s `npm ci` failed (`npm ci` requires a lockfile). Generated and committed it (reproducible installs; CI-ready).
