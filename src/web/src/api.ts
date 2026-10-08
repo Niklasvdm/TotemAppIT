@@ -119,8 +119,9 @@ export function reportAnimal(slug: string, reason: ReportReason, note: string): 
 
 // Games. Creating a room allocates a tick loop on the server, so this is
 // rate-limited there; the returned code is what other players type to join.
-export async function createGameRoom(): Promise<{ code: string }> {
-  const res = await fetch(`/api/v1/games/rooms`, { method: "POST" });
+export async function createGameRoom(game = "bomberman"): Promise<{ code: string }> {
+  const q = game && game !== "bomberman" ? `?game=${encodeURIComponent(game)}` : "";
+  const res = await fetch(`/api/v1/games/rooms${q}`, { method: "POST" });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json() as Promise<{ code: string }>;
 }

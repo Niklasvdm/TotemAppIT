@@ -5,31 +5,31 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/Niklasvdm/TotemAppIT/internal/buildinfo"
 )
 
-// sendQueue is how many snapshots may back up for one client before the room
-// starts dropping them. Snapshots supersede each other, so a short queue is
-// better than a long one: it bounds how stale a slow client's view can get.
+// sendQueue is how many frames may back up for one client before the room starts
+// dropping them. For a realtime game snapshots supersede each other, so a short
+// queue bounds staleness; the room must never block on a slow socket.
 const sendQueue = 8
 
 // reconnectGrace is how long a seat is held for a player whose socket dropped.
-// A VPN hiccup or a sleeping laptop should cost a few seconds of standing
-// still, not the match: their slot, name, totem and win tally all wait for them.
 const reconnectGrace = 30 * time.Second
 
 var (
-	// ErrRoomFull is returned when all MaxPlayers slots are taken.
+	// ErrRoomFull is returned when the game has no free seat.
 	ErrRoomFull = errors.New("room is full")
 	// ErrRoomClosed is returned once a room has been reaped.
 	ErrRoomClosed = errors.New("room is closed")
 )
 
-// Conn is the room's handle on one connected client. The transport reads
-// frames to send from Out and pushes client intent back through the Room.
+// Conn is the room's handle on one connected client. The transport reads frames
+// to send from Out and pushes client intent back through Room.Command.
 type Conn struct {
 	slot  int
 	token string
@@ -45,20 +45,24 @@ func (c *Conn) Token() string { return c.token }
 // Out yields frames to write to the socket.
 func (c *Conn) Out() <-chan []byte { return c.send }
 
-// Room owns one Match and serialises every mutation onto a single goroutine,
-// so the simulation needs no locks and stays deterministic. All exported
-// methods are safe to call from connection goroutines.
+// heldSeat is a disconnected player's claim on their slot.
+type heldSeat struct {
+	token string
+	until time.Time
+}
+
+// Room hosts one Game and serialises every mutation onto a single goroutine, so
+// the game needs no locks and stays deterministic. It owns the generic concerns
+// (codes, seats, reconnect tokens, send queues, host); the Game owns the rules.
+// Room implements Outbox for its Game. All exported methods are safe to call
+// from connection goroutines.
 type Room struct {
 	code string
+	game Game
 
-	match   *Match
 	conns   map[int]*Conn
 	host    int
-	round   uint64
 	emptyAt time.Time // zero while someone is connected
-
-	// lastCrates is the crate layer this room's clients have already been sent.
-	lastCrates string
 
 	// held are seats kept warm for players whose socket dropped, keyed by slot.
 	held map[int]heldSeat
@@ -68,10 +72,13 @@ type Room struct {
 	closeOnce sync.Once
 }
 
-func newRoom(code string, seed uint64) *Room {
+func newRoom(code, gameSlug string, seed uint64) (*Room, error) {
+	factory, ok := gameFactories[gameSlug]
+	if !ok {
+		return nil, fmt.Errorf("unknown game %q", gameSlug)
+	}
 	r := &Room{
 		code:    code,
-		match:   NewMatch(seed),
 		conns:   map[int]*Conn{},
 		held:    map[int]heldSeat{},
 		host:    -1,
@@ -79,22 +86,30 @@ func newRoom(code string, seed uint64) *Room {
 		acts:    make(chan func(), 64),
 		quit:    make(chan struct{}),
 	}
+	r.game = factory(r, seed) // r is the Game's Outbox
 	go r.run()
-	return r
+	return r, nil
 }
 
 // Code is the room's join code.
 func (r *Room) Code() string { return r.code }
 
 func (r *Room) run() {
-	tick := time.NewTicker(time.Second / TickHz)
+	// A realtime game drives a clock; an event-driven one (TickHz 0) still wants
+	// a slow tick so held seats get reaped.
+	hz := r.game.TickHz()
+	interval := time.Second
+	if hz > 0 {
+		interval = time.Second / time.Duration(hz)
+	}
+	tick := time.NewTicker(interval)
 	defer tick.Stop()
 
 	for {
 		select {
 		case <-r.quit:
-			// Hang up here rather than in close(): conns belongs to this
-			// goroutine, and the reaper calling close() runs on another.
+			// Hang up here, not in close(): conns belongs to this goroutine, and
+			// the reaper calling close() runs on another.
 			for _, c := range r.conns {
 				close(c.send)
 			}
@@ -104,7 +119,9 @@ func (r *Room) run() {
 			fn()
 		case now := <-tick.C:
 			r.reapHeld(now)
-			r.step()
+			if hz > 0 {
+				r.game.Tick(now)
+			}
 		}
 	}
 }
@@ -126,26 +143,35 @@ func (r *Room) do(fn func()) bool {
 	}
 }
 
-func (r *Room) step() {
-	// The lobby has nothing in motion, so it ticks over at a crawl rather than
-	// pushing a snapshot every frame at a room where nobody is moving. It is not
-	// silent, though: a connection that dies without closing (a VPN dropping, a
-	// NAT forgetting its mapping) fires no event at all, and the only evidence
-	// left is an absence of traffic — so clients need something to miss.
-	if r.match.Phase == PhaseLobby {
-		if r.match.Tick++; r.match.Tick%lobbyKeepaliveTicks != 0 {
-			return
-		}
-		r.broadcastSnapshot()
-		return
-	}
-	was := r.match.Phase
-	r.match.Step()
-	r.broadcastSnapshot()
-	if was == PhasePlay && r.match.Phase == PhaseOver {
-		r.broadcast(r.rosterMsg()) // the winner's tally changed
+// --- Outbox (called by the Game, on the room goroutine) ---------------------
+
+// Send queues v to one seat — the basis of per-seat private views.
+func (r *Room) Send(seat int, v any) {
+	if c, ok := r.conns[seat]; ok {
+		r.sendTo(c, v)
 	}
 }
+
+// Broadcast queues v to every connected seat.
+func (r *Room) Broadcast(v any) { r.broadcast(v) }
+
+// BroadcastRoster re-sends the roster (host + per-seat "gone" flags folded in).
+func (r *Room) BroadcastRoster() { r.broadcastRoster() }
+
+// Seats lists the connected seats, ascending.
+func (r *Room) Seats() []int {
+	out := make([]int, 0, len(r.conns))
+	for s := range r.conns {
+		out = append(out, s)
+	}
+	sort.Ints(out)
+	return out
+}
+
+// Host is the current host seat, or -1.
+func (r *Room) Host() int { return r.host }
+
+// --- frame plumbing ---------------------------------------------------------
 
 func (r *Room) broadcast(v any) {
 	b, err := json.Marshal(v)
@@ -166,8 +192,6 @@ func (r *Room) sendTo(c *Conn, v any) {
 }
 
 // queue hands a frame to one client, dropping it if that client is backed up.
-// Snapshots supersede each other, so the newest is the only one worth having —
-// and the room must never block on a stalled socket.
 func queue(c *Conn, b []byte) {
 	select {
 	case c.send <- b:
@@ -175,24 +199,26 @@ func queue(c *Conn, b []byte) {
 	}
 }
 
-// broadcastSnapshot sends the per-tick state, omitting the crate layer when it
-// has not changed since the last one: delivery is ordered, so clients hold the
-// last value they saw. This lives here rather than in Match because only the
-// Room knows what its clients have already been sent — which is what lets a
-// mid-round joiner be handed the full layer instead of an empty arena.
-func (r *Room) broadcastSnapshot() {
-	s := r.match.Snapshot()
-	if s.C == r.lastCrates {
-		s.C = ""
-	} else {
-		r.lastCrates = s.C
-	}
-	r.broadcast(s)
+func (r *Room) broadcastRoster() {
+	r.broadcast(RosterMsg{T: MsgRoster, Host: r.host, Roster: r.roster()})
 }
 
-// resumeSeat matches a token against the seats being held and returns the slot
-// it reclaims. Tokens are compared in constant time: the token is the only
-// thing standing between a stranger and someone else's seat.
+// roster lists the seated players, marking the ones whose socket has dropped and
+// whose seat is merely being held.
+func (r *Room) roster() []RosterEntry {
+	entries := r.game.Roster()
+	for i := range entries {
+		_, live := r.conns[entries[i].S]
+		entries[i].Gone = !live
+	}
+	return entries
+}
+
+// --- seat / reconnect bookkeeping -------------------------------------------
+
+// resumeSeat matches a token against the held seats and returns the slot it
+// reclaims. Tokens are compared in constant time: the token is the only thing
+// standing between a stranger and someone else's seat.
 func (r *Room) resumeSeat(token string) (int, bool) {
 	if token == "" {
 		return 0, false
@@ -213,32 +239,21 @@ func (r *Room) resumeSeat(token string) (int, bool) {
 	return 0, false
 }
 
-// heldSeat is a disconnected player's claim on their slot.
-type heldSeat struct {
-	token string
-	until time.Time
-}
-
-// reapHeld drops seats whose grace period has run out. Called from the tick
-// loop, which is the only place allowed to touch room state.
+// reapHeld drops seats whose grace period has run out. Called from the tick loop.
 func (r *Room) reapHeld(now time.Time) {
 	for slot, h := range r.held {
 		if _, live := r.conns[slot]; live {
-			continue // still connected — this claim is for a future drop
+			continue
 		}
-		// A zero deadline means the seat was claimed but never dropped.
 		if h.until.IsZero() || now.Before(h.until) {
 			continue
 		}
 		delete(r.held, slot)
-		r.match.RemovePlayer(slot)
+		r.game.RemovePlayer(slot)
 		r.reassignHost()
-		r.broadcast(r.rosterMsg())
+		r.broadcastRoster()
 		if len(r.conns) == 0 && len(r.held) == 0 {
-			// The last hope of a reconnect has expired: now the round is over.
-			r.match.Phase = PhaseLobby
-		} else if r.match.Phase == PhasePlay {
-			r.match.checkRoundEnd()
+			r.game.ToLobby() // last hope of a reconnect gone
 		}
 	}
 }
@@ -247,35 +262,22 @@ func (r *Room) reassignHost() {
 	if _, stillHere := r.conns[r.host]; stillHere {
 		return
 	}
+	// Lowest connected seat becomes host. Scanning r.conns (not a fixed range)
+	// keeps this game-agnostic: Codenames seats go past Bomberman's MaxPlayers.
 	r.host = -1
-	for s := 0; s < MaxPlayers; s++ {
-		if _, ok := r.conns[s]; ok {
+	for s := range r.conns {
+		if r.host == -1 || s < r.host {
 			r.host = s
-			return
 		}
 	}
 }
 
-// roster lists the seated players, marking the ones whose socket has dropped
-// and whose seat is merely being held. Without that flag a held seat looks like
-// a second, identical player in the list.
-func (r *Room) roster() []RosterEntry {
-	entries := r.match.Roster()
-	for i := range entries {
-		_, live := r.conns[entries[i].S]
-		entries[i].Gone = !live
-	}
-	return entries
-}
+// --- public API (called from connection goroutines) -------------------------
 
-func (r *Room) rosterMsg() RosterMsg {
-	return RosterMsg{T: MsgRoster, Host: r.host, Roster: r.roster()}
-}
-
-// Join seats a player and returns their connection plus the welcome frame.
-// A resume token from a previous Join reclaims that same seat — slot, totem and
-// win tally included — provided its grace period has not expired.
-func (r *Room) Join(name, animal, resume string) (*Conn, WelcomeMsg, error) {
+// Join seats a player and returns their connection plus the welcome frame. A
+// resume token from a previous Join reclaims that same seat if its grace has not
+// expired.
+func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 	var (
 		conn *Conn
 		wm   WelcomeMsg
@@ -284,7 +286,7 @@ func (r *Room) Join(name, animal, resume string) (*Conn, WelcomeMsg, error) {
 	if !r.do(func() {
 		slot, ok := r.resumeSeat(resume)
 		if !ok {
-			if slot, ok = r.match.AddPlayer(name, animal); !ok {
+			if slot, ok = r.game.AddPlayer(name, meta); !ok {
 				err = ErrRoomFull
 				return
 			}
@@ -296,17 +298,14 @@ func (r *Room) Join(name, animal, resume string) (*Conn, WelcomeMsg, error) {
 		if r.host < 0 {
 			r.host = slot
 		}
+		extra := r.game.WelcomeExtra()
 		wm = WelcomeMsg{
-			T: MsgWelcome, You: slot, Code: r.code, Host: r.host, Hz: TickHz, Fuse: fuseTicks,
-			Build: buildinfo.String(), Token: conn.token,
-			Arena: r.match.Grid.ArenaDTO(), Roster: r.roster(),
+			T: MsgWelcome, You: slot, Code: r.code, Host: r.host,
+			Hz: r.game.TickHz(), Fuse: extra.Fuse, Build: buildinfo.String(),
+			Token: conn.token, Arena: extra.Arena, Roster: r.roster(),
 		}
-		r.broadcast(r.rosterMsg())
-		// One snapshot, addressed to this client alone: it has seen nothing, so
-		// it needs the complete state including the crate layer. This happens in
-		// the lobby too — the lobby streams nothing, and without a first frame
-		// the client has no board to draw and shows an empty box while waiting.
-		r.sendTo(conn, r.match.Snapshot())
+		r.broadcastRoster()
+		r.game.Joined(slot) // the game pushes this seat its initial view
 	}) {
 		return nil, WelcomeMsg{}, ErrRoomClosed
 	}
@@ -314,8 +313,7 @@ func (r *Room) Join(name, animal, resume string) (*Conn, WelcomeMsg, error) {
 }
 
 // Quit removes a player who is leaving deliberately, releasing their seat
-// immediately. A dropped socket goes through Leave instead, which keeps the
-// seat warm — the difference is whether the client said goodbye.
+// immediately. A dropped socket goes through Leave instead, which holds the seat.
 func (r *Room) Quit(slot int) {
 	r.do(func() { delete(r.held, slot) })
 	r.Leave(slot)
@@ -329,68 +327,44 @@ func (r *Room) Leave(slot int) {
 			close(c.send)
 			delete(r.conns, slot)
 		}
-		// Hold the seat rather than deleting the player: a dropped socket is
-		// usually a blip, and losing your totem and score to one is miserable.
-		// The player stays in the match, standing still (their input queue runs
-		// dry, so takeInput zeroes it), until the grace period lapses.
+		// Hold the seat rather than dropping the player: a dropped socket is
+		// usually a blip, and losing your place to one is miserable.
 		if h, ok := r.held[slot]; ok {
 			h.until = time.Now().Add(reconnectGrace)
 			r.held[slot] = h
-			if p, seated := r.match.Players[slot]; seated {
-				p.in = Input{}
-				p.dropPending()
-			}
+			r.game.Dropped(slot)
 		} else {
-			r.match.RemovePlayer(slot)
+			r.game.RemovePlayer(slot)
 		}
 
 		r.reassignHost()
 		if len(r.conns) == 0 {
 			r.emptyAt = time.Now()
-			// Park the match only once nobody is coming back. While a seat is
-			// still being held, the round belongs to whoever dropped out of it:
-			// resetting to the lobby would hand them back a dead game, which is
-			// a strange reward for reconnecting inside the grace period.
+			// Park the game only once nobody is coming back; while a seat is held
+			// the round still belongs to whoever dropped out of it.
 			if len(r.held) == 0 {
-				r.match.Phase = PhaseLobby
+				r.game.ToLobby()
 			}
 			return
 		}
-		r.broadcast(r.rosterMsg())
+		r.broadcastRoster()
 	})
 }
 
-// Input queues a player's sequenced intent.
-func (r *Room) Input(slot int, seq uint32, in Input) {
-	// Fire-and-forget: a dropped input costs one tick of movement, where
-	// blocking the connection goroutine would cost much more.
+// Command hands one client frame to the game. Fire-and-forget: a dropped frame
+// costs little, where blocking the connection goroutine would cost much more.
+// The raw bytes are copied because the game parses them later, on the room
+// goroutine, after the transport's read buffer may have been reused.
+func (r *Room) Command(seat int, raw []byte) {
+	cp := append([]byte(nil), raw...)
 	select {
-	case r.acts <- func() { r.match.QueueInput(slot, seq, in) }:
+	case r.acts <- func() { r.game.Command(seat, seat == r.host, cp) }:
 	case <-r.quit:
 	default:
 	}
 }
 
-// Begin starts a round. Only the host may do so, and only from the lobby or
-// once the scoreboard has been up long enough.
-func (r *Room) Begin(slot int) {
-	r.do(func() {
-		if slot != r.host {
-			return
-		}
-		if r.match.Phase == PhasePlay || (r.match.Phase == PhaseOver && !r.match.CanRestart()) {
-			return
-		}
-		r.round++
-		r.match.Start(r.round)
-		r.lastCrates = "" // fresh grid: make the next snapshot carry it
-		r.broadcast(r.rosterMsg())
-		r.broadcastSnapshot()
-	})
-}
-
-// idleSince reports how long the room has been empty, and whether it is empty
-// at all.
+// idleSince reports how long the room has been empty, and whether it is empty.
 func (r *Room) idleSince(now time.Time) (time.Duration, bool) {
 	var (
 		d     time.Duration

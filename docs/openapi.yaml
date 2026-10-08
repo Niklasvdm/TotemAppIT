@@ -240,17 +240,32 @@ paths:
       tags: [games]
       summary: Create a game room
       description: >
-        Opens a new Bomberman room and returns its join code. Creating a room
-        allocates a server-side goroutine and tick loop, so it is rate limited to
-        20 requests/minute per IP. Idle rooms are reaped automatically. No request
-        body. Join the returned code over the WebSocket endpoint.
+        Opens a new game room and returns its join code. The `game` query param
+        picks which game (default `bomberman`). Creating a room allocates a
+        server-side goroutine, so it is rate limited to 20 requests/minute per IP.
+        Idle rooms are reaped automatically. No request body. Join the returned
+        code over the WebSocket endpoint; the message protocol after the handshake
+        is game-specific.
       operationId: createRoom
+      parameters:
+        - name: game
+          in: query
+          description: Which game to host.
+          schema:
+            type: string
+            enum: [bomberman, codenames]
+            default: bomberman
       responses:
         "201":
           description: Room created
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RoomCreated" }
+        "400":
+          description: Unknown game slug
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "429": { $ref: "#/components/responses/RateLimited" }
         "503":
           description: No free game rooms right now (server at capacity)

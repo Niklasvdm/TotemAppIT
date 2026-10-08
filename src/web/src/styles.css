@@ -247,3 +247,75 @@ header {
 .nethud-hint { margin-top: .3rem; opacity: .4; font-size: .66rem; }
 .game-score.gone { opacity: .5; border-style: dashed; }
 .game-score-gone { font-size: .8rem; }
+
+/* --- Codenames ---------------------------------------------------------- */
+.cn-room { display: flex; flex-direction: column; gap: .6rem; }
+.cn-lobby { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+.cn-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; }
+.cn-team { padding: .8rem; border-radius: 12px; border: 2px solid var(--surface-2); }
+.cn-team h3 { margin: 0 0 .4rem; }
+.cn-team-red { border-color: #d1495b; }
+.cn-team-blue { border-color: #4b8fe8; }
+.cn-team ul { list-style: none; margin: 0 0 .6rem; padding: 0; min-height: 2.5rem; }
+.cn-team li { padding: .15rem 0; }
+.cn-team li.gone { opacity: .5; }
+.cn-join-buttons { display: flex; flex-wrap: wrap; gap: .4rem; }
+.cn-start { align-self: center; }
+
+.cn-score { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .5rem .8rem; }
+.cn-score-red { color: #d1495b; font-weight: 800; }
+.cn-score-blue { color: #4b8fe8; font-weight: 800; }
+.cn-turn { text-align: center; font-size: .9rem; }
+
+.cn-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; }
+.cn-tile {
+  aspect-ratio: 3 / 2; border: none; border-radius: 10px; cursor: default;
+  background: var(--surface-2); color: var(--ink);
+  font: 700 clamp(.6rem, 2.4vw, 1rem)/1.1 Nunito, sans-serif;
+  text-transform: uppercase; letter-spacing: .02em; padding: .2rem;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.cn-clickable { cursor: pointer; box-shadow: 0 0 0 2px rgba(0,0,0,.12) inset; }
+.cn-clickable:hover { filter: brightness(.95); }
+
+/* Revealed tiles (everyone sees). */
+.cn-revealed { color: #fff; }
+.cn-red { background: #d1495b; }
+.cn-blue { background: #4b8fe8; }
+.cn-neutral { background: #cdb489; color: var(--ink); }
+.cn-assassin { background: #241f19; }
+
+/* Spymaster hint on unrevealed tiles (only the spymaster is sent the key). */
+.cn-spy-red { box-shadow: 0 0 0 3px #d1495b inset; }
+.cn-spy-blue { box-shadow: 0 0 0 3px #4b8fe8 inset; }
+.cn-spy-neutral { box-shadow: 0 0 0 3px #cdb489 inset; }
+.cn-spy-assassin { box-shadow: 0 0 0 3px #241f19 inset; background: #3a332b; color: #fff; }
+
+.cn-controls { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .6rem .8rem; }
+.cn-controls select { padding: .4rem; border-radius: 8px; }
+.cn-wait { text-align: center; padding: .8rem; }
+
+@media (max-width: 560px) { .cn-teams { grid-template-columns: 1fr; } }
+
+/* --- The Mind ----------------------------------------------------------- */
+.mind-room { display: flex; flex-direction: column; gap: .6rem; align-items: stretch; }
+.mind-lobby { display: flex; flex-direction: column; gap: .8rem; align-items: center; }
+.mind-players { list-style: none; margin: 0; padding: 0; }
+.mind-players li { padding: .2rem 0; }
+.mind-players li.gone { opacity: .5; }
+.mind-hud { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .5rem .8rem; font-weight: 700; }
+.mind-pile { text-align: center; padding: .6rem; }
+.mind-pile small { display: block; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+.mind-pile strong { font-size: clamp(2.4rem, 12vw, 4rem); line-height: 1; }
+.mind-others { display: flex; flex-wrap: wrap; gap: .4rem .9rem; justify-content: center; font-size: .85rem; color: var(--muted); }
+.mind-other.gone { opacity: .5; }
+.mind-hand { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; min-height: 3.2rem; align-items: center; }
+.mind-card {
+  min-width: 2.4rem; padding: .6rem .3rem; border-radius: 10px; text-align: center;
+  background: var(--surface-2); color: var(--ink); font: 800 1.3rem/1 Nunito, sans-serif;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.mind-card.lowest { background: var(--gold); box-shadow: 0 0 0 2px var(--ink) inset; }
+.mind-controls { display: flex; gap: .6rem; align-items: center; justify-content: center; flex-wrap: wrap; padding: .7rem; }
+.mind-controls .game-btn.active { background: var(--gold); }
+.mind-over { flex-direction: column; }

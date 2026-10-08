@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -42,11 +43,15 @@ func NewRegistry() *Registry {
 	return reg
 }
 
-// Create opens a room with a fresh code.
-func (reg *Registry) Create() (*Room, error) {
+// Create opens a room running the named game with a fresh code. It errors if the
+// game slug is unknown or the registry is at capacity.
+func (reg *Registry) Create(gameSlug string) (*Room, error) {
 	reg.mu.Lock()
 	defer reg.mu.Unlock()
 
+	if _, ok := gameFactories[gameSlug]; !ok {
+		return nil, fmt.Errorf("unknown game %q", gameSlug)
+	}
 	if len(reg.rooms) >= maxRooms {
 		return nil, ErrTooManyRooms
 	}
@@ -56,7 +61,10 @@ func (reg *Registry) Create() (*Room, error) {
 		if _, taken := reg.rooms[code]; taken {
 			continue
 		}
-		r := newRoom(code, randUint64())
+		r, err := newRoom(code, gameSlug, randUint64())
+		if err != nil {
+			return nil, err
+		}
 		reg.rooms[code] = r
 		return r, nil
 	}

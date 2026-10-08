@@ -23,12 +23,24 @@ func testRegistry(t *testing.T) *Registry {
 
 func mustCreate(t *testing.T, reg *Registry) *Room {
 	t.Helper()
-	r, err := reg.Create()
+	r, err := reg.Create("bomberman")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	return r
 }
+
+// begin and sendInput drive the room through the generic Command path (the old
+// r.Begin / r.Input helpers are gone now that Room is game-agnostic).
+func begin(r *Room, seat int) { r.Command(seat, []byte(`{"t":"`+MsgStart+`"}`)) }
+
+func sendInput(r *Room, seat int, in Input) {
+	b, _ := json.Marshal(ClientMsg{T: MsgInput, DX: in.DX, DY: in.DY, Bomb: in.Bomb, Seq: pushSeq()})
+	r.Command(seat, b)
+}
+
+// bomb returns the room's Bomberman match for tests that poke at player state.
+func bomb(r *Room) *Match { return r.game.(*bombermanGame).match }
 
 func mustJoin(t *testing.T, r *Room, name string) (*Conn, WelcomeMsg) {
 	t.Helper()
@@ -192,7 +204,7 @@ func TestDroppedPlayerReclaimsTheirSeat(t *testing.T) {
 		t.Fatal("welcome carried no resume token")
 	}
 	// Win tallies and totem live on the Player, so they must survive the drop.
-	r.do(func() { r.match.Players[c0.Slot()].Wins = 3 })
+	r.do(func() { bomb(r).Players[c0.Slot()].Wins = 3 })
 
 	r.Leave(c0.Slot())
 
@@ -204,7 +216,7 @@ func TestDroppedPlayerReclaimsTheirSeat(t *testing.T) {
 		t.Fatalf("resumed into slot %d, want the original %d", conn.Slot(), c0.Slot())
 	}
 	var wins int
-	r.do(func() { wins = r.match.Players[conn.Slot()].Wins })
+	r.do(func() { wins = bomb(r).Players[conn.Slot()].Wins })
 	if wins != 3 {
 		t.Fatalf("win tally = %d after reconnect, want 3", wins)
 	}
@@ -243,7 +255,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 	c1, _ := mustJoin(t, r, "beer")
 
 	// A non-host pressing start must not begin the match.
-	r.Begin(c1.Slot())
+	begin(r, c1.Slot())
 	select {
 	case b, ok := <-c1.Out():
 		var m map[string]any
@@ -257,7 +269,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 		// Nothing came, which is the expected outcome.
 	}
 
-	r.Begin(c0.Slot())
+	begin(r, c0.Slot())
 	state := recvPlaying(t, c0)
 	if state["c"] == nil {
 		t.Fatal("first snapshot of a round omitted the crate layer")
@@ -267,7 +279,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 func TestRoomTicksAndAppliesInput(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
-	r.Begin(c0.Slot())
+	begin(r, c0.Slot())
 
 	first := recvTyped(t, c0, MsgState)
 	startX := playerX(t, first, 0)
@@ -275,7 +287,7 @@ func TestRoomTicksAndAppliesInput(t *testing.T) {
 	// Hold right for a while; the room's own tick loop should move the player.
 	deadline := time.After(frameWait)
 	for {
-		r.Input(c0.Slot(), pushSeq(), Input{DX: 1})
+		sendInput(r, c0.Slot(), Input{DX: 1})
 		select {
 		case <-deadline:
 			t.Fatal("player never moved under held input")
@@ -293,7 +305,7 @@ func TestRoomTicksAndAppliesInput(t *testing.T) {
 func TestMidRoundJoinerGetsTheCrateLayer(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
-	r.Begin(c0.Slot())
+	begin(r, c0.Slot())
 
 	// Let the round settle past the first snapshot, so the layer counts as
 	// "unchanged" by the time the second player arrives.
@@ -312,7 +324,7 @@ func TestMidRoundJoinerGetsTheCrateLayer(t *testing.T) {
 func TestTickSnapshotsOmitUnchangedCrateLayer(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
-	r.Begin(c0.Slot())
+	begin(r, c0.Slot())
 
 	if first := recvPlaying(t, c0); first["c"] == nil {
 		t.Fatal("first snapshot of a round omitted the crate layer")

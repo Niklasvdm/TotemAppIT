@@ -5,6 +5,8 @@ import { Link } from "react-router-dom";
 // slots in without touching the router.
 const GAMES = [
   { slug: "bomberman", icon: "💣", titleKey: "gameBomberman", blurbKey: "gameBombermanBlurb" },
+  { slug: "codenames", icon: "🕵️", titleKey: "gameCodenames", blurbKey: "gameCodenamesBlurb" },
+  { slug: "themind", icon: "🧠", titleKey: "gameTheMind", blurbKey: "gameTheMindBlurb" },
 ];
 
 export default function GamesPage() {

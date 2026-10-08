@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -27,11 +28,20 @@ const (
 	gameWriteTimeout = 5 * time.Second
 )
 
-// createRoom opens a game room and returns its join code.
-func (s *Server) createRoom(w http.ResponseWriter, _ *http.Request) {
-	room, err := s.games.Create()
-	if err != nil {
+// createRoom opens a game room and returns its join code. The ?game= slug picks
+// which game (default "bomberman").
+func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("game")
+	if slug == "" {
+		slug = "bomberman"
+	}
+	room, err := s.games.Create(slug)
+	if errors.Is(err, game.ErrTooManyRooms) {
 		writeErr(w, http.StatusServiceUnavailable, "no free game rooms right now")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "unknown game")
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"code": room.Code()})
@@ -167,18 +177,18 @@ func gameReadPump(
 			return false, spoke
 		}
 
-		var msg game.ClientMsg
+		// Peek only at the type: a deliberate "bye" releases the seat, everything
+		// else is handed to the game to parse and apply.
+		var msg struct {
+			T string `json:"t"`
+		}
 		if err := json.Unmarshal(data, &msg); err != nil {
 			continue
 		}
-		switch msg.T {
-		case game.MsgInput:
-			room.Input(slot, msg.Seq, game.Input{DX: msg.DX, DY: msg.DY, Bomb: msg.Bomb})
-		case game.MsgStart, game.MsgRestart:
-			room.Begin(slot) // the room enforces that only the host may start
-		case game.MsgBye:
+		if msg.T == game.MsgBye {
 			return true, spoke
 		}
+		room.Command(slot, data)
 	}
 }
 
