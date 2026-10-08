@@ -123,9 +123,12 @@ func (g *codenamesGame) Roster() []RosterEntry {
 
 func (g *codenamesGame) WelcomeExtra() WelcomeExtra { return WelcomeExtra{} }
 
-func (g *codenamesGame) Joined(seat int) { g.out.Send(seat, g.viewFor(seat)) }
+// Joined refreshes EVERY connected seat, not just the new one: a turn-based game
+// has no tick, so a join/drop is the only moment existing players' lobby views
+// get updated.
+func (g *codenamesGame) Joined(int) { g.broadcastViews() }
 
-func (g *codenamesGame) Dropped(int) {} // turn-based: a held seat just waits
+func (g *codenamesGame) Dropped(int) { g.broadcastViews() } // others see "gone"
 
 func (g *codenamesGame) ToLobby() { g.resetToLobby(); g.broadcastViews() }
 
@@ -154,10 +157,21 @@ func (g *codenamesGame) Command(seat int, isHost bool, raw []byte) {
 		if g.phase != cnLobby {
 			return
 		}
+		team := p.team
 		if c.Team == 0 || c.Team == 1 {
-			p.team = c.Team
+			team = c.Team
 		}
-		p.spymaster = c.Spymaster
+		spymaster := c.Spymaster
+		if spymaster {
+			// One spymaster per team: the first to claim it keeps the role.
+			for s, q := range g.players {
+				if s != seat && q.team == team && q.spymaster {
+					spymaster = false
+					break
+				}
+			}
+		}
+		p.team, p.spymaster = team, spymaster
 
 	case cnMsgStart:
 		if !isHost || g.phase != cnLobby || !g.canStart() {

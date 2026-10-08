@@ -7,30 +7,38 @@ import { useRoom } from "../useRoom";
 import { RoomBar } from "../RoomBar";
 import { Card, lastN } from "../Card";
 
-// Mirrors mindView in internal/game/mind.go. `hand` is this seat's own cards —
-// the private view; everyone else is just a count.
-interface MindRoster {
+// Mirrors theGameView in internal/game/thegame.go. `hand` is this seat's own
+// cards (the private view); others are counts.
+interface TgRoster {
   s: number;
   n: string;
   cards: number;
-  voted: boolean;
   gone?: boolean;
 }
-interface MindView {
+interface TgView {
   t: "state";
   ph: "lobby" | "playing" | "won" | "lost";
-  level: number;
-  lives: number;
-  stars: number;
-  pile: number;
-  pileSeq: number[];
-  levelsToWin: number;
+  piles: number[]; // [asc, asc, desc, desc] current tops
+  history: number[][]; // every card played per pile, for display
+  deck: number;
   hand: number[];
+  played: number;
+  min: number;
+  turn: number;
+  handSize: number;
   you: number;
-  roster: MindRoster[];
+  roster: TgRoster[];
 }
 
-export default function MindPage() {
+// Mirror of canPlay in thegame.go — only to light up legal moves; the server
+// decides.
+function canPlay(card: number, pile: number, piles: number[]): boolean {
+  const top = piles[pile];
+  if (pile < 2) return card > top || card === top - 10; // ascending
+  return card < top || card === top + 10; // descending
+}
+
+export default function TheGamePage() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
 
@@ -43,7 +51,7 @@ export default function MindPage() {
   if (session) {
     return (
       <main className="game-page">
-        <MindRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <TheGameRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
       </main>
     );
   }
@@ -65,7 +73,7 @@ export default function MindPage() {
     if (!guard()) return;
     setBusy(true);
     try {
-      begin((await createGameRoom("the-mind")).code);
+      begin((await createGameRoom("the-game")).code);
     } catch {
       setError(t("gameNoRoom"));
     } finally {
@@ -88,8 +96,8 @@ export default function MindPage() {
         <Link className="game-crumb" to="/games">
           {t("gameAllGames")}
         </Link>
-        <h2>🧠 {t("gameTheMind")}</h2>
-        <p className="muted-note">{t("gameTheMindBlurb")}</p>
+        <h2>🃏 {t("gameTheGame")}</h2>
+        <p className="muted-note">{t("gameTheGameBlurb")}</p>
 
         <h3>{t("gameYourName")}</h3>
         <input
@@ -125,7 +133,7 @@ export default function MindPage() {
   );
 }
 
-function MindRoom({
+function TheGameRoom({
   code,
   name,
   onLeave,
@@ -135,7 +143,8 @@ function MindRoom({
   onLeave: () => void;
 }) {
   const { t } = useTranslation();
-  const g = useRoom<MindView>(code, name);
+  const g = useRoom<TgView>(code, name);
+  const [selected, setSelected] = useState<number | null>(null);
   const v = g.view;
 
   const bar = <RoomBar code={code} onLeave={onLeave} />;
@@ -165,20 +174,19 @@ function MindRoom({
   }
 
   const isHost = g.you >= 0 && g.you === g.host;
-  const me = v.roster.find((r) => r.s === v.you);
-  const myVoted = me?.voted ?? false;
+  const myTurn = v.you === v.turn;
+  const turnName = v.roster.find((r) => r.s === v.turn)?.n ?? "";
 
-  return (
-    <div className="game-room mind-room">
-      {bar}
-
-      {v.ph === "lobby" ? (
+  if (v.ph === "lobby") {
+    return (
+      <div className="game-room tg-room">
+        {bar}
         <div className="mind-lobby">
-          <p className="muted-note">2–4 players. Play your cards in rising order — no talking.</p>
+          <p className="muted-note">1–5 players. Empty the deck onto the piles — no naming numbers.</p>
           <ul className="mind-players">
             {v.roster.map((r) => (
               <li key={r.s} className={r.gone ? "gone" : ""}>
-                👤 {r.n}
+                🃏 {r.n}
                 {r.s === v.you ? " (you)" : ""}
               </li>
             ))}
@@ -186,81 +194,96 @@ function MindRoom({
           {isHost ? (
             <button
               className="game-btn"
-              disabled={v.roster.length < 2 || v.roster.length > 4}
+              disabled={v.roster.length < 1 || v.roster.length > 5}
               onClick={() => g.send({ t: "start" })}
             >
-              {v.roster.length < 2 ? "Need at least 2 players" : "Start game"}
+              Start game
             </button>
           ) : (
             <p className="muted-note">Waiting for the host to start…</p>
           )}
         </div>
-      ) : (
+      </div>
+    );
+  }
+
+  const playCard = (pile: number) => {
+    if (selected == null || !myTurn) return;
+    if (!canPlay(selected, pile, v.piles)) return;
+    g.send({ t: "play", card: selected, pile });
+    setSelected(null);
+  };
+
+  return (
+    <div className="game-room tg-room">
+      {bar}
+
+      <div className="mind-hud panel">
+        <span>Deck: {v.deck}</span>
+        <span>{myTurn ? `Your turn — ${Math.max(0, v.min - v.played)} more to play` : `${turnName}'s turn`}</span>
+      </div>
+
+      <div className="tg-piles">
+        {v.piles.map((top, i) => {
+          const playable = myTurn && selected != null && canPlay(selected, i, v.piles);
+          const stack = lastN(v.history?.[i] ?? [top], 6);
+          return (
+            <button
+              key={i}
+              className={`tg-pile ${i < 2 ? "asc" : "desc"} ${playable ? "playable" : ""}`}
+              disabled={!playable}
+              onClick={() => playCard(i)}
+            >
+              <small>{i < 2 ? "↑" : "↓"}</small>
+              <div className="tg-stack">
+                {stack.map((c, k) => (
+                  <Card key={k} n={c} className="sm strip" style={{ marginTop: k === 0 ? 0 : "-1.35rem", zIndex: k }} />
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {v.ph === "playing" ? (
         <>
-          <div className="mind-hud panel">
-            <span>Level {v.level}/{v.levelsToWin}</span>
-            <span className="mind-lives">{"❤️".repeat(Math.max(0, v.lives))}</span>
-            <span className="mind-stars">{"⭐".repeat(Math.max(0, v.stars))}</span>
+          <div className="tg-hand">
+            {v.hand.length === 0 ? (
+              <span className="muted-note">Hand empty.</span>
+            ) : (
+              v.hand.map((c) => (
+                <Card
+                  key={c}
+                  n={c}
+                  className={selected === c ? "sel" : ""}
+                  disabled={!myTurn}
+                  onClick={() => setSelected(selected === c ? null : c)}
+                />
+              ))
+            )}
           </div>
-
-          <div className="mind-pile">
-            <small>Pile</small>
-            <div className="card-fan">
-              {(v.pileSeq ?? []).length === 0 ? (
-                <span className="muted-note">{v.pile || "—"}</span>
-              ) : (
-                lastN(v.pileSeq ?? [], 18).map((c, i) => <Card key={i} n={c} className="sm" />)
-              )}
-            </div>
+          <div className="mind-controls panel">
+            <span className="muted-note">
+              {myTurn ? "Tap a card, then a pile. " : ""}
+            </span>
+            <button
+              className="game-btn"
+              disabled={!myTurn || v.played < v.min}
+              onClick={() => g.send({ t: "endturn" })}
+            >
+              End turn
+            </button>
           </div>
-
-          <div className="mind-others">
-            {v.roster
-              .filter((r) => r.s !== v.you)
-              .map((r) => (
-                <span key={r.s} className={`mind-other ${r.gone ? "gone" : ""}`}>
-                  {r.n}: {r.cards} 🂠{r.voted ? " ⭐" : ""}
-                </span>
-              ))}
-          </div>
-
-          {v.ph === "playing" ? (
-            <>
-              <div className="mind-hand">
-                {v.hand.length === 0 ? (
-                  <span className="muted-note">Your hand is empty — waiting on the others.</span>
-                ) : (
-                  v.hand.map((c, i) => <Card key={c} n={c} className={i === 0 ? "sel" : ""} />)
-                )}
-              </div>
-              <div className="mind-controls panel">
-                <button
-                  className="game-btn"
-                  disabled={v.hand.length === 0}
-                  onClick={() => g.send({ t: "play" })}
-                >
-                  Play my lowest ({v.hand[0] ?? "—"})
-                </button>
-                <button
-                  className={`game-btn ghost ${myVoted ? "active" : ""}`}
-                  disabled={v.stars <= 0}
-                  onClick={() => g.send({ t: "star" })}
-                >
-                  {myVoted ? "Star voted ✓" : "Vote throwing star ⭐"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="mind-controls panel mind-over">
-              <strong>{v.ph === "won" ? "You win! 🎉" : `Out of lives — level ${v.level} 💀`}</strong>
-              {isHost && (
-                <button className="game-btn" onClick={() => g.send({ t: "restart" })}>
-                  New game
-                </button>
-              )}
-            </div>
-          )}
         </>
+      ) : (
+        <div className="mind-controls panel mind-over">
+          <strong>{v.ph === "won" ? "You win! 🎉" : "Stuck — nobody could play 💀"}</strong>
+          {isHost && (
+            <button className="game-btn" onClick={() => g.send({ t: "restart" })}>
+              New game
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

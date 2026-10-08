@@ -12,6 +12,7 @@ import GamesPage from "./games/GamesPage";
 import BombermanPage from "./games/bomberman/BombermanPage";
 import CodenamesPage from "./games/codenames/CodenamesPage";
 import MindPage from "./games/themind/MindPage";
+import TheGamePage from "./games/thegame/TheGamePage";
 
 export default function App() {
   // Load the slug->emoji map once; cards fall back to 🐾 if it's unavailable.
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/games/bomberman" element={<BombermanPage emoji={emoji} />} />
         <Route path="/games/codenames" element={<CodenamesPage />} />
         <Route path="/games/themind" element={<MindPage />} />
+        <Route path="/games/thegame" element={<TheGamePage />} />
       </Routes>
       {quizOpen && <Quiz onClose={() => setQuizOpen(false)} />}
       {aboutOpen && <AboutTotems onClose={closeAbout} />}

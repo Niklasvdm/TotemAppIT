@@ -255,10 +255,14 @@ export default function GameRoom({
   return (
     <div className="game-room">
       <div className="game-bar panel">
-        <div className="game-code">
-          <small>{t("gameRoomCode")}</small>
+        <button
+          className="game-code game-code-copy"
+          title="Copy room code"
+          onClick={() => navigator.clipboard?.writeText(code).catch(() => {})}
+        >
+          <small>{t("gameRoomCode")} 📋</small>
           <strong>{code}</strong>
-        </div>
+        </button>
         <div className="game-scores">
           {roster.map((r) => (
             <div

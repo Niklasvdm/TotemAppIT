@@ -7,6 +7,7 @@ const GAMES = [
   { slug: "bomberman", icon: "💣", titleKey: "gameBomberman", blurbKey: "gameBombermanBlurb" },
   { slug: "codenames", icon: "🕵️", titleKey: "gameCodenames", blurbKey: "gameCodenamesBlurb" },
   { slug: "themind", icon: "🧠", titleKey: "gameTheMind", blurbKey: "gameTheMindBlurb" },
+  { slug: "thegame", icon: "🃏", titleKey: "gameTheGame", blurbKey: "gameTheGameBlurb" },
 ];
 
 export default function GamesPage() {

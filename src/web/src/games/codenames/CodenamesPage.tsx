@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { RoomBar } from "../RoomBar";
 
 // Mirrors cnView in internal/game/codenames.go. `key` is present only when the
 // server decides this seat is a spymaster — that is the private view.
@@ -145,17 +146,7 @@ function CodenamesRoom({
   const g = useRoom<CnView>(code, name);
   const v = g.view;
 
-  const bar = (
-    <div className="game-bar panel">
-      <div className="game-code">
-        <small>{t("gameRoomCode")}</small>
-        <strong>{code}</strong>
-      </div>
-      <button className="game-btn ghost" onClick={onLeave}>
-        {t("gameLeave")}
-      </button>
-    </div>
-  );
+  const bar = <RoomBar code={code} onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (
@@ -236,8 +227,14 @@ function Lobby({
               <button className="game-btn ghost" onClick={() => setup(tm, false)}>
                 Join as guesser
               </button>
-              <button className="game-btn ghost" onClick={() => setup(tm, true)}>
-                Be spymaster
+              <button
+                className="game-btn ghost"
+                disabled={v.roster.some((p) => p.team === tm && p.spymaster && p.s !== v.you.s)}
+                onClick={() => setup(tm, true)}
+              >
+                {v.roster.some((p) => p.team === tm && p.spymaster && p.s !== v.you.s)
+                  ? "Spymaster taken"
+                  : "Be spymaster"}
               </button>
             </div>
           </div>

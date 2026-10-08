@@ -248,6 +248,10 @@ header {
 .game-score.gone { opacity: .5; border-style: dashed; }
 .game-score-gone { font-size: .8rem; }
 
+/* Clickable room code (copy to clipboard), styled to match the plain display. */
+.game-code-copy { background: none; border: none; color: inherit; font: inherit; cursor: pointer; text-align: left; padding: .2rem .4rem; border-radius: 8px; }
+.game-code-copy:hover { background: rgba(127,127,127,.14); }
+
 /* --- Codenames ---------------------------------------------------------- */
 .cn-room { display: flex; flex-direction: column; gap: .6rem; }
 .cn-lobby { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
@@ -319,3 +323,39 @@ header {
 .mind-controls { display: flex; gap: .6rem; align-items: center; justify-content: center; flex-wrap: wrap; padding: .7rem; }
 .mind-controls .game-btn.active { background: var(--gold); }
 .mind-over { flex-direction: column; }
+
+/* --- The Game ----------------------------------------------------------- */
+.tg-piles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.tg-pile {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  padding: .7rem .2rem; border-radius: 10px; border: 2px solid var(--surface-2);
+  background: var(--surface-2); color: var(--ink); cursor: default; font: inherit;
+}
+.tg-pile small { font-size: 1.1rem; opacity: .7; }
+.tg-pile strong { font-size: clamp(1.4rem, 7vw, 2.2rem); line-height: 1; }
+.tg-pile.asc { border-color: var(--green); }
+.tg-pile.desc { border-color: var(--gold); }
+.tg-pile.playable { cursor: pointer; box-shadow: 0 0 0 3px var(--green) inset; }
+.tg-pile.playable:hover { filter: brightness(.96); }
+.tg-hand { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; min-height: 3.4rem; align-items: center; }
+
+/* --- number cards (The Game + The Mind) --------------------------------- */
+.gcard {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.3rem; min-height: 2.9rem; padding: .3rem .4rem; border: none; border-radius: 9px;
+  color: #fff; font: 800 1.2rem/1 Nunito, sans-serif;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45); box-shadow: 0 1px 3px rgba(0,0,0,.28);
+}
+button.gcard { cursor: pointer; }
+button.gcard:disabled { cursor: default; opacity: .9; }
+.gcard.sel { outline: 3px solid var(--ink); outline-offset: 2px; transform: translateY(-4px); }
+.gcard.sm { min-width: 1.9rem; min-height: 2.4rem; font-size: 1rem; border-radius: 7px; }
+/* A short numbered bar for a pile's history — every number stays readable. */
+.gcard.strip { min-height: 1.6rem; min-width: 2.1rem; padding: .12rem .3rem; border-radius: 6px; font-size: .95rem; }
+
+/* The Mind's shared pile: a wrapping row of full cards, every number readable. */
+.card-fan { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .3rem; min-height: 2.6rem; }
+
+/* The Game: a pile that grows downward (newest at the bottom), a tidy column. */
+.tg-stack { display: flex; flex-direction: column; align-items: center; gap: .18rem; }
+.tg-pile { overflow: visible; }

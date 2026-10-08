@@ -55,7 +55,8 @@ type theMindGame struct {
 	level    int
 	lives    int
 	stars    int
-	pile     int // highest card played so far (0 = none)
+	pile     int   // highest card played so far (0 = none)
+	pileSeq  []int // the cards face-up on the pile, in play order, for display
 	hands    map[int][]int
 	starVote map[int]bool
 }
@@ -111,8 +112,11 @@ func (g *theMindGame) Roster() []RosterEntry {
 }
 
 func (g *theMindGame) WelcomeExtra() WelcomeExtra { return WelcomeExtra{} }
-func (g *theMindGame) Joined(seat int)            { g.out.Send(seat, g.viewFor(seat)) }
-func (g *theMindGame) Dropped(int)                {}
+
+// Joined/Dropped refresh EVERY connected seat: a turn-based game has no tick, so
+// membership changes are the only moment existing players' views get updated.
+func (g *theMindGame) Joined(int)  { g.broadcastViews() }
+func (g *theMindGame) Dropped(int) { g.broadcastViews() }
 func (g *theMindGame) ToLobby()                   { g.resetToLobby(); g.broadcastViews() }
 func (g *theMindGame) TickHz() int                { return 0 }
 func (g *theMindGame) Tick(time.Time)             {}
@@ -191,6 +195,7 @@ func (g *theMindGame) deal() {
 	g.hands = map[int][]int{}
 	g.starVote = map[int]bool{}
 	g.pile = 0
+	g.pileSeq = nil
 	i := 0
 	for _, seat := range g.order {
 		h := append([]int(nil), deck[i:i+g.level]...)
@@ -211,6 +216,7 @@ func (g *theMindGame) play(seat int) {
 	card := hand[0] // sorted
 	g.hands[seat] = hand[1:]
 	g.pile = card
+	g.pileSeq = append(g.pileSeq, card)
 
 	mistake := false
 	for s, h := range g.hands {
@@ -248,14 +254,18 @@ func (g *theMindGame) maybeStar() {
 		}
 	}
 	g.stars--
+	var discarded []int
 	for s, h := range g.hands {
 		if len(h) > 0 {
+			discarded = append(discarded, h[0])
 			if h[0] > g.pile {
 				g.pile = h[0]
 			}
 			g.hands[s] = h[1:]
 		}
 	}
+	sort.Ints(discarded)
+	g.pileSeq = append(g.pileSeq, discarded...)
 	g.starVote = map[int]bool{}
 	g.checkLevelDone()
 }
@@ -277,6 +287,7 @@ func (g *theMindGame) checkLevelDone() {
 func (g *theMindGame) resetToLobby() {
 	g.phase = mindLobby
 	g.level, g.lives, g.stars, g.pile = 0, 0, 0, 0
+	g.pileSeq = nil
 	g.hands = map[int][]int{}
 	g.starVote = map[int]bool{}
 }
@@ -298,6 +309,7 @@ type mindView struct {
 	Lives       int               `json:"lives"`
 	Stars       int               `json:"stars"`
 	Pile        int               `json:"pile"`
+	PileSeq     []int             `json:"pileSeq"` // cards face-up on the pile, for display
 	LevelsToWin int               `json:"levelsToWin"`
 	Hand        []int             `json:"hand"` // YOUR cards only (private)
 	You         int               `json:"you"`
@@ -307,8 +319,9 @@ type mindView struct {
 func (g *theMindGame) viewFor(seat int) mindView {
 	v := mindView{
 		T: MsgState, Phase: g.phase, Level: g.level, Lives: g.lives, Stars: g.stars,
-		Pile: g.pile, LevelsToWin: mindLevelsToWin(len(g.players)), You: seat,
-		Hand: append([]int(nil), g.hands[seat]...),
+		Pile: g.pile, PileSeq: append([]int(nil), g.pileSeq...),
+		LevelsToWin: mindLevelsToWin(len(g.players)), You: seat,
+		Hand:        append([]int(nil), g.hands[seat]...),
 	}
 	connected := map[int]bool{}
 	for _, s := range g.out.Seats() {
