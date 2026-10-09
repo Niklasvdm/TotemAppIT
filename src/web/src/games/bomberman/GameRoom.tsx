@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Input } from "../types";
 import { SLOT_COLORS } from "../types";
+import { InfoButton } from "../GameRules";
 import { decayOffset, sample, useGame } from "./net";
 import NetHud, { useStatsFlag } from "./NetHud";
 import { draw, readPalette } from "./render";
@@ -278,6 +279,7 @@ export default function GameRoom({
             </div>
           ))}
         </div>
+        <InfoButton slug="bomberman" />
         <button className="game-btn ghost" onClick={onLeave}>
           {t("gameLeave")}
         </button>

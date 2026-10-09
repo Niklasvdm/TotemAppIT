@@ -371,6 +371,100 @@ header {
 .wl-clue { text-align: center; font-size: 1.15rem; font-weight: 700; margin: .2rem 0; }
 .wl-wait { text-align: center; padding: .8rem; }
 .wl-room input[type="range"] { flex: 1; min-width: 60%; }
+
+/* --- Just One --------------------------------------------------------- */
+.jo-room { display: flex; flex-direction: column; gap: .6rem; }
+.jo-word { text-align: center; padding: .8rem; border: 2px dashed var(--line, rgba(0,0,0,.2)); border-radius: 12px; }
+.jo-word small { display: block; text-transform: uppercase; letter-spacing: .08em; opacity: .6; font-size: .7rem; }
+.jo-word strong { font-size: 1.8rem; font-weight: 800; }
+.jo-clues { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; padding: .4rem; }
+.jo-clue { padding: .35rem .7rem; border-radius: 999px; background: var(--chip, rgba(0,0,0,.07)); font-weight: 700; }
+
+/* --- Love Letter ------------------------------------------------------ */
+.ll-room { display: flex; flex-direction: column; gap: .6rem; }
+.ll-aside { text-align: center; }
+.ll-players { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ll-player { flex: 1 1 8rem; border: 1px solid var(--line, rgba(0,0,0,.15)); border-radius: 10px; padding: .5rem .6rem; }
+.ll-player.active { border-color: var(--accent, #c9803a); box-shadow: 0 0 0 2px var(--accent, #c9803a) inset; }
+.ll-player.out { opacity: .5; }
+.ll-player-head { display: flex; justify-content: space-between; gap: .4rem; font-size: .9rem; }
+.ll-player-sub { font-size: .78rem; opacity: .8; }
+.ll-discard { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .3rem; }
+.ll-dcard { font-size: .68rem; padding: .1rem .3rem; border-radius: 6px; background: var(--chip, rgba(0,0,0,.07)); }
+.ll-saw { text-align: center; padding: .5rem; border-radius: 8px; background: var(--chip, rgba(0,0,0,.06)); }
+.ll-hand { display: flex; flex-direction: column; gap: .5rem; }
+.ll-hand-cards { display: flex; gap: .6rem; }
+.ll-card { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 4.6rem; height: 6rem; border-radius: 12px; border: 2px solid var(--line, rgba(0,0,0,.2)); background: var(--panel, #fff); cursor: pointer; }
+.ll-card:disabled { cursor: default; opacity: .6; }
+.ll-card.sel { border-color: var(--accent, #c9803a); box-shadow: 0 0 0 2px var(--accent, #c9803a) inset; }
+.ll-card-v { font-size: 1.6rem; font-weight: 800; }
+.ll-card-n { font-size: .72rem; }
+.ll-resolve { display: flex; flex-direction: column; gap: .4rem; }
+.ll-targets { display: flex; flex-wrap: wrap; gap: .4rem; }
+.game-btn.sel { outline: 2px solid var(--accent, #c9803a); }
+.ll-resolve-actions { display: flex; gap: .5rem; }
+.ll-log { font-size: .78rem; opacity: .85; display: flex; flex-direction: column; gap: .15rem; max-height: 9rem; overflow-y: auto; }
+
+/* --- Decrypto --------------------------------------------------------- */
+.dc-room { display: flex; flex-direction: column; gap: .6rem; }
+.dc-turn { text-align: center; }
+.dc-teams-lobby { display: flex; gap: 1rem; }
+.dc-team-col { flex: 1; }
+.dc-words { }
+.dc-wordlist { margin: .3rem 0 0; padding-left: 1.2rem; }
+.dc-wordlist li { margin: .15rem 0; }
+.dc-wordlist b { display: inline-block; width: 1.2rem; }
+.dc-code-show { text-align: center; font-weight: 700; }
+.dc-digit { display: inline-flex; align-items: center; justify-content: center; width: 1.8rem; height: 1.8rem; margin: 0 .15rem; border-radius: 8px; background: var(--accent, #c9803a); color: #fff; font-weight: 800; }
+.dc-code-pick { display: flex; gap: .5rem; }
+.dc-code-pick select { flex: 1; }
+.dc-cluelist, .dc-clues ol { margin: .3rem 0 0; padding-left: 1.4rem; }
+.dc-outcome { display: flex; flex-direction: column; gap: .2rem; font-size: .85rem; }
+.dc-history { font-size: .8rem; display: flex; flex-direction: column; gap: .2rem; }
+.dc-hist-row span { opacity: .85; }
+
+/* --- Hanabi ----------------------------------------------------------- */
+.han-room { display: flex; flex-direction: column; gap: .6rem; }
+.han-stacks { display: flex; gap: .4rem; justify-content: center; }
+.han-stack { flex: 1; max-width: 4rem; display: flex; flex-direction: column; align-items: center; padding: .4rem; border-radius: 10px; }
+.han-stack small { font-size: .6rem; opacity: .85; }
+.han-stack strong { font-size: 1.5rem; }
+.han-turn { text-align: center; }
+.han-player { display: flex; flex-direction: column; gap: .4rem; }
+.han-player.active { box-shadow: 0 0 0 2px var(--accent, #c9803a) inset; }
+.han-player-head { font-size: .9rem; }
+.han-cards { display: flex; flex-wrap: wrap; gap: .5rem; }
+.han-card-wrap { display: flex; flex-direction: column; align-items: center; gap: .2rem; }
+.han-card { position: relative; width: 3rem; height: 4rem; border-radius: 8px; border: 2px solid rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; background: var(--panel, #e6e6ee); }
+.han-card-v { font-size: 1.4rem; font-weight: 800; }
+.han-card-not { position: absolute; bottom: 2px; font-size: .5rem; opacity: .7; }
+.han-known { font-size: .6rem; opacity: .7; }
+.han-self { border: 2px dashed var(--line, rgba(0,0,0,.25)); }
+.han-self-actions { display: flex; flex-direction: column; gap: .15rem; }
+.game-btn.tiny { padding: .15rem .4rem; font-size: .68rem; }
+.han-hint-btn { align-self: flex-start; }
+.han-hint-pick { display: flex; flex-direction: column; gap: .3rem; }
+.han-hint-row { display: flex; gap: .3rem; }
+.han-chip { width: 2rem; height: 2rem; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); font-weight: 800; cursor: pointer; }
+.han-chip.num { background: var(--panel, #fff); }
+.han-discard-row { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .3rem; }
+.han-dchip { width: 1.5rem; height: 1.5rem; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; }
+
+/* --- "how to play" (ⓘ) button + rules modal ---------------------------- */
+.info-btn {
+  width: 1.7rem; height: 1.7rem; flex: 0 0 auto; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--surface-2); color: var(--ink);
+  font: italic 800 1rem/1 Georgia, "Times New Roman", serif; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.info-btn:hover { background: var(--gold-soft); }
+.game-card-wrap { position: relative; }
+.game-card-info { position: absolute; top: .55rem; right: .55rem; z-index: 2; }
+.game-rules h2 { margin: 0 0 .2rem; }
+.game-rules h3 { margin: 1rem 0 .3rem; font-size: 1rem; }
+.game-rules-steps { margin: 0; padding-left: 1.2rem; line-height: 1.5; }
+.game-rules-steps li { margin: .3rem 0; }
+.game-rules-example { background: var(--surface-2); border-radius: 10px; padding: .6rem .85rem; font-style: italic; }
 .tg-hand { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; min-height: 3.4rem; align-items: center; }
 
 /* --- number cards (The Game + The Mind) --------------------------------- */

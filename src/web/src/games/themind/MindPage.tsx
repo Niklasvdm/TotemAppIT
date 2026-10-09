@@ -154,7 +154,7 @@ function MindRoom({
     }
   }, [v?.lives]);
 
-  const bar = <RoomBar code={code} title={t("gameTheMind")} onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameTheMind")} infoSlug="themind" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

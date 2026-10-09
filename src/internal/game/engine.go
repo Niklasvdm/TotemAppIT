@@ -72,4 +72,8 @@ var gameFactories = map[string]gameFactory{
 	"the-mind":   newTheMindGame,
 	"the-game":   newTheGameGame,
 	"wavelength": newWavelengthGame,
+	"just-one":   newJustOneGame,
+	"love-letter": newLoveLetterGame,
+	"decrypto":    newDecryptoGame,
+	"hanabi":      newHanabiGame,
 }

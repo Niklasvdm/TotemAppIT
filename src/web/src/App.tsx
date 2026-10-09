@@ -14,6 +14,10 @@ import CodenamesPage from "./games/codenames/CodenamesPage";
 import MindPage from "./games/themind/MindPage";
 import TheGamePage from "./games/thegame/TheGamePage";
 import WavelengthPage from "./games/wavelength/WavelengthPage";
+import JustOnePage from "./games/justone/JustOnePage";
+import LoveLetterPage from "./games/loveletter/LoveLetterPage";
+import DecryptoPage from "./games/decrypto/DecryptoPage";
+import HanabiPage from "./games/hanabi/HanabiPage";
 
 export default function App() {
   // Load the slug->emoji map once; cards fall back to 🐾 if it's unavailable.
@@ -54,6 +58,10 @@ export default function App() {
         <Route path="/games/themind" element={<MindPage />} />
         <Route path="/games/thegame" element={<TheGamePage />} />
         <Route path="/games/wavelength" element={<WavelengthPage />} />
+        <Route path="/games/justone" element={<JustOnePage />} />
+        <Route path="/games/loveletter" element={<LoveLetterPage />} />
+        <Route path="/games/decrypto" element={<DecryptoPage />} />
+        <Route path="/games/hanabi" element={<HanabiPage />} />
       </Routes>
       {quizOpen && <Quiz onClose={() => setQuizOpen(false)} />}
       {aboutOpen && <AboutTotems onClose={closeAbout} />}

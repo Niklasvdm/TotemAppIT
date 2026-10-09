@@ -1,9 +1,20 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { InfoButton } from "./GameRules";
 
 // The room-code header shared by the turn-based games, with the game title in the
-// middle and a copy-to-clipboard button (codes get read aloud / shared).
-export function RoomBar({ code, title, onLeave }: { code: string; title?: string; onLeave: () => void }) {
+// middle, a "how to play" button, and a copy-to-clipboard button.
+export function RoomBar({
+  code,
+  title,
+  infoSlug,
+  onLeave,
+}: {
+  code: string;
+  title?: string;
+  infoSlug?: string;
+  onLeave: () => void;
+}) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
@@ -26,6 +37,7 @@ export function RoomBar({ code, title, onLeave }: { code: string; title?: string
         <strong>{code}</strong>
       </button>
       {title && <strong className="game-bar-title">{title}</strong>}
+      {infoSlug && <InfoButton slug={infoSlug} />}
       <button className="game-btn ghost" onClick={onLeave}>
         {t("gameLeave")}
       </button>

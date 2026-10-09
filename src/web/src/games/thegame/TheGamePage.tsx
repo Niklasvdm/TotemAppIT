@@ -148,7 +148,7 @@ function TheGameRoom({
   const [selected, setSelected] = useState<number | null>(null);
   const v = g.view;
 
-  const bar = <RoomBar code={code} title={t("gameTheGame")} onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameTheGame")} infoSlug="thegame" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (
