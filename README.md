@@ -4,6 +4,7 @@ version: 0.4.0
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
+  - "[[TotemApp-IT-Games]]"
 ---
 
 ```table-of-contents
