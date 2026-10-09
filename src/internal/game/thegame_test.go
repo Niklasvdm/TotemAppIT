@@ -137,6 +137,91 @@ func TestTheGameStuckBelowMinimumLoses(t *testing.T) {
 	}
 }
 
+func TestTheGameHandSizesScaleWithPlayers(t *testing.T) {
+	// 1→8, 2→7, 3/4/5→6; deck is 98 minus what's dealt.
+	for _, tc := range []struct{ players, hand int }{{1, 8}, {2, 7}, {3, 6}, {4, 6}, {5, 6}} {
+		fo := newFakeOutbox()
+		g := newTheGameGame(fo, 11).(*theGameGame)
+		seats := make([]int, tc.players)
+		for i := 0; i < tc.players; i++ {
+			s, ok := g.AddPlayer("p", "")
+			if !ok {
+				t.Fatalf("%d players: AddPlayer %d failed", tc.players, i)
+			}
+			seats[i] = s
+		}
+		fo.seats = seats
+		tgCmd(t, g, seats[0], true, map[string]any{"t": tgMsgStart})
+		seen := map[int]bool{}
+		for _, s := range seats {
+			if len(g.hands[s]) != tc.hand {
+				t.Fatalf("%d players: seat %d has %d cards, want %d", tc.players, s, len(g.hands[s]), tc.hand)
+			}
+			for _, c := range g.hands[s] {
+				if seen[c] {
+					t.Fatalf("%d players: duplicate card %d dealt", tc.players, c)
+				}
+				seen[c] = true
+			}
+		}
+		if want := 98 - tc.players*tc.hand; len(g.deck) != want {
+			t.Fatalf("%d players: deck=%d want %d", tc.players, len(g.deck), want)
+		}
+	}
+}
+
+func TestTheGameEmptyHandIsSkippedAndSerialisesAsArray(t *testing.T) {
+	g, fo := startedTheGame(t, 7) // seats 0,1
+	g.deck = nil
+	g.hands = map[int][]int{0: {}, 1: {40}}
+	fo.seats = []int{0, 1}
+	// nextSeat from 1 must skip the empty seat 0 (it stays on 1, the only player left).
+	if nx := g.nextSeat(1); nx != 1 {
+		t.Fatalf("nextSeat skipping empty: got %d, want 1", nx)
+	}
+	g.hands[0] = []int{30}
+	if nx := g.nextSeat(1); nx != 0 {
+		t.Fatalf("nextSeat with cards: got %d, want 0", nx)
+	}
+	// An empty hand must serialise as [] (not nil → JSON null, which crashed the client).
+	g.hands[0] = []int{}
+	g.broadcastViews()
+	if v := tgLastView(t, fo, 0); v.Hand == nil {
+		t.Fatal("empty hand serialised as nil")
+	}
+}
+
+func TestTheGameReserveOnlyByNonCurrentAndClears(t *testing.T) {
+	g, _ := startedTheGame(t, 9) // seats 0,1; turn is random
+	cur := g.turn
+	other := 1 - cur
+
+	tgCmd(t, g, other, false, map[string]any{"t": tgMsgReserve, "pile": 2})
+	if g.reserved[2] != other {
+		t.Fatalf("non-current reserve: reserved[2]=%d want %d", g.reserved[2], other)
+	}
+	tgCmd(t, g, other, false, map[string]any{"t": tgMsgReserve, "pile": 2}) // toggle off
+	if g.reserved[2] != -1 {
+		t.Fatalf("reserve toggle off: reserved[2]=%d want -1", g.reserved[2])
+	}
+	tgCmd(t, g, cur, false, map[string]any{"t": tgMsgReserve, "pile": 0}) // current may not reserve
+	if g.reserved[0] != -1 {
+		t.Fatal("the active player was allowed to reserve")
+	}
+	// A reservation is cleared when the turn ends.
+	g.reserved[1] = other
+	g.hands = map[int][]int{cur: {40, 41}, other: {50}}
+	g.deck = []int{60, 61}
+	g.piles = [tgPiles]int{1, 1, 100, 100}
+	g.played = 0
+	tgCmd(t, g, cur, false, map[string]any{"t": tgMsgPlay, "card": 40, "pile": 0})
+	tgCmd(t, g, cur, false, map[string]any{"t": tgMsgPlay, "card": 41, "pile": 1})
+	tgCmd(t, g, cur, false, map[string]any{"t": tgMsgEndTurn})
+	if g.reserved != ([tgPiles]int{-1, -1, -1, -1}) {
+		t.Fatalf("reservations not cleared on end-turn: %v", g.reserved)
+	}
+}
+
 func TestTheGameEmptyingEverythingWins(t *testing.T) {
 	g, _ := startedTheGame(t, 5)
 	g.hands = map[int][]int{0: {40, 41}, 1: {}}

@@ -5,7 +5,7 @@ import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { RoomBar } from "../RoomBar";
-import { Card, lastN } from "../Card";
+import { Card } from "../Card";
 
 // Mirrors theGameView in internal/game/thegame.go. `hand` is this seat's own
 // cards (the private view); others are counts.
@@ -20,6 +20,7 @@ interface TgView {
   ph: "lobby" | "playing" | "won" | "lost";
   piles: number[]; // [asc, asc, desc, desc] current tops
   history: number[][]; // every card played per pile, for display
+  reserved: number[]; // seat that "called" each pile, or -1
   deck: number;
   hand: number[];
   played: number;
@@ -147,7 +148,7 @@ function TheGameRoom({
   const [selected, setSelected] = useState<number | null>(null);
   const v = g.view;
 
-  const bar = <RoomBar code={code} onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameTheGame")} onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (
@@ -223,35 +224,13 @@ function TheGameRoom({
         <span>{myTurn ? `Your turn — ${Math.max(0, v.min - v.played)} more to play` : `${turnName}'s turn`}</span>
       </div>
 
-      <div className="tg-piles">
-        {v.piles.map((top, i) => {
-          const playable = myTurn && selected != null && canPlay(selected, i, v.piles);
-          const stack = lastN(v.history?.[i] ?? [top], 6);
-          return (
-            <button
-              key={i}
-              className={`tg-pile ${i < 2 ? "asc" : "desc"} ${playable ? "playable" : ""}`}
-              disabled={!playable}
-              onClick={() => playCard(i)}
-            >
-              <small>{i < 2 ? "↑" : "↓"}</small>
-              <div className="tg-stack">
-                {stack.map((c, k) => (
-                  <Card key={k} n={c} className="sm strip" style={{ marginTop: k === 0 ? 0 : "-1.35rem", zIndex: k }} />
-                ))}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
       {v.ph === "playing" ? (
         <>
           <div className="tg-hand">
-            {v.hand.length === 0 ? (
+            {(v.hand ?? []).length === 0 ? (
               <span className="muted-note">Hand empty.</span>
             ) : (
-              v.hand.map((c) => (
+              (v.hand ?? []).map((c) => (
                 <Card
                   key={c}
                   n={c}
@@ -285,6 +264,42 @@ function TheGameRoom({
           )}
         </div>
       )}
+
+      <div className="tg-piles">
+        {v.piles.map((top, i) => {
+          const playable = myTurn && selected != null && canPlay(selected, i, v.piles);
+          const stack = [...(v.history?.[i] ?? [top])].reverse(); // newest on top; grows down
+          const reservedBy = v.reserved?.[i] ?? -1;
+          const reserver = v.roster.find((r) => r.s === reservedBy)?.n;
+          return (
+            <div
+              key={i}
+              className={`tg-pile ${i < 2 ? "asc" : "desc"} ${reservedBy >= 0 ? "reserved" : ""} ${playable ? "playable" : ""}`}
+            >
+              <div className="tg-pile-head">
+                <small>{i < 2 ? "↑" : "↓"}</small>
+                {!myTurn && v.ph === "playing" && (
+                  <button
+                    className={`tg-reserve ${reservedBy === v.you ? "active" : ""}`}
+                    title="Ask to play here (hold on)"
+                    onClick={() => g.send({ t: "reserve", pile: i })}
+                  >
+                    ✋
+                  </button>
+                )}
+              </div>
+              <button className="tg-playbtn" disabled={!playable} onClick={() => playCard(i)}>
+                <div className="tg-stack">
+                  {stack.map((c, k) => (
+                    <Card key={k} n={c} className="strip" />
+                  ))}
+                </div>
+              </button>
+              {reserver && <small className="tg-reserver">✋ {reserver}</small>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

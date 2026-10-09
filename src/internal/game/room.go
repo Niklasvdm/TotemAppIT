@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -116,22 +117,36 @@ func (r *Room) run() {
 			r.conns = nil
 			return
 		case fn := <-r.acts:
-			fn()
+			r.safely(fn)
 		case now := <-tick.C:
-			r.reapHeld(now)
-			if hz > 0 {
-				r.game.Tick(now)
-			}
+			r.safely(func() {
+				r.reapHeld(now)
+				if hz > 0 {
+					r.game.Tick(now)
+				}
+			})
 		}
 	}
 }
 
+// safely runs fn on the room goroutine, turning a panic in game code into a
+// logged recovery instead of taking down the process (and every other room).
+func (r *Room) safely(fn func()) {
+	defer func() {
+		if e := recover(); e != nil {
+			log.Printf("game: room %s recovered from panic: %v", r.code, e)
+		}
+	}()
+	fn()
+}
+
 // do runs fn on the room goroutine and waits for it. It reports false if the
-// room closed first.
+// room closed first. close(done) is deferred so a panic in fn (recovered by
+// safely) still unblocks the waiter.
 func (r *Room) do(fn func()) bool {
 	done := make(chan struct{})
 	select {
-	case r.acts <- func() { fn(); close(done) }:
+	case r.acts <- func() { defer close(done); fn() }:
 	case <-r.quit:
 		return false
 	}

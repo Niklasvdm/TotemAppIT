@@ -8,6 +8,7 @@ const GAMES = [
   { slug: "codenames", icon: "🕵️", titleKey: "gameCodenames", blurbKey: "gameCodenamesBlurb" },
   { slug: "themind", icon: "🧠", titleKey: "gameTheMind", blurbKey: "gameTheMindBlurb" },
   { slug: "thegame", icon: "🃏", titleKey: "gameTheGame", blurbKey: "gameTheGameBlurb" },
+  { slug: "wavelength", icon: "📡", titleKey: "gameWavelength", blurbKey: "gameWavelengthBlurb" },
 ];
 
 export default function GamesPage() {

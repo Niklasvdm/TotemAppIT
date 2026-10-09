@@ -107,6 +107,15 @@ func TestMindLosingLastLifeEndsGame(t *testing.T) {
 	}
 }
 
+func TestMindEmptyHandSerialisesAsArray(t *testing.T) {
+	g, fo := startedMind(t, 1)
+	g.hands = map[int][]int{0: {}, 1: {5}, 2: {6}} // seat 0 has played out
+	g.broadcastViews()
+	if v := mindLast(t, fo, 0); v.Hand == nil {
+		t.Fatal("empty hand serialised as nil (would be JSON null → client crash)")
+	}
+}
+
 func TestMindThrowingStarDiscardsEachLowest(t *testing.T) {
 	g, _ := startedMind(t, 5)
 	g.hands = map[int][]int{0: {10, 40}, 1: {20, 50}, 2: {30, 60}}

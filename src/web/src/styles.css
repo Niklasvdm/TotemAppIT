@@ -251,6 +251,15 @@ header {
 /* Clickable room code (copy to clipboard), styled to match the plain display. */
 .game-code-copy { background: none; border: none; color: inherit; font: inherit; cursor: pointer; text-align: left; padding: .2rem .4rem; border-radius: 8px; }
 .game-code-copy:hover { background: rgba(127,127,127,.14); }
+.game-bar-title { flex: 1; text-align: center; font-size: 1.05rem; font-weight: 800; }
+
+/* The Mind: a heart flickers then breaks when a life is lost. */
+.heart-lost { position: relative; display: inline-block; width: 1.3rem; height: 1.2rem; margin-left: .25rem; vertical-align: middle; }
+.heart-lost .hl-flick, .heart-lost .hl-break { position: absolute; left: 0; top: -.1rem; font-size: 1.2rem; line-height: 1; }
+.hl-flick { animation: hlFlick .9s steps(1, end) forwards; }
+.hl-break { opacity: 0; animation: hlBreak .7s ease-out .9s forwards; }
+@keyframes hlFlick { 0%,20%,40%,60%,80% { opacity: 1 } 10%,30%,50%,70%,90% { opacity: 0 } 100% { opacity: 0 } }
+@keyframes hlBreak { 0% { opacity: 0; transform: scale(.5) } 30% { opacity: 1; transform: scale(1.4) } 75% { opacity: 1; transform: scale(1) } 100% { opacity: 0; transform: scale(1) } }
 
 /* --- Codenames ---------------------------------------------------------- */
 .cn-room { display: flex; flex-direction: column; gap: .6rem; }
@@ -327,16 +336,41 @@ header {
 /* --- The Game ----------------------------------------------------------- */
 .tg-piles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
 .tg-pile {
-  display: flex; flex-direction: column; align-items: center; gap: .2rem;
-  padding: .7rem .2rem; border-radius: 10px; border: 2px solid var(--surface-2);
-  background: var(--surface-2); color: var(--ink); cursor: default; font: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: .3rem;
+  padding: .4rem .2rem; border-radius: 10px; border: 2px solid var(--surface-2);
+  background: var(--surface-2); color: var(--ink);
 }
-.tg-pile small { font-size: 1.1rem; opacity: .7; }
-.tg-pile strong { font-size: clamp(1.4rem, 7vw, 2.2rem); line-height: 1; }
 .tg-pile.asc { border-color: var(--green); }
 .tg-pile.desc { border-color: var(--gold); }
-.tg-pile.playable { cursor: pointer; box-shadow: 0 0 0 3px var(--green) inset; }
-.tg-pile.playable:hover { filter: brightness(.96); }
+.tg-pile.reserved { border-color: #d1495b; background: rgba(209,73,91,.16); }
+.tg-pile.playable { box-shadow: 0 0 0 3px var(--green) inset; }
+.tg-pile-head { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 1.3rem; padding: 0 .15rem; }
+.tg-pile-head small { font-size: 1.1rem; opacity: .7; }
+.tg-reserve { background: none; border: none; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; opacity: .35; }
+.tg-reserve.active { opacity: 1; transform: scale(1.15); }
+.tg-playbtn { background: none; border: none; width: 100%; padding: 0; display: flex; justify-content: center; cursor: default; }
+.tg-pile.playable .tg-playbtn { cursor: pointer; }
+.tg-pile.playable .tg-playbtn:hover { filter: brightness(.96); }
+.tg-reserver { color: #d1495b; font-weight: 700; font-size: .72rem; }
+
+/* --- Wavelength --------------------------------------------------------- */
+.wl-room { display: flex; flex-direction: column; gap: .6rem; }
+.wl-score { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .5rem .8rem; }
+.wl-concepts { display: flex; justify-content: space-between; font-weight: 800; font-size: .9rem; padding: 0 .3rem; }
+.wl-concepts span:last-child { text-align: right; }
+.wl-spectrum {
+  position: relative; height: 2.6rem; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(to right, #4b8fe8, #cdb489, #d1495b);
+  box-shadow: 0 1px 4px rgba(0,0,0,.2) inset;
+}
+.wl-zone { position: absolute; top: 0; bottom: 0; }
+.wl-z2 { background: rgba(255,255,255,.22); }
+.wl-z3 { background: rgba(255,255,255,.4); }
+.wl-z4 { background: rgba(255,255,255,.85); box-shadow: 0 0 6px rgba(255,255,255,.8); }
+.wl-dial { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; background: var(--ink); border-radius: 2px; z-index: 3; box-shadow: 0 0 0 1px rgba(255,255,255,.6); }
+.wl-clue { text-align: center; font-size: 1.15rem; font-weight: 700; margin: .2rem 0; }
+.wl-wait { text-align: center; padding: .8rem; }
+.wl-room input[type="range"] { flex: 1; min-width: 60%; }
 .tg-hand { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; min-height: 3.4rem; align-items: center; }
 
 /* --- number cards (The Game + The Mind) --------------------------------- */

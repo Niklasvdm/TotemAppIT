@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -138,7 +138,23 @@ function MindRoom({
   const g = useRoom<MindView>(code, name);
   const v = g.view;
 
-  const bar = <RoomBar code={code} onLeave={onLeave} />;
+  // Flash a breaking heart whenever a life is lost (hooks must run before the
+  // early returns below, so this lives up here).
+  const prevLives = useRef<number | null>(null);
+  const [showLost, setShowLost] = useState(false);
+  useEffect(() => {
+    const prev = prevLives.current;
+    const cur = v?.lives;
+    if (cur == null) return;
+    prevLives.current = cur;
+    if (prev != null && cur < prev) {
+      setShowLost(true);
+      const h = setTimeout(() => setShowLost(false), 1700);
+      return () => clearTimeout(h);
+    }
+  }, [v?.lives]);
+
+  const bar = <RoomBar code={code} title={t("gameTheMind")} onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (
@@ -199,7 +215,15 @@ function MindRoom({
         <>
           <div className="mind-hud panel">
             <span>Level {v.level}/{v.levelsToWin}</span>
-            <span className="mind-lives">{"❤️".repeat(Math.max(0, v.lives))}</span>
+            <span className="mind-lives">
+              {"❤️".repeat(Math.max(0, v.lives))}
+              {showLost && (
+                <span className="heart-lost" aria-label="life lost">
+                  <span className="hl-flick">❤️</span>
+                  <span className="hl-break">💔</span>
+                </span>
+              )}
+            </span>
             <span className="mind-stars">{"⭐".repeat(Math.max(0, v.stars))}</span>
           </div>
 
@@ -227,19 +251,19 @@ function MindRoom({
           {v.ph === "playing" ? (
             <>
               <div className="mind-hand">
-                {v.hand.length === 0 ? (
+                {(v.hand ?? []).length === 0 ? (
                   <span className="muted-note">Your hand is empty — waiting on the others.</span>
                 ) : (
-                  v.hand.map((c, i) => <Card key={c} n={c} className={i === 0 ? "sel" : ""} />)
+                  (v.hand ?? []).map((c, i) => <Card key={c} n={c} className={i === 0 ? "sel" : ""} />)
                 )}
               </div>
               <div className="mind-controls panel">
                 <button
                   className="game-btn"
-                  disabled={v.hand.length === 0}
+                  disabled={(v.hand ?? []).length === 0}
                   onClick={() => g.send({ t: "play" })}
                 >
-                  Play my lowest ({v.hand[0] ?? "—"})
+                  Play my lowest ({(v.hand ?? [])[0] ?? "—"})
                 </button>
                 <button
                   className={`game-btn ghost ${myVoted ? "active" : ""}`}

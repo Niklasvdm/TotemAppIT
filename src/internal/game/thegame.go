@@ -36,6 +36,7 @@ const (
 	tgMsgStart   = "start"
 	tgMsgPlay    = "play"    // {card, pile}
 	tgMsgEndTurn = "endturn" // finish your turn once the minimum is met
+	tgMsgReserve = "reserve" // {pile}: a non-current player flags a pile they want
 	tgMsgRestart = "restart"
 )
 
@@ -51,13 +52,14 @@ type theGameGame struct {
 	players map[int]*tgPlayer
 	order   []int
 
-	phase   string
-	piles   [tgPiles]int    // current top of each pile
-	history [tgPiles][]int  // every card played on each pile, for display
-	deck    []int           // draw pile
-	hands   map[int][]int
-	turn    int // seat whose turn it is
-	played  int // cards played so far this turn
+	phase    string
+	piles    [tgPiles]int   // current top of each pile
+	history  [tgPiles][]int // every card played on each pile, for display
+	reserved [tgPiles]int    // seat that "called" this pile this turn, or -1
+	deck     []int          // draw pile
+	hands    map[int][]int
+	turn     int // seat whose turn it is
+	played   int // cards played so far this turn
 }
 
 func newTheGameGame(out Outbox, seed uint64) Game {
@@ -153,6 +155,18 @@ func (g *theGameGame) Command(seat int, isHost bool, raw []byte) {
 		}
 		g.endTurn(seat)
 
+	case tgMsgReserve:
+		// Only a player who is NOT the active one may "call" a pile, to signal
+		// what they'd like to play there. Toggling clears their own call.
+		if g.phase != tgPlaying || seat == g.turn || c.Pile < 0 || c.Pile >= tgPiles {
+			return
+		}
+		if g.reserved[c.Pile] == seat {
+			g.reserved[c.Pile] = -1
+		} else {
+			g.reserved[c.Pile] = seat
+		}
+
 	case tgMsgRestart:
 		if !isHost || (g.phase != tgWon && g.phase != tgLost) {
 			return
@@ -187,6 +201,7 @@ func (g *theGameGame) deal() {
 
 	g.piles = [tgPiles]int{1, 1, 100, 100}
 	g.history = [tgPiles][]int{{1}, {1}, {100}, {100}}
+	g.reserved = [tgPiles]int{-1, -1, -1, -1}
 	g.hands = map[int][]int{}
 	hs := tgHandSize(len(g.players))
 	i := 0
@@ -230,6 +245,7 @@ func (g *theGameGame) play(seat, card, pile int) {
 	g.hands[seat] = append(h[:idx], h[idx+1:]...)
 	g.piles[pile] = card
 	g.history[pile] = append(g.history[pile], card)
+	g.reserved[pile] = -1 // a call on this pile is satisfied once something lands
 	g.played++
 	g.checkWin()
 }
@@ -249,6 +265,7 @@ func (g *theGameGame) endTurn(seat int) {
 	}
 	g.turn = g.nextSeat(seat)
 	g.played = 0
+	g.reserved = [tgPiles]int{-1, -1, -1, -1} // calls are per-turn
 	// The next player is stuck before they start: no legal move at all.
 	if len(g.hands[g.turn]) > 0 && !g.hasValidMove(g.turn) {
 		g.phase = tgLost
@@ -282,13 +299,27 @@ func (g *theGameGame) refill(seat int) {
 	sort.Ints(g.hands[seat])
 }
 
+// nextSeat is the next player who still holds cards; one who has emptied their
+// hand is finished and gets skipped (so running out never ends the game early).
 func (g *theGameGame) nextSeat(seat int) int {
+	n := len(g.order)
+	if n == 0 {
+		return seat
+	}
+	idx := 0
 	for i, s := range g.order {
 		if s == seat {
-			return g.order[(i+1)%len(g.order)]
+			idx = i
+			break
 		}
 	}
-	return seat
+	for off := 1; off <= n; off++ {
+		cand := g.order[(idx+off)%n]
+		if len(g.hands[cand]) > 0 {
+			return cand
+		}
+	}
+	return seat // everyone is empty (a win was already detected)
 }
 
 func (g *theGameGame) checkWin() bool {
@@ -308,6 +339,7 @@ func (g *theGameGame) resetToLobby() {
 	g.phase = tgLobby
 	g.piles = [tgPiles]int{}
 	g.history = [tgPiles][]int{}
+	g.reserved = [tgPiles]int{-1, -1, -1, -1}
 	g.deck = nil
 	g.hands = map[int][]int{}
 	g.played = 0
@@ -327,8 +359,9 @@ type theGameView struct {
 	T        string          `json:"t"` // "state"
 	Phase    string          `json:"ph"`
 	Piles    [tgPiles]int    `json:"piles"`
-	History  [tgPiles][]int  `json:"history"` // every card played per pile, for display
-	Deck     int             `json:"deck"`    // cards left in the draw pile
+	History  [tgPiles][]int  `json:"history"`  // every card played per pile, for display
+	Reserved [tgPiles]int    `json:"reserved"` // seat that called each pile, or -1
+	Deck     int             `json:"deck"`     // cards left in the draw pile
 	Hand     []int           `json:"hand"` // YOUR cards (private)
 	Played   int             `json:"played"`
 	Min      int             `json:"min"`
@@ -340,10 +373,10 @@ type theGameView struct {
 
 func (g *theGameGame) viewFor(seat int) theGameView {
 	v := theGameView{
-		T: MsgState, Phase: g.phase, Piles: g.piles, History: g.history, Deck: len(g.deck),
-		Played: g.played, Min: g.minCards(), Turn: g.turn,
+		T: MsgState, Phase: g.phase, Piles: g.piles, History: g.history, Reserved: g.reserved,
+		Deck: len(g.deck), Played: g.played, Min: g.minCards(), Turn: g.turn,
 		HandSize: tgHandSize(len(g.players)), You: seat,
-		Hand: append([]int(nil), g.hands[seat]...),
+		Hand: append([]int{}, g.hands[seat]...), // never nil, so the client's hand.length is safe
 	}
 	connected := map[int]bool{}
 	for _, s := range g.out.Seats() {

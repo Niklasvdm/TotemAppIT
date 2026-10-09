@@ -146,7 +146,7 @@ function CodenamesRoom({
   const g = useRoom<CnView>(code, name);
   const v = g.view;
 
-  const bar = <RoomBar code={code} onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameCodenames")} onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

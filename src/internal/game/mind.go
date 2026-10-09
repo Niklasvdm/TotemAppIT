@@ -319,9 +319,9 @@ type mindView struct {
 func (g *theMindGame) viewFor(seat int) mindView {
 	v := mindView{
 		T: MsgState, Phase: g.phase, Level: g.level, Lives: g.lives, Stars: g.stars,
-		Pile: g.pile, PileSeq: append([]int(nil), g.pileSeq...),
+		Pile: g.pile, PileSeq: append([]int{}, g.pileSeq...),
 		LevelsToWin: mindLevelsToWin(len(g.players)), You: seat,
-		Hand:        append([]int(nil), g.hands[seat]...),
+		Hand:        append([]int{}, g.hands[seat]...), // never nil
 	}
 	connected := map[int]bool{}
 	for _, s := range g.out.Seats() {

@@ -69,6 +69,7 @@ type gameFactory func(out Outbox, seed uint64) Game
 var gameFactories = map[string]gameFactory{
 	"bomberman": newBombermanGame,
 	"codenames": newCodenamesGame,
-	"the-mind":  newTheMindGame,
-	"the-game":  newTheGameGame,
+	"the-mind":   newTheMindGame,
+	"the-game":   newTheGameGame,
+	"wavelength": newWavelengthGame,
 }

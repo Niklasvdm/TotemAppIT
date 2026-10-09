@@ -101,9 +101,9 @@ class BombermanGame <<implemented>> {
   TickHz() = 60 ; Broadcasts one snapshot
 }
 class CodenamesGame <<implemented>>
-class TheMindGame <<implemented, foundation>>
-class TheGameGame <<planned>>
-class WavelengthGame <<planned>>
+class TheMindGame <<implemented>>
+class TheGameGame <<implemented>>
+class WavelengthGame <<implemented>>
 
 Registry "1" o-- "0..*" Room
 Room "1" o-- "0..*" Conn
