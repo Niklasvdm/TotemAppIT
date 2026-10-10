@@ -146,6 +146,7 @@ function TheGameRoom({
   const { t } = useTranslation();
   const g = useRoom<TgView>(code, name);
   const [selected, setSelected] = useState<number | null>(null);
+  const [dragCard, setDragCard] = useState<number | null>(null); // card being dragged onto a pile
   const v = g.view;
 
   const bar = <RoomBar code={code} title={t("gameTheGame")} infoSlug="thegame" gameSlug="the-game" onLeave={onLeave} />;
@@ -208,11 +209,14 @@ function TheGameRoom({
     );
   }
 
-  const playCard = (pile: number) => {
-    if (selected == null || !myTurn) return;
-    if (!canPlay(selected, pile, v.piles)) return;
-    g.send({ t: "play", card: selected, pile });
+  const playCardValue = (card: number, pile: number) => {
+    if (!myTurn || !canPlay(card, pile, v.piles)) return;
+    g.send({ t: "play", card, pile });
     setSelected(null);
+  };
+  const playCard = (pile: number) => {
+    if (selected == null) return;
+    playCardValue(selected, pile);
   };
 
   return (
@@ -231,19 +235,26 @@ function TheGameRoom({
               <span className="muted-note">Hand empty.</span>
             ) : (
               (v.hand ?? []).map((c) => (
-                <Card
+                <span
                   key={c}
-                  n={c}
-                  className={selected === c ? "sel" : ""}
-                  disabled={!myTurn}
-                  onClick={() => setSelected(selected === c ? null : c)}
-                />
+                  draggable={myTurn}
+                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(c)); setDragCard(c); }}
+                  onDragEnd={() => setDragCard(null)}
+                  className="tg-card-drag"
+                >
+                  <Card
+                    n={c}
+                    className={selected === c ? "sel" : ""}
+                    disabled={!myTurn}
+                    onClick={() => setSelected(selected === c ? null : c)}
+                  />
+                </span>
               ))
             )}
           </div>
           <div className="mind-controls panel">
             <span className="muted-note">
-              {myTurn ? "Tap a card, then a pile. " : ""}
+              {myTurn ? "Drag a card onto a pile, or tap a card then a pile. " : ""}
             </span>
             <button
               className="game-btn"
@@ -267,7 +278,8 @@ function TheGameRoom({
 
       <div className="tg-piles">
         {v.piles.map((top, i) => {
-          const playable = myTurn && selected != null && canPlay(selected, i, v.piles);
+          const activeCard = dragCard ?? selected; // highlight for whichever is in play
+          const playable = myTurn && activeCard != null && canPlay(activeCard, i, v.piles);
           const stack = [...(v.history?.[i] ?? [top])].reverse(); // newest on top; grows down
           const reservedBy = v.reserved?.[i] ?? -1;
           const reserver = v.roster.find((r) => r.s === reservedBy)?.n;
@@ -275,6 +287,8 @@ function TheGameRoom({
             <div
               key={i}
               className={`tg-pile ${i < 2 ? "asc" : "desc"} ${reservedBy >= 0 ? "reserved" : ""} ${playable ? "playable" : ""}`}
+              onDragOver={(e) => { if (playable) e.preventDefault(); }}
+              onDrop={(e) => { e.preventDefault(); const card = Number(e.dataTransfer.getData("text/plain")); if (!Number.isNaN(card)) playCardValue(card, i); setDragCard(null); }}
             >
               <div className="tg-pile-head">
                 <small>{i < 2 ? "↑" : "↓"}</small>

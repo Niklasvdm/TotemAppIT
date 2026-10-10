@@ -379,9 +379,9 @@ Every game reuses the whole engine; the per-game notes below are **all it adds**
 - **Players / type:** 2–4, co-op. **Engine:** event-driven (no clock; timing is human nerve, not a server timer).
 - **Private view (own-hand):** you see your own cards; others see only the shared pile and counts.
 - **State:** level, lives, stars (shurikens), the ascending shared pile, per-player hands.
-- **Commands:** `play` (your lowest card, by feel), `proposeStar`, `start` / `restart`.
-- **Win:** clear the final level (12/10/8 for 2/3/4 players). Playing out of order burns a life and every lower card still held; the HUD flashes a breaking heart.
-- **Refs:** [RafeArnold](https://github.com/RafeArnold/the-mind), [JonSeijo](https://github.com/JonSeijo/the-mind-online), [oraki23](https://github.com/oraki23/TheMindOnline). **File:** `mind.go` (5 tests). **Client:** `themind/MindPage.tsx`.
+- **Commands:** `play` (your lowest card, by feel), `star` (vote a throwing star), `next` (host: start the next round after a clear), `start` / `restart`.
+- **Win:** clear the final level (12/10/8 for 2/3/4 players). Playing out of order burns a life and every lower card still held; the HUD flashes a breaking heart. Clearing a level grants milestone **bonus stars** (levels 2,3,5,6,8,9) and **lives** (3,6,9), and the finished board is held until the host presses **Next round**.
+- **Refs:** [RafeArnold](https://github.com/RafeArnold/the-mind), [JonSeijo](https://github.com/JonSeijo/the-mind-online), [oraki23](https://github.com/oraki23/TheMindOnline). **File:** `mind.go` (7 tests). **Client:** `themind/MindPage.tsx`.
 
 ### The Game — co-op card descent
 - **Players / type:** 1–5, co-op. **Engine:** event-driven.

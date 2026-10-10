@@ -1,0 +1,61 @@
+{
+  "size": 256,
+  "rows": 3,
+  "cols": 3,
+  "tiles": [
+    {
+      "i": 0,
+      "row": 0,
+      "col": 0,
+      "file": "tile-0.png"
+    },
+    {
+      "i": 1,
+      "row": 0,
+      "col": 1,
+      "file": "tile-1.png"
+    },
+    {
+      "i": 2,
+      "row": 0,
+      "col": 2,
+      "file": "tile-2.png"
+    },
+    {
+      "i": 3,
+      "row": 1,
+      "col": 0,
+      "file": "tile-3.png"
+    },
+    {
+      "i": 4,
+      "row": 1,
+      "col": 1,
+      "file": "tile-4.png"
+    },
+    {
+      "i": 5,
+      "row": 1,
+      "col": 2,
+      "file": "tile-5.png"
+    },
+    {
+      "i": 6,
+      "row": 2,
+      "col": 0,
+      "file": "tile-6.png"
+    },
+    {
+      "i": 7,
+      "row": 2,
+      "col": 1,
+      "file": "tile-7.png"
+    },
+    {
+      "i": 8,
+      "row": 2,
+      "col": 2,
+      "file": "tile-8.png"
+    }
+  ]
+}

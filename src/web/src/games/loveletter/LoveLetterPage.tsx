@@ -5,6 +5,7 @@ import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { RoomBar } from "../RoomBar";
+import { LossFlash, useLossPulse } from "../LossFlash";
 
 const CARDS: Record<number, { name: string; hint: string }> = {
   1: { name: "Guard", hint: "Name another card (not Guard) + a player; if right, they're out." },
@@ -143,7 +144,10 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
   const [pick, setPick] = useState<number | null>(null); // card chosen to play
   const [target, setTarget] = useState<number | null>(null);
   const [guess, setGuess] = useState<number>(2);
+  const [dragCard, setDragCard] = useState<number | null>(null); // card being dragged onto a player
   const v = g.view;
+  // Flash when you get knocked out of the round.
+  const outPulse = useLossPulse(g.view?.players.find((p) => p.s === g.view!.you)?.out ? 0 : 1);
   const bar = <RoomBar code={code} title={t("gameLoveLetter")} infoSlug="loveletter" gameSlug="love-letter" onLeave={onLeave} />;
 
   if (g.status === "closed") {
@@ -184,6 +188,16 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
   };
   const validTargets = (card: number) =>
     v.players.filter((p) => !p.out && !p.protected && (p.s !== v.you || canTargetSelf(card)));
+  // Dropping a dragged card onto a player: no-target cards just play; targeted
+  // cards target that player (Guard then needs a guess, so it opens the picker).
+  const canDropOn = (card: number, seat: number) =>
+    !needsTarget(card) || validTargets(card).some((p) => p.s === seat);
+  const dropOn = (card: number, seat: number) => {
+    if (!myTurn || !canDropOn(card, seat)) return;
+    if (!needsTarget(card)) { playNow(card, null, 0); return; }
+    if (card === 1) { setPick(card); setTarget(seat); return; } // Guard: choose the guess, then confirm
+    playNow(card, seat, 0);
+  };
 
   if (v.ph === "lobby") {
     return (
@@ -211,6 +225,7 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
   return (
     <div className="game-room ll-room">
       {bar}
+      <LossFlash show={outPulse} icon="💔" label="knocked out" />
       <div className="mind-hud panel">
         <span>🂠 {v.deckLeft} left</span>
         <span>{v.ph === "play" ? (myTurn ? "Your turn" : `${nameOf(v.active)}'s turn`) : ""}</span>
@@ -222,8 +237,15 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
       )}
 
       <div className="ll-players">
-        {v.players.map((p) => (
-          <div key={p.s} className={`ll-player${p.s === v.active ? " active" : ""}${p.out ? " out" : ""}`}>
+        {v.players.map((p) => {
+          const droppable = myTurn && dragCard != null && canDropOn(dragCard, p.s);
+          return (
+          <div
+            key={p.s}
+            className={`ll-player${p.s === v.active ? " active" : ""}${p.out ? " out" : ""}${droppable ? " droppable" : ""}`}
+            onDragOver={(e) => { if (droppable) e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); const c = Number(e.dataTransfer.getData("text/plain")); setDragCard(null); if (!Number.isNaN(c)) dropOn(c, p.s); }}
+          >
             <div className="ll-player-head">
               <strong>{p.n}{p.s === v.you ? " (you)" : ""}</strong>
               <span>{"🏅".repeat(p.tokens)}</span>
@@ -236,7 +258,8 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
               <div className="ll-discard">{p.discard.map((c, i) => <span key={i} className="ll-dcard">{c} {CARDS[c].name}</span>)}</div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {v.saw && (
@@ -252,6 +275,9 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
                 key={i}
                 className={`ll-card${pick === c ? " sel" : ""}`}
                 disabled={!myTurn}
+                draggable={myTurn}
+                onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(c)); setDragCard(c); }}
+                onDragEnd={() => setDragCard(null)}
                 onClick={() => choose(c)}
                 title={CARDS[c].hint}
               >
@@ -292,7 +318,7 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
               </div>
             </div>
           )}
-          {myTurn && pick == null && <small className="muted-note">Tap a card to play it.</small>}
+          {myTurn && pick == null && <small className="muted-note">Tap a card, or drag it onto a player, to play it.</small>}
           {!myTurn && <small className="muted-note">Waiting for {nameOf(v.active)}…</small>}
         </div>
       )}

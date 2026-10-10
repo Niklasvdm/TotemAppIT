@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.3
+version: 0.4.11
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.4.3`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
+**Build `0.4.11`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -1179,6 +1179,7 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[FEATURE]` ~~"How totems really work" in-app info blurb~~ — **done (0.2.24)**: ℹ️ in the header opens it (English; it/nl TODO).
 - `[FEATURE]` **Group mode** — a second, open flow where a *group* chooses someone's totem together (mark adjectives that fit / don't, with aiding questions) — see [the design](#a-second-open-mode--a-group-chooses-someones-totem-design).
 - `[FEATURE]` Suggest a **voortotem** (adjective) for your matched animal, as a nod to the tradition.
+- `[FEATURE]` **Add Skyjo** — the push-your-luck card game (a 3×4 grid of face-down cards each player flips/swaps to lower their total; matching columns clear; lowest total over several rounds wins) as another game on the engine. Private view = your own grid (face-down cards hidden until flipped).
 
 ### Done
 - `[BUG]` Duplicate trait chips (synonyms collapsing in translation) → grouped by label (0.2.8).
@@ -1198,6 +1199,60 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.4.11 — 2026-10-10
+- `[BUG]` **Crawler: the LAY phase could not place a tile (sometimes not at all).** 0.4.10 placed the proactive tile at a single server-chosen cell **next to your own tile** and let you only rotate, so a dead-end would not connect and a hero standing on a fully surrounded tile was **skipped entirely** ("unable to lay tiles at all"). The LAY phase now offers **every legal placement across the whole frontier**: you pick the cell **and** the rotation (drag onto any glowing cell) and lay the tile where the paths line up. A hero only skips when nothing fits anywhere on the board. The move-triggered lay in the spend phase stays rotation-only (its cell is fixed by where you stepped). (New tests: connected placements across the frontier, and a boxed-in hero still lays.)
+
+### 0.4.10 — 2026-10-10
+- `[CHANGE]` **Crawler: a round now lays, then plays.** Both tile-laying mechanics are kept together. Every round opens with a **LAY phase**: each hero, in turn, draws one tile that the server places at a frontier next to them (a mandatory, proactive lay), and the hero picks only its **rotation**. Then the **SPEND phase** runs the dice turns as before, and stepping onto a frontier mid-turn still lays a tile there (the move-triggered lay). In both cases the player chooses the rotation only, never the location. After the last hero spends, a new round opens at the lay phase again.
+- `[DOCS]` Rewrote the crawler turn model as a two-phase round (new state diagram, lay-phase prose, the `phaseLay` wire flag, a note on faster stack drain and the `buildDeck` knobs).
+
+### 0.4.9 — 2026-10-10
+- `[CHANGE]` **Crawler: tiles are laid by moving again.** Reverted the separate lay round: stepping out of your tile onto a frontier draws a tile and lays it **right there**, and you choose only its **rotation** (not its location) before the move completes onto it. This is the organic explore-as-you-go loop, kept together with the rotate-and-drop UX. (Tests rewritten for move-triggered laying.)
+- `[CHANGE]` **Crawler: Beaver shields no longer stack.** Shields are now a **per-turn** resource: whatever you had or gained this turn (Thick Hide's +2, Brace, Guard) is cleared at the end of your turn, so they can't pile up across turns. Thick Hide simply re-grants its 2 at the start of your next turn. (New test.)
+- `[FEATURE]` **Crawler: enemy attack animation.** When you are fighting a monster (it is engaged this turn) it shows its **attack** frame and does a little lunge, instead of only the idle pose.
+- `[FEATURE]` **Crawler: second enemy type (brute).** A tougher bipedal robot, split with [`scripts/make_enemies.py`](scripts/make_enemies.py) into `sprites/crawler/enemies/brute/`. Monsters now carry a `kind` on the wire, and the client maps it to the right sprite (weak **drone** vs tougher **brute**; boss still 💀). The brute shows up on the mid/late bands.
+- `[DOCS]` Updated the crawler spec to the move-triggered loop (turn diagram, tile-laying prose, commands), per-turn shields, the unlock gate, and the enemy roster.
+
+### 0.4.8 — 2026-10-10
+- `[BUG]` **Crawler: unlocking a special was free of any gate (regression).** It now again **requires** having earned the Courage (3 for the first, 5 for the second) but still does **not spend** it. (Re-added the threshold check + the disabled button gate; tests updated.)
+- `[BUG]` **Crawler: rotate-then-drag placed the default rotation.** With several legal cells, rotating only changed one cell. The chosen **orientation is now kept across cells**: rotate to what you want, then drop on any glowing cell and it keeps that rotation (falling back to a cell's own rotation only where yours does not fit).
+- `[FEATURE]` **Life-loss flash in every game.** A reusable centre-screen pop (`useLossPulse` + `LossFlash`): Hanabi flashes 💥 on a blown fuse, the crawler flashes 💔 when your totem takes damage, Love Letter flashes 💔 when you are knocked out (The Mind already had its breaking heart).
+- `[TEST]` Confirmed end-of-turn monster damage with a direct test (a live enemy on your tile damages you even if you never attacked it); the earlier "no damage" was the free-unlock regression giving an accumulating Beaver shield.
+
+### 0.4.7 — 2026-10-10
+- `[FEATURE]` **Drag to play a card, in every card game.** The Game (drag a hand card onto a pile; legal piles light up), Hanabi (drag a hidden card onto a **Play** or **Discard** drop zone), and Love Letter (drag a card onto a player to target/play it; Guard then opens the guess picker). Tap-then-tap still works everywhere.
+- `[FEATURE]` **The Mind: milestone rewards.** Clearing a level now grants bonus **throwing stars** (levels 2, 3, 5, 6, 8, 9) and extra **lives** (levels 3, 6, 9), as in the base game. (Backend + 1 new test.)
+- `[FEATURE]` **The Mind: a "Next round" pause.** When a level is cleared the finished board stays up (showing any bonus earned) until the **host presses Next round**, instead of clearing instantly. Plays are blocked during the pause. (Backend + a test; new `next` command.)
+- `[BUG]` **Hanabi was unreadable.** The "white" suit looked identical to the face-down card backs, and hints to you were nearly invisible. Face-down cards now use a **dark patterned back**, the white suit gets a bold outline, and the hint markers (what you were **told**, and negative "≠" knowledge) are now high-contrast badges.
+- `[FEATURE]` **Enemy sprites.** New splitter [`scripts/make_enemies.py`](scripts/make_enemies.py) (the enemy counterpart of `make_sprites.py`/`make_tiles.py`): it cuts an enemy sheet into frames under `src/web/public/sprites/crawler/enemies/<slug>/`, stripping the flat background. The first enemy (a scrap **drone**, the lowest-tier monster) is drawn on the crawler board, with a gentle hover, in place of the 👹 emoji.
+- `[CHANGE]` **The ⓘ info button is now blue** (on the game cards and in the room bar).
+- `[CHANGE]` **Crawler: removed the ★ on your pawn** (the character sheet already identifies you).
+- `[FEATURE]` **Roadmap: add Skyjo** to the games wishlist (see [Issues → Open](#open)).
+
+### 0.4.6 — 2026-10-10
+- `[FEATURE]` **New round structure: a lay round, then a spend round.** Each round now starts with a tile-laying phase where **every hero in turn draws one tile and places it**, before any dice. Placement is drag-and-drop: the drawn tile is a card you drag onto any **glowing legal cell** on the board (every legal frontier is offered, not just one), with a rotate control; click a cell to pick it, click again (or drop) to place. Tiles are no longer laid by moving; a move onto an empty frontier is blocked.
+- `[BUG]` **Paths always connect now.** The lay options are filtered so a tile can only go where its path actually joins a neighbour (open edge to open edge), on top of the existing edge-matching. You can no longer place a tile whose path does not connect. (New invariant + test.)
+- `[BUG]` **Monsters deal damage.** Previously only a monster you had attacked struck back. Now **every monster still alive on your tile deals its Damage (minus Shields) when you end your turn on it**, whether or not you attacked it.
+- `[CHANGE]` **Unlocking specials is free.** It no longer consumes Courage; you just unlock it (the second still needs the first). Courage is now spent only on rerolls.
+- `[BUG]` **Tile art re-mapped + boss lair shows.** Fixed the kind-to-art mapping (the "straight" kind had been showing the dead-end art): **straight → tile-1, bend → tile-2, T-junction → tile-3, crossroads → tile-4, dead-end → tile-0, boss → tile-7** (the stairs lair, which was rendering empty). The tile's chosen rotation is now sent on the wire, so the **crossroads rotates** for variety and asymmetric tiles stay aligned to their real edges. The mapping lives in `TILE_ART` in `CrawlerPage.tsx` and is a one-line change to correct.
+- `[FEATURE]` **Bigger, cleaner HUD.** The character sheet (3/4) and the dice + actions (1/4) now share one row. Dice are drawn as **pip faces that tumble when rolled or rerolled** (CSS, no external assets).
+- `[DOCS]` Updated the crawler spec: the two-phase round (turn diagram), the connection invariant, end-of-turn monster damage (combat diagram), free unlocks, and where the tile data lives.
+
+**Known follow-up:** the request to use the totem **walk/orientation sprite animations** in the crawler is not in this build; the hero still draws its standing front frame. It needs the per-pose frame map wired in with a move-driven animation and is the next crawler task.
+
+### 0.4.5 — 2026-10-10
+- `[FEATURE]` **Bigger, scrollable crawler board.** Tiles are roughly 2.5x larger and the map lives in a scroll box that keeps your tile (or the tile you are laying) centred, so a growing dungeon scrolls left/right/up instead of shrinking to fit. Hero sprites and monster glyphs scaled up to match. This also fixes "when I go to a new tile I cannot see which tile it is": the board now scrolls the new tile into view.
+- `[FEATURE]` **Drag-to-place a tile.** Laying a tile is now a drag: the drawn tile shows as a card with its real art, the target cell on the board pulses as a drop-zone showing a ghost preview, and you rotate through the legal orientations then drag the card onto the cell (or click it, or press Place) to commit. Replaces the little glyph buttons.
+- `[BUG]` **Tile art mislabeled / bend not loading.** The kind-to-art mapping was wrong (the "straight" kind was showing the dead-end art, and bend loaded nothing). Re-mapped against the real sheet: straight → tile-1, bend → tile-2, T-junction → tile-3, crossroads → tile-4, dead-end → tile-0. The **boss (stairs)** and a **gate** variant are deliberately left out for now, so a boss tile uses the styled red "Boss lair" cell.
+- `[VERIFY]` **Boss only at the bottom.** Confirmed the boss tile is only ever placed in the **final band** of the stack (`buildDeck`), never shuffled into the earlier pile; a regular monster is never a boss. Covered by `TestCrawlerBossInFinalBand` across 40 seeds.
+- `[DOCS]` Updated the crawler spec's [Assets and sprites](docs/crawler-architecture.md#assets-and-sprites) with the real tile mapping, the drag-to-place flow, and the scrollable board.
+
+### 0.4.4 — 2026-10-10
+- `[FEATURE]` **Totem Crawler: tile art.** Map tiles are now drawn from real art instead of a flat cell. A new splitter [`scripts/make_tiles.py`](scripts/make_tiles.py) (the tile counterpart of `make_sprites.py`) cuts a grid sheet into individual `tile-<i>.png` files under `src/web/public/sprites/crawler/tiles/`; the client maps each tile `kind` to a file (`TILE_ART`) and **rotates it to the orientation the tile was laid in** so the drawn path lines up with the real doorways, drawn behind the pawns so pieces stay upright. The first sheet covers straight / T-junction / crossroads / boss-lair; kinds it did not include (a clean 90° bend, a single dead-end) fall back to the styled cell with its gold doorways and type label, so connectivity stays clear and dropping in that art later is a one-line change.
+- `[BUG]` **Movement is now path-constrained.** A hero could wander to the side squares of a straight tile. Movement is now restricted to the tile's path (the centre square plus the doorway of each open edge; the four corners are off-path), so a straight is a corridor and a bend turns. Server-authoritative, with a test that a side move on a straight tile is refused.
+- `[FEATURE]` **Clearer combat readability.** The one-hit kills were correct (Armour is the to-hit number, Health is hits-to-kill, and the weak monsters have 1 Health), but the UI did not say so. The monster hover now spells it out ("Armour 3 (hit on a die ≥3)", "Health 1/1 (landed hits to kill)", "Damage 3 (dealt back at end of turn, minus Shields)") and the attack button carries the same as a tooltip.
+- `[DOCS]` Updated the crawler spec's [Assets and sprites](docs/crawler-architecture.md#assets-and-sprites) (the tile pipeline, rotation, the missing-shape fallback) and the movement note (path-constrained).
 
 ### 0.4.3 — 2026-10-10
 - `[FEATURE]` **Totem Crawler playtest polish (client).** A second pass over the V0 crawler UI:

@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"math/rand/v2"
+	"strconv"
 	"time"
 )
 
@@ -12,18 +13,21 @@ import (
 //
 //   - Numbered dice spent through a per-sheet action menu (each action has a
 //     MINIMUM die value; a die pays for any action whose minimum it meets).
-//   - Square-by-square movement on 3x3 tiles; leaving a tile lets the PLAYER lay
-//     the next tile, choosing an orientation from the legal options.
+//   - A round is a LAY phase (every hero lays one tile anywhere legal on the
+//     frontier, choosing cell + rotation) then a SPEND phase (dice turns).
+//     Square-by-square movement on 3x3 tiles; stepping onto a frontier mid-spend
+//     also lays a tile there (rotation only, the cell fixed by the step).
 //   - Random banded tile stack (easy early, nasty late), boss in the final band.
 //   - Static enemies (Armour/Health/Damage); combat resolves at end of turn.
 //   - Courage (reroll, unlock two specials) and Shields.
 //   - Win = boss defeated; lose = party wiped, or the stack runs out first.
 //
-// V0 simplifications (see the spec): tiles have no inner walls (the 3x3 is fully
-// open; variation is the open edges), one monster per monster-tile sits on the
-// centre square, there are no loot items or hazards yet, and combat is the active
-// hero alone (group fights are V1). The co-op view is shared (viewFor ignores the
-// seat) but kept per-seat for future private info.
+// V0 simplifications (see the spec): a hero walks the tile's PATH only (the centre
+// plus the doorway of each open edge; corners are off-path), so a straight is a
+// corridor and a bend turns; there are no finer inner walls yet. One monster per
+// monster-tile sits on the centre square, there are no loot items or hazards yet,
+// and combat is the active hero alone (group fights are V1). The co-op view is
+// shared (viewFor ignores the seat) but kept per-seat for future private info.
 
 // Directions: N,E,S,W.
 var crawlerDelta = [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
@@ -32,6 +36,23 @@ var crawlerDelta = [4][2]int{{0, -1}, {1, 0}, {0, 1}, {-1, 0}}
 var crawlerDoor = [4]int{1, 5, 7, 3}
 
 func crawlerOpp(d int) int { return (d + 2) % 4 }
+
+// crawlerWalkable is the set of 3x3 squares a hero may stand on within a tile:
+// the centre, plus the doorway square of each OPEN edge. The four corners are
+// never walkable, so movement follows the tile's path. On a straight the only
+// squares are the two doorways and the centre (a corridor); a bend turns; a
+// cross opens all four arms. This is what stops a hero wandering to the side of
+// a straight tile.
+func crawlerWalkable(edges [4]bool) [9]bool {
+	var w [9]bool
+	w[4] = true
+	for d := 0; d < 4; d++ {
+		if edges[d] {
+			w[crawlerDoor[d]] = true
+		}
+	}
+	return w
+}
 
 const (
 	crMinPlayers = 1
@@ -45,9 +66,20 @@ const (
 	crLost    = "lost"
 )
 
+// A round has two phases that each sweep the party once in seat order:
+//   - LAY phase (step crStepLay): every living hero draws one tile and lays it
+//     anywhere legal on the frontier, choosing the cell and the rotation.
+//   - SPEND phase (step crStepSpend): every living hero takes a dice turn; moving
+//     onto a frontier draws and lays a tile there too (rotation only, the cell is
+//     fixed by the step), then steps onto it. endTurn after the last hero starts a
+//     new round at the LAY phase.
+//
+// crStepLay therefore covers both the proactive lay (whole LAY phase) and the
+// transient move-triggered lay inside a spend turn; crawlerPending.phaseLay tells
+// them apart.
 const (
 	crStepSpend = "spend"
-	crStepLay   = "lay" // a drawn tile awaits the player's placement
+	crStepLay   = "lay" // a drawn tile awaits the player's rotation
 )
 
 const (
@@ -70,6 +102,13 @@ const (
 )
 
 const crCourageCap = 10
+
+// Courage needed to unlock the two specials. Unlocking does NOT spend it; you just
+// need to have earned this much (the "ready" threshold).
+const (
+	crUnlock0Courage = 3
+	crUnlock1Courage = 5
+)
 
 // --- sheets -----------------------------------------------------------------
 
@@ -140,7 +179,8 @@ type crawlerDie struct {
 type crawlerMonster struct {
 	armour, health, maxHealth, damage int // health is CURRENT and persists across turns
 	square                            int
-	engaged                           bool // attacked this turn (retaliates at end of turn)
+	kind                              string // art/type: drone (weak) / brute (tough) / boss
+	engaged                           bool   // attacked this turn (retaliates at end of turn)
 	alive                             bool
 	isBoss                            bool
 	reward                            int // Courage granted on defeat
@@ -151,6 +191,7 @@ type crawlerTile struct {
 	band     int
 	kind     string // straight / bend / tee / cross / dead-end / boss
 	x, y     int
+	rot      int // quarter-turns the chosen placement rotated the base shape (for art)
 	edges    [4]bool
 	monsters []*crawlerMonster
 	isBoss   bool
@@ -176,6 +217,12 @@ type crawlerPending struct {
 	spec     tileSpec
 	entryDir int
 	options  []crawlerLayOption
+	// phaseLay marks a proactive lay in the LAY phase (the hero chooses any legal
+	// cell and rotation on the frontier and does NOT move onto it) versus a
+	// move-triggered lay in the SPEND phase (the cell is fixed by where the hero
+	// stepped, rotation only, and the move completes onto it). This flag decides what
+	// happens once the tile is placed (see layTile).
+	phaseLay bool
 }
 
 type crawlerGame struct {
@@ -351,9 +398,158 @@ func (g *crawlerGame) startRun() {
 		h.square = 4
 	}
 	g.phase = crPlaying
-	g.turn = g.order[0]
 	g.log = append(g.log, "You enter the dungeon.")
+	g.beginLayPhase()
+}
+
+// firstAlive is the first living hero in seat order (the hero each phase opens on).
+func (g *crawlerGame) firstAlive() int {
+	for _, s := range g.order {
+		if g.players[s].alive {
+			return s
+		}
+	}
+	return g.order[0]
+}
+
+// nextInOrder is the next living hero AFTER `from` in seat order, or -1 when `from`
+// is the last living hero: a phase sweeps the party once, so -1 means the phase is
+// done (switch LAY -> SPEND, or SPEND -> a new round's LAY).
+func (g *crawlerGame) nextInOrder(from int) int {
+	fi := -1
+	for i, s := range g.order {
+		if s == from {
+			fi = i
+			break
+		}
+	}
+	for i := fi + 1; i < len(g.order); i++ {
+		if g.players[g.order[i]].alive {
+			return g.order[i]
+		}
+	}
+	return -1
+}
+
+// beginLayPhase opens the LAY phase of a round: the first living hero lays a tile.
+func (g *crawlerGame) beginLayPhase() {
+	g.beginLayTurn(g.firstAlive())
+}
+
+// beginLayTurn hands the LAY phase to `seat`: it draws the next tile and offers
+// EVERY legal placement of it on the frontier (any cell, any rotation that fits the
+// neighbours and joins the map). The player chooses both the cell and the rotation,
+// so tiles can be laid where their doorways line up. If nothing legal fits anywhere
+// the hero is skipped; an empty stack ends the run.
+func (g *crawlerGame) beginLayTurn(seat int) {
+	g.turn = seat
+	g.step = crStepLay
+	g.dice = nil
+	if g.deckPos >= len(g.deck) {
+		g.phase = crLost
+		g.log = append(g.log, "The tile stack is empty and the boss still lurks. The dungeon claims you.")
+		return
+	}
+	spec := g.deck[g.deckPos]
+	opts := g.allLayOptions(spec)
+	if len(opts) == 0 {
+		g.advanceLay(seat) // nowhere legal to lay: pass to the next hero
+		return
+	}
+	g.deckPos++
+	g.pending = &crawlerPending{spec: spec, options: opts, phaseLay: true}
+}
+
+// advanceLay moves the LAY phase to the next living hero, or begins the SPEND phase
+// once every hero has laid.
+func (g *crawlerGame) advanceLay(seat int) {
+	if next := g.nextInOrder(seat); next >= 0 {
+		g.beginLayTurn(next)
+		return
+	}
+	g.beginSpendPhase()
+}
+
+// beginSpendPhase opens the SPEND phase: the first living hero takes a dice turn.
+func (g *crawlerGame) beginSpendPhase() {
+	g.pending = nil
+	g.turn = g.firstAlive()
 	g.beginTurn(g.turn)
+}
+
+// connects reports whether a tile with edges e at (x,y) joins the existing map on at
+// least one side: a shared OPEN-OPEN edge with a placed neighbour. Combined with
+// edgesFit (no open-vs-closed mismatches), this keeps a laid tile both consistent
+// with its neighbours and actually reachable, never dropped in an isolated pocket.
+func (g *crawlerGame) connects(x, y int, e [4]bool) bool {
+	for d := 0; d < 4; d++ {
+		if !e[d] {
+			continue
+		}
+		ox, oy := x+crawlerDelta[d][0], y+crawlerDelta[d][1]
+		if id, ok := g.at[[2]int{ox, oy}]; ok && g.tiles[id].edges[crawlerOpp(d)] {
+			return true
+		}
+	}
+	return false
+}
+
+// allLayOptions is the proactive (LAY-phase) placement set: every frontier cell and
+// every rotation of spec that fits the neighbours (edgesFit) and joins the map
+// (connects). The player picks the cell and the rotation, so a tile can be laid
+// where its doorways line up with the paths already on the board.
+func (g *crawlerGame) allLayOptions(spec tileSpec) []crawlerLayOption {
+	var out []crawlerLayOption
+	for _, f := range g.frontierCoords() {
+		for r := 0; r < 4; r++ {
+			e := rotateEdges(spec.base, r)
+			if !g.edgesFit(f[0], f[1], e) || !g.connects(f[0], f[1], e) {
+				continue
+			}
+			out = append(out, crawlerLayOption{X: f[0], Y: f[1], Rotation: r, Edges: e})
+		}
+	}
+	return out
+}
+
+// beginLay draws the next tile when a hero steps onto a frontier during the SPEND
+// phase and offers the orientations (rotations) that fit at THAT cell. The player
+// chooses the rotation only; the location is fixed (it is where they stepped). Once
+// laid, the move completes onto the new tile (see layTile).
+func (g *crawlerGame) beginLay(seat, dir, nx, ny int) bool {
+	if g.deckPos >= len(g.deck) {
+		g.phase = crLost
+		g.log = append(g.log, "The tile stack is empty and the boss still lurks. The dungeon claims you.")
+		return true
+	}
+	spec := g.deck[g.deckPos]
+	opts := g.layOptions(spec, dir, nx, ny)
+	if len(opts) == 0 {
+		return false // no legal placement at this frontier: the move is blocked
+	}
+	g.deckPos++
+	g.pending = &crawlerPending{spec: spec, entryDir: dir, options: opts}
+	g.step = crStepLay
+	return true
+}
+
+// layOptions returns every rotation of spec legal at the single frontier cell
+// (nx,ny) entered from `dir`: it must open on the entry side (so the hero can step
+// in, which also guarantees the path connects) and match any placed neighbours.
+func (g *crawlerGame) layOptions(spec tileSpec, dir, nx, ny int) []crawlerLayOption {
+	entry := crawlerOpp(dir)
+	var out []crawlerLayOption
+	for r := 0; r < 4; r++ {
+		e := rotateEdges(spec.base, r)
+		if !e[entry] {
+			continue
+		}
+		if !g.edgesFit(nx, ny, e) {
+			continue
+		}
+		out = append(out, crawlerLayOption{X: nx, Y: ny, Rotation: r, Edges: e})
+	}
+	return out
 }
 
 // crawlerTileType is a named base shape; rotations are applied when it is laid,
@@ -398,7 +594,7 @@ func (g *crawlerGame) buildDeck() {
 		if b == g.bands-1 {
 			// Boss (a dead-end lair) shuffled into the last few of the final band.
 			boss := tileSpec{band: b, kind: "boss", base: ttDeadEnd.base, isBoss: true,
-				monster: &crawlerMonster{armour: 5, health: 4, maxHealth: 4, damage: 4, square: 4, alive: true, isBoss: true, reward: 3}}
+				monster: &crawlerMonster{armour: 5, health: 4, maxHealth: 4, damage: 4, square: 4, kind: "boss", alive: true, isBoss: true, reward: 3}}
 			pos := len(band)
 			if len(band) > 0 {
 				pos = len(band) - g.rng.IntN(min2(len(band), 3)+1)
@@ -411,21 +607,21 @@ func (g *crawlerGame) buildDeck() {
 
 func (g *crawlerGame) rollMonster(band int) *crawlerMonster {
 	roll := g.rng.IntN(100)
-	mk := func(a, h, d int) *crawlerMonster {
-		return &crawlerMonster{armour: a, health: h, maxHealth: h, damage: d, square: 4, alive: true, reward: 1}
+	mk := func(a, h, d int, kind string) *crawlerMonster {
+		return &crawlerMonster{armour: a, health: h, maxHealth: h, damage: d, square: 4, kind: kind, alive: true, reward: 1}
 	}
 	switch band {
 	case 0:
 		if roll < 50 {
-			return mk(3, 1, 1)
+			return mk(3, 1, 1, "drone") // the weakest enemy
 		}
 	case 1:
 		if roll < 70 {
-			return mk(4, 2, 2)
+			return mk(4, 2, 2, "brute") // tougher second-tier enemy
 		}
 	default:
 		if roll < 80 {
-			return mk(4, 2, 3)
+			return mk(4, 2, 3, "brute")
 		}
 	}
 	return nil
@@ -495,8 +691,9 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 	g.dice[dieIdx].UsedFor = action
 }
 
-// tryMove steps one square in direction dir; crossing an open edge enters the
-// neighbour tile, or (at a frontier) draws the next tile for the player to lay.
+// tryMove steps one square in direction dir; crossing an open edge enters an
+// already-placed neighbour tile, or, at a frontier, draws and lays the next tile
+// there (the player picks the rotation) and then steps onto it.
 func (g *crawlerGame) tryMove(seat, dir int) bool {
 	if dir < 0 || dir > 3 {
 		return false
@@ -506,7 +703,11 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 	col, row := h.square%3, h.square/3
 	ncol, nrow := col+crawlerDelta[dir][0], row+crawlerDelta[dir][1]
 	if ncol >= 0 && ncol < 3 && nrow >= 0 && nrow < 3 {
-		h.square = nrow*3 + ncol // V0: no inner walls, always open
+		nsq := nrow*3 + ncol
+		if !crawlerWalkable(t.edges)[nsq] {
+			return false // off the tile's path: only the centre + open doorways are walkable
+		}
+		h.square = nsq
 		return true
 	}
 	// Crossing the tile edge: must be at that side's doorway and the edge open.
@@ -520,7 +721,8 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 		g.enterTile(seat, id)
 		return true
 	}
-	// Frontier: draw and let the player lay the tile.
+	// Frontier: draw a tile, lay it HERE (the player picks only the rotation), then
+	// the move completes onto it (layTile).
 	return g.beginLay(seat, dir, nx, ny)
 }
 
@@ -580,45 +782,11 @@ func (g *crawlerGame) grantShields(seat, ally, n int) bool {
 	return true
 }
 
-// beginLay draws the next tile and computes the legal placements for the player.
-func (g *crawlerGame) beginLay(seat, dir, nx, ny int) bool {
-	if g.deckPos >= len(g.deck) {
-		// The stack ran out before the boss fell: too slow.
-		g.phase = crLost
-		g.log = append(g.log, "The last tile is gone and the boss still lurks. The dungeon claims you.")
-		return true
-	}
-	spec := g.deck[g.deckPos]
-	opts := g.layOptions(spec, dir, nx, ny)
-	if len(opts) == 0 {
-		return false // no legal placement: the move is blocked
-	}
-	g.deckPos++
-	g.pending = &crawlerPending{spec: spec, entryDir: dir, options: opts}
-	g.step = crStepLay
-	return true
-}
-
-// layOptions returns every rotation of spec that connects at (nx,ny): an opening
-// on the entry side, and edges compatible with any already-placed neighbours.
-func (g *crawlerGame) layOptions(spec tileSpec, dir, nx, ny int) []crawlerLayOption {
-	var out []crawlerLayOption
-	entry := crawlerOpp(dir) // the new tile's side facing back toward the hero
-	for r := 0; r < 4; r++ {
-		e := rotateEdges(spec.base, r)
-		if !e[entry] {
-			continue
-		}
-		if !g.edgesFit(nx, ny, e) {
-			continue
-		}
-		out = append(out, crawlerLayOption{X: nx, Y: ny, Rotation: r, Edges: e})
-	}
-	return out
-}
-
 // edgesFit checks a candidate tile's edges against every already-placed
-// neighbour: a shared side must match (both open or both closed).
+// neighbour: a shared side must match (both open or both closed). With the
+// entry-side opening required by layOptions, this also guarantees the path
+// connects (you can never lay a tile whose path does not join the one you came
+// from).
 func (g *crawlerGame) edgesFit(x, y int, e [4]bool) bool {
 	for d := 0; d < 4; d++ {
 		ox, oy := x+crawlerDelta[d][0], y+crawlerDelta[d][1]
@@ -631,6 +799,30 @@ func (g *crawlerGame) edgesFit(x, y int, e [4]bool) bool {
 		}
 	}
 	return true
+}
+
+// frontierCoords are the empty cells adjacent to at least one placed tile's open
+// edge: the only cells a new tile may be laid on.
+func (g *crawlerGame) frontierCoords() [][2]int {
+	seen := map[[2]int]bool{}
+	var out [][2]int
+	for _, t := range g.tiles {
+		for d := 0; d < 4; d++ {
+			if !t.edges[d] {
+				continue
+			}
+			nx, ny := t.x+crawlerDelta[d][0], t.y+crawlerDelta[d][1]
+			if _, ok := g.at[[2]int{nx, ny}]; ok {
+				continue
+			}
+			if seen[[2]int{nx, ny}] {
+				continue
+			}
+			seen[[2]int{nx, ny}] = true
+			out = append(out, [2]int{nx, ny})
+		}
+	}
+	return out
 }
 
 func rotateEdges(base [4]bool, r int) [4]bool {
@@ -657,22 +849,36 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 		return // not one of the offered options
 	}
 	spec := g.pending.spec
+	entryDir := g.pending.entryDir
+	phaseLay := g.pending.phaseLay
 	var mons []*crawlerMonster
 	if spec.monster != nil {
 		m := *spec.monster
 		mons = []*crawlerMonster{&m}
 	}
 	t := g.placeTile(chosen.X, chosen.Y, chosen.Edges, spec.band, spec.kind, spec.isBoss, mons)
-	// Complete the move that triggered the lay: enter the new tile's doorway.
+	t.rot = chosen.Rotation
 	h := g.players[seat]
-	h.tileID = t.id
-	h.square = crawlerDoor[crawlerOpp(g.pending.entryDir)]
-	if spec.isBoss {
-		g.log = append(g.log, "A boss tile! The big bad is here.")
-	} else {
-		g.log = append(g.log, "You lay a new tile and step through.")
-	}
 	g.pending = nil
+	if phaseLay {
+		// Proactive LAY phase: the tile joins the map next to the hero, who stays put
+		// (movement is for the spend phase). Pass to the next hero's lay turn.
+		if spec.isBoss {
+			g.log = append(g.log, h.name+" uncovers the boss lair!")
+		} else {
+			g.log = append(g.log, h.name+" lays a "+spec.kind+" tile.")
+		}
+		g.advanceLay(seat)
+		return
+	}
+	// Move-triggered lay (spend phase): complete the move onto the new tile's doorway.
+	h.tileID = t.id
+	h.square = crawlerDoor[crawlerOpp(entryDir)]
+	if spec.isBoss {
+		g.log = append(g.log, h.name+" uncovers the boss lair!")
+	} else {
+		g.log = append(g.log, h.name+" lays a "+spec.kind+" tile and steps through.")
+	}
 	g.step = crStepSpend
 }
 
@@ -699,21 +905,24 @@ func (g *crawlerGame) unlock(seat, which int) {
 		return
 	}
 	if which == 1 && !h.unlocked[0] {
-		return // the second unlock needs the first
+		return // the second unlock still needs the first
 	}
-	cost := 3
+	need := crUnlock0Courage
 	if which == 1 {
-		cost = 5
+		need = crUnlock1Courage
 	}
-	if h.courage < cost {
-		return
+	if h.courage < need {
+		return // you must have earned the Courage to unlock, though it is NOT spent
 	}
-	h.courage -= cost
 	h.unlocked[which] = true
 }
 
 func (g *crawlerGame) endTurn(seat int) {
 	g.resolveCombat(seat)
+	// Shields are a per-turn resource: whatever you had or gained this turn (Thick
+	// Hide's auto-shields, Brace, Guard) is cleared now, so they never stack across
+	// turns. Thick Hide re-grants its 2 at the start of your next turn.
+	g.players[seat].shields = 0
 	if g.phase != crPlaying {
 		return
 	}
@@ -722,14 +931,20 @@ func (g *crawlerGame) endTurn(seat int) {
 		g.log = append(g.log, "The party has fallen. The dungeon wins.")
 		return
 	}
-	g.turn = g.nextAlive(seat)
-	g.beginTurn(g.turn)
+	if next := g.nextInOrder(seat); next >= 0 {
+		g.turn = next
+		g.beginTurn(g.turn)
+		return
+	}
+	// Everyone has spent: the round is over, so a fresh round opens with its LAY phase.
+	g.beginLayPhase()
 }
 
-// resolveCombat is the end-of-turn retaliation: a monster the hero attacked this
-// turn that is still alive strikes back once for its Damage (reduced by Shields).
-// Kills happen immediately in tryAttack, and a monster's lost Health persists, so
-// a tough enemy is whittled down over successive turns until it is defeated.
+// resolveCombat is the end-of-turn damage step: every monster still alive on the
+// active hero's tile strikes for its Damage (reduced by Shields), whether or not
+// the hero attacked it. Kills happen immediately in tryAttack and a monster's lost
+// Health persists, so a tough enemy is whittled down over successive turns; but
+// until it is dead it keeps hurting whoever ends their turn on its tile.
 func (g *crawlerGame) resolveCombat(seat int) {
 	h := g.players[seat]
 	t := g.tiles[h.tileID]
@@ -737,7 +952,7 @@ func (g *crawlerGame) resolveCombat(seat int) {
 		return
 	}
 	for _, m := range t.monsters {
-		if !m.alive || !m.engaged {
+		if !m.alive {
 			continue
 		}
 		dmg := m.damage - h.shields
@@ -748,6 +963,7 @@ func (g *crawlerGame) resolveCombat(seat int) {
 		}
 		if dmg > 0 {
 			h.health -= dmg
+			g.log = append(g.log, h.name+" takes "+strconv.Itoa(dmg)+" damage.")
 		}
 		if h.health <= 0 {
 			h.health = 0
@@ -766,23 +982,6 @@ func (g *crawlerGame) aliveHeroes() int {
 		}
 	}
 	return n
-}
-
-func (g *crawlerGame) nextAlive(from int) int {
-	fi := 0
-	for i, s := range g.order {
-		if s == from {
-			fi = i
-			break
-		}
-	}
-	for i := 1; i <= len(g.order); i++ {
-		s := g.order[(fi+i)%len(g.order)]
-		if g.players[s].alive {
-			return s
-		}
-	}
-	return from
 }
 
 func (g *crawlerGame) resetToLobby() {
@@ -823,15 +1022,16 @@ type crawlerHeroView struct {
 }
 
 type crawlerMonsterView struct {
-	ID      int  `json:"id"`
-	Armour  int  `json:"armour"`
-	Health  int  `json:"health"` // current, persists across turns
-	MaxHP   int  `json:"maxHP"`
-	Damage  int  `json:"damage"`
-	Square  int  `json:"square"`
-	Engaged bool `json:"engaged"`
-	Alive   bool `json:"alive"`
-	IsBoss  bool `json:"isBoss"`
+	ID      int    `json:"id"`
+	Kind    string `json:"kind"`
+	Armour  int    `json:"armour"`
+	Health  int    `json:"health"` // current, persists across turns
+	MaxHP   int    `json:"maxHP"`
+	Damage  int    `json:"damage"`
+	Square  int    `json:"square"`
+	Engaged bool   `json:"engaged"`
+	Alive   bool   `json:"alive"`
+	IsBoss  bool   `json:"isBoss"`
 }
 
 type crawlerTileView struct {
@@ -839,6 +1039,7 @@ type crawlerTileView struct {
 	X        int                  `json:"x"`
 	Y        int                  `json:"y"`
 	Kind     string               `json:"kind"`
+	Rot      int                  `json:"rot"`
 	Edges    [4]bool              `json:"edges"`
 	IsBoss   bool                 `json:"isBoss"`
 	Monsters []crawlerMonsterView `json:"monsters"`
@@ -870,6 +1071,7 @@ type crawlerPendingView struct {
 	Kind     string             `json:"kind"`
 	EntryDir int                `json:"entryDir"`
 	Options  []crawlerLayOption `json:"options"`
+	PhaseLay bool               `json:"phaseLay"` // true = proactive LAY phase, false = move-triggered
 }
 
 func (g *crawlerGame) viewFor(seat int) crawlerView {
@@ -896,10 +1098,10 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 		})
 	}
 	for _, t := range g.tiles {
-		tv := crawlerTileView{ID: t.id, X: t.x, Y: t.y, Kind: t.kind, Edges: t.edges, IsBoss: t.isBoss, Monsters: []crawlerMonsterView{}}
+		tv := crawlerTileView{ID: t.id, X: t.x, Y: t.y, Kind: t.kind, Rot: t.rot, Edges: t.edges, IsBoss: t.isBoss, Monsters: []crawlerMonsterView{}}
 		for i, m := range t.monsters {
 			tv.Monsters = append(tv.Monsters, crawlerMonsterView{
-				ID: i, Armour: m.armour, Health: m.health, MaxHP: m.maxHealth, Damage: m.damage,
+				ID: i, Kind: m.kind, Armour: m.armour, Health: m.health, MaxHP: m.maxHealth, Damage: m.damage,
 				Square: m.square, Engaged: m.engaged, Alive: m.alive, IsBoss: m.isBoss,
 			})
 		}
@@ -907,7 +1109,7 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 	}
 	v.Frontiers = g.frontierViews()
 	if g.pending != nil {
-		v.Pending = &crawlerPendingView{Kind: g.pending.spec.kind, EntryDir: g.pending.entryDir, Options: append([]crawlerLayOption{}, g.pending.options...)}
+		v.Pending = &crawlerPendingView{Kind: g.pending.spec.kind, EntryDir: g.pending.entryDir, Options: append([]crawlerLayOption{}, g.pending.options...), PhaseLay: g.pending.phaseLay}
 	}
 	return v
 }
@@ -915,23 +1117,9 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 func perBandSize() int { return 4 }
 
 func (g *crawlerGame) frontierViews() []crawlerFrontierView {
-	seen := map[[2]int]bool{}
-	var out []crawlerFrontierView
-	for _, t := range g.tiles {
-		for d := 0; d < 4; d++ {
-			if !t.edges[d] {
-				continue
-			}
-			nx, ny := t.x+crawlerDelta[d][0], t.y+crawlerDelta[d][1]
-			if _, ok := g.at[[2]int{nx, ny}]; ok {
-				continue
-			}
-			if seen[[2]int{nx, ny}] {
-				continue
-			}
-			seen[[2]int{nx, ny}] = true
-			out = append(out, crawlerFrontierView{X: nx, Y: ny})
-		}
+	out := []crawlerFrontierView{}
+	for _, f := range g.frontierCoords() {
+		out = append(out, crawlerFrontierView{X: f[0], Y: f[1]})
 	}
 	return out
 }

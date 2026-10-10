@@ -5,14 +5,18 @@ import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { RoomBar } from "../RoomBar";
+import { LossFlash, useLossPulse } from "../LossFlash";
 
-// Five Hanabi suits. Index matches the backend's colour ints.
+// Five Hanabi suits. Index matches the backend's colour ints. "White" gets a
+// bold outline so it reads as a suit (pure white blends into light surfaces), and
+// hidden cards use a dark patterned back (below) so a white card is never mistaken
+// for a face-down one.
 const COLORS = [
-  { label: "White", css: "#e9e9ee", ink: "#222" },
-  { label: "Red", css: "#e1495c", ink: "#fff" },
-  { label: "Blue", css: "#3f7fd8", ink: "#fff" },
-  { label: "Yellow", css: "#e7c14b", ink: "#222" },
-  { label: "Green", css: "#4caf72", ink: "#fff" },
+  { label: "White", css: "#f2f3f7", ink: "#222", border: "#6b7280" },
+  { label: "Red", css: "#e1495c", ink: "#fff", border: "#a52a37" },
+  { label: "Blue", css: "#3f7fd8", ink: "#fff", border: "#285a9e" },
+  { label: "Yellow", css: "#e7c14b", ink: "#222", border: "#b4902a" },
+  { label: "Green", css: "#4caf72", ink: "#fff", border: "#2f7d4f" },
 ];
 
 interface HanCard {
@@ -140,15 +144,16 @@ export default function HanabiPage() {
 function CardFace({ c }: { c: HanCard }) {
   const known = c.color >= 0;
   const col = known ? COLORS[c.color] : null;
+  const cls = `han-card${known ? "" : " han-back"}${known && c.color === 0 ? " han-white" : ""}`;
   return (
     <div
-      className="han-card"
-      style={col ? { background: col.css, color: col.ink } : undefined}
+      className={cls}
+      style={col ? { background: col.css, color: col.ink, borderColor: col.border } : undefined}
     >
       <span className="han-card-v">{c.value > 0 ? c.value : "?"}</span>
       {!known && (c.nc.length > 0 || c.nv.length > 0) && (
         <span className="han-card-not">
-          {c.nc.length > 0 && <>not {c.nc.map((i) => COLORS[i].label[0]).join("")}</>}
+          {c.nc.length > 0 && <>≠{c.nc.map((i) => COLORS[i].label[0]).join("")}</>}
           {c.nv.length > 0 && <> ≠{c.nv.join("")}</>}
         </span>
       )}
@@ -161,6 +166,7 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
   const g = useRoom<HanView>(code, name);
   const [hintTarget, setHintTarget] = useState<number | null>(null);
   const v = g.view;
+  const fuseLost = useLossPulse(v?.fuses); // a fuse blown → flash
   const bar = <RoomBar code={code} title={t("gameHanabi")} infoSlug="hanabi" gameSlug="hanabi" onLeave={onLeave} />;
 
   if (g.status === "closed") {
@@ -216,6 +222,7 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
   return (
     <div className="game-room han-room">
       {bar}
+      <LossFlash show={fuseLost} icon="💥" label="fuse blown" />
       <div className="mind-hud panel">
         <span>💡 {v.hints}/8</span>
         <span>💥 {v.fuses}/3</span>
@@ -280,14 +287,21 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
         </div>
       ))}
 
-      {/* your own hand: card backs with only what hints revealed */}
+      {/* your own hand: card backs with only what hints revealed. On your turn,
+          drag a card onto Play/Discard, or use the buttons under each card. */}
       {me && (
         <div className="han-player panel han-self">
           <div className="han-player-head"><strong>Your hand (hidden to you)</strong></div>
           <div className="han-cards">
             {me.cards.map((c, i) => (
-              <div key={i} className="han-card-wrap">
+              <div
+                key={i}
+                className="han-card-wrap"
+                draggable={myTurn}
+                onDragStart={(e) => e.dataTransfer.setData("text/plain", String(i))}
+              >
                 <CardFace c={c} />
+                {(c.kc || c.kv) && <span className="han-known">told {c.kc ? "colour" : ""}{c.kc && c.kv ? " + " : ""}{c.kv ? "number" : ""}</span>}
                 {myTurn && (
                   <div className="han-self-actions">
                     <button className="game-btn tiny" onClick={() => g.send({ t: "play", card: i })}>Play</button>
@@ -297,6 +311,24 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
               </div>
             ))}
           </div>
+          {myTurn && (
+            <div className="han-drop-row">
+              <div
+                className="han-drop play"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const i = Number(e.dataTransfer.getData("text/plain")); if (!Number.isNaN(i)) g.send({ t: "play", card: i }); }}
+              >
+                ▶ Drag a card here to Play
+              </div>
+              <div
+                className={`han-drop discard${v.hints >= 8 ? " disabled" : ""}`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); if (v.hints >= 8) return; const i = Number(e.dataTransfer.getData("text/plain")); if (!Number.isNaN(i)) g.send({ t: "discard", card: i }); }}
+              >
+                🗑 Discard {v.hints >= 8 ? "(tokens full)" : "(+1 💡)"}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

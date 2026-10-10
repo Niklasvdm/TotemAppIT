@@ -1,0 +1,46 @@
+{
+  "slug": "drone",
+  "size": 128,
+  "frames": [
+    {
+      "i": 0,
+      "name": "idle",
+      "file": "idle.png"
+    },
+    {
+      "i": 1,
+      "name": "alert",
+      "file": "alert.png"
+    },
+    {
+      "i": 2,
+      "name": "scan",
+      "file": "scan.png"
+    },
+    {
+      "i": 3,
+      "name": "hover",
+      "file": "hover.png"
+    },
+    {
+      "i": 4,
+      "name": "tilt",
+      "file": "tilt.png"
+    },
+    {
+      "i": 5,
+      "name": "attack",
+      "file": "attack.png"
+    },
+    {
+      "i": 6,
+      "name": "lean",
+      "file": "lean.png"
+    },
+    {
+      "i": 7,
+      "name": "destroyed",
+      "file": "destroyed.png"
+    }
+  ]
+}

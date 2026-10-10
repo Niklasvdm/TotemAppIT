@@ -136,3 +136,49 @@ func TestMindThrowingStarDiscardsEachLowest(t *testing.T) {
 		t.Fatalf("pile=%d, want the highest discarded lowest (30)", g.pile)
 	}
 }
+
+func TestMindLevelClearPausesThenNext(t *testing.T) {
+	g, _ := startedMind(t, 7)
+	g.hands = map[int][]int{0: {10}, 1: {20}, 2: {30}}
+	mindCmd(t, g, 0, false, mindMsgPlay)
+	mindCmd(t, g, 1, false, mindMsgPlay)
+	mindCmd(t, g, 2, false, mindMsgPlay)
+	if !g.cleared || g.phase != mindPlaying || g.level != 1 {
+		t.Fatalf("level 1 cleared should pause (not auto-advance): cleared=%v phase=%q level=%d", g.cleared, g.phase, g.level)
+	}
+	// Play is blocked while the board is held between rounds.
+	g.hands[0] = []int{5}
+	mindCmd(t, g, 0, false, mindMsgPlay)
+	if len(g.hands[0]) != 1 {
+		t.Fatal("play should be blocked while a cleared level awaits Next round")
+	}
+	// Only the host advances.
+	mindCmd(t, g, 1, false, mindMsgNext)
+	if !g.cleared {
+		t.Fatal("a non-host must not start the next round")
+	}
+	mindCmd(t, g, 0, true, mindMsgNext)
+	if g.cleared || g.level != 2 {
+		t.Fatalf("host Next should deal level 2: cleared=%v level=%d", g.cleared, g.level)
+	}
+	for _, s := range g.order {
+		if len(g.hands[s]) != 2 {
+			t.Fatalf("level 2 deals 2 cards each, seat %d has %d", s, len(g.hands[s]))
+		}
+	}
+}
+
+func TestMindMilestoneBonus(t *testing.T) {
+	g, _ := startedMind(t, 7)
+	g.level, g.stars, g.lives = 3, 0, 1 // clearing level 3 grants both a star and a life
+	g.hands = map[int][]int{0: {10}, 1: {20}, 2: {30}}
+	mindCmd(t, g, 0, false, mindMsgPlay)
+	mindCmd(t, g, 1, false, mindMsgPlay)
+	mindCmd(t, g, 2, false, mindMsgPlay)
+	if !g.gainedStar || g.stars != 1 {
+		t.Fatalf("clearing level 3 should grant a star: gained=%v stars=%d", g.gainedStar, g.stars)
+	}
+	if !g.gainedLife || g.lives != 2 {
+		t.Fatalf("clearing level 3 should grant a life: gained=%v lives=%d", g.gainedLife, g.lives)
+	}
+}

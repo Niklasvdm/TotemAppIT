@@ -27,6 +27,9 @@ interface MindView {
   levelsToWin: number;
   hand: number[];
   you: number;
+  cleared: boolean;
+  gainedStar: boolean;
+  gainedLife: boolean;
   roster: MindRoster[];
 }
 
@@ -248,7 +251,22 @@ function MindRoom({
               ))}
           </div>
 
-          {v.ph === "playing" ? (
+          {v.ph === "playing" && v.cleared ? (
+            <div className="mind-controls panel mind-over">
+              <strong>
+                Level {v.level} complete! 🎉
+                {v.gainedLife ? " +1 life ❤️" : ""}
+                {v.gainedStar ? " +1 throwing star ⭐" : ""}
+              </strong>
+              {isHost ? (
+                <button className="game-btn" onClick={() => g.send({ t: "next" })}>
+                  Next round →
+                </button>
+              ) : (
+                <p className="muted-note">Waiting for the host to start the next round…</p>
+              )}
+            </div>
+          ) : v.ph === "playing" ? (
             <>
               <div className="mind-hand">
                 {(v.hand ?? []).length === 0 ? (

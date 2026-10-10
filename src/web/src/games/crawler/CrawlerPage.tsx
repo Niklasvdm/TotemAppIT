@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { RoomBar } from "../RoomBar";
+import { LossFlash, useLossPulse } from "../LossFlash";
 
 // A roster of totems to play as. Only the Beaver has a distinct sheet in V0
 // (Brace); the rest share the generic sheet. meta = the slug sent on join. Every
@@ -75,6 +76,7 @@ interface CrHero {
 }
 interface CrMonster {
   id: number;
+  kind: string;
   armour: number;
   health: number;
   maxHP: number;
@@ -84,11 +86,29 @@ interface CrMonster {
   alive: boolean;
   isBoss: boolean;
 }
+
+// Enemies with art (scripts/make_enemies.py). Each renders its idle frame, or its
+// attack frame + a lunge while engaged (the hero is fighting it this turn). Unknown
+// kinds and the boss fall back to an emoji.
+const ENEMY_ART = new Set(["drone", "brute"]);
+function MonsterSprite({ m }: { m: CrMonster }) {
+  if (m.isBoss) return <>💀</>;
+  if (!ENEMY_ART.has(m.kind)) return <>👹</>;
+  const pose = m.engaged ? "attack" : "idle";
+  return (
+    <span
+      className={`cr-enemy${m.engaged ? " engaged" : ""}`}
+      style={{ backgroundImage: `url(/sprites/crawler/enemies/${m.kind}/${pose}.png)` }}
+      aria-label={m.kind}
+    />
+  );
+}
 interface CrTile {
   id: number;
   x: number;
   y: number;
   kind: string;
+  rot: number;
   edges: [boolean, boolean, boolean, boolean];
   isBoss: boolean;
   monsters: CrMonster[];
@@ -109,7 +129,7 @@ interface CrView {
   heroes: CrHero[];
   tiles: CrTile[];
   frontiers: { x: number; y: number }[];
-  pending: { kind: string; entryDir: number; options: CrLayOption[] } | null;
+  pending: { kind: string; entryDir: number; options: CrLayOption[]; phaseLay: boolean } | null;
   deckLeft: number;
   bands: number;
   bossNear: boolean;
@@ -137,6 +157,44 @@ const TILE_KINDS: Record<string, { label: string; blurb: string }> = {
 };
 function tileKind(kind: string) {
   return TILE_KINDS[kind] ?? { label: kind || "Tile", blurb: "" };
+}
+
+// Tile art, split from a sheet by scripts/make_tiles.py into
+// public/sprites/crawler/tiles/tile-<i>.png. Each entry gives the file and the
+// open edges (N,E,S,W) as the art is DRAWN; the client rotates the art to match
+// the orientation a tile was actually laid in (see tileArt). To re-map a kind to
+// a different cell, just change its file + base here. The boss (stairs, tile-7)
+// and the gate (tile-6) are deliberately left out for now, so a boss tile uses
+// the styled fallback cell (red border + "Boss lair" label).
+type Edges = [boolean, boolean, boolean, boolean];
+const T = true, F = false;
+const TILE_ART: Record<string, { file: string; base: Edges }> = {
+  straight: { file: "tile-1", base: [F, T, F, T] }, //   horizontal corridor
+  bend: { file: "tile-2", base: [F, F, T, T] }, //        N+W corner
+  tee: { file: "tile-3", base: [F, T, T, T] }, //         E+S+W junction
+  cross: { file: "tile-4", base: [T, T, T, T] }, //       4-way clearing
+  "dead-end": { file: "tile-0", base: [F, F, T, F] }, //  one doorway (from the top)
+  boss: { file: "tile-8", base: [T, F, F, F] }, //        the stairs-down boss lair
+};
+
+function rotateEdges(base: Edges, r: number): Edges {
+  return [0, 1, 2, 3].map((d) => base[(d - r + 4) % 4]) as Edges;
+}
+
+// tileArt picks the art for a tile and the rotation (0/90/180/270) to draw it at.
+// It uses the rotations whose edges line up with the tile's actual open edges, and
+// among those prefers the one matching the tile's stored `rot` so a symmetric tile
+// (the crossroads) still rotates visibly. Returns null when the kind has no art.
+function tileArt(kind: string, edges: Edges, rot = 0): { file: string; deg: number } | null {
+  const art = TILE_ART[kind];
+  if (!art) return null;
+  const valid: number[] = [];
+  for (let r = 0; r < 4; r++) {
+    if (rotateEdges(art.base, r).every((v, i) => v === edges[i])) valid.push(r);
+  }
+  const want = ((rot % 4) + 4) % 4;
+  const pick = valid.includes(want) ? want : valid.length ? valid[0] : want;
+  return { file: art.file, deg: pick * 90 };
 }
 
 // What each special does, keyed by the sheet (Beaver vs generic). Shown in the
@@ -282,7 +340,15 @@ function CrawlerRoom({
   const { t } = useTranslation();
   const g = useRoom<CrView>(code, name, totem);
   const [sel, setSel] = useState<number | null>(null); // selected die index
+  const [layRot, setLayRot] = useState(0); // chosen orientation (0..3) while laying a tile
   const v = g.view;
+  // Reset the orientation to the first legal one whenever a fresh tile is drawn.
+  useEffect(() => {
+    setLayRot(g.view?.pending?.options[0]?.rotation ?? 0);
+  }, [v?.step, v?.pending?.kind, v?.pending?.options.length]);
+  // Flash when your health drops (your totem takes damage).
+  const myHp = g.view ? g.view.heroes.find((h) => h.s === g.view!.you)?.health : undefined;
+  const hpLost = useLossPulse(myHp);
   const bar = <RoomBar code={code} title={t("gameCrawler")} infoSlug="crawler" gameSlug="crawler" onLeave={onLeave} />;
 
   if (g.status === "closed") {
@@ -312,6 +378,34 @@ function CrawlerRoom({
   const myTurn = v.ph === "playing" && v.turn === v.you;
   const nameOf = (s: number) => v.heroes.find((h) => h.s === s)?.n ?? "?";
 
+  // Tile-laying: the options span every legal frontier cell, each with the
+  // rotations that fit there. `layRot` is the orientation the player has chosen; it
+  // is kept across cells, so rotating then dropping anywhere keeps that rotation
+  // wherever it is legal (and falls back to a cell's first legal rotation only when
+  // the chosen one does not fit there).
+  const layOpts = v.pending?.options ?? [];
+  const layRots = Array.from(new Set(layOpts.map((o) => o.rotation))).sort((a, b) => a - b);
+  const layPreview = layOpts.find((o) => o.rotation === layRot) ?? layOpts[0] ?? null;
+  const layActive = myTurn && v.ph === "playing" && v.step === "lay" && !!layPreview;
+  const placeAt = (x: number, y: number) => {
+    const at = layOpts.filter((o) => o.x === x && o.y === y);
+    if (at.length === 0) return;
+    const chosen = at.find((o) => o.rotation === layRot) ?? at[0];
+    g.send({ t: "layTile", x: chosen.x, y: chosen.y, rotation: chosen.rotation });
+  };
+  const rotateLay = () => {
+    if (layRots.length <= 1) return;
+    const i = layRots.indexOf(layRot);
+    setLayRot(layRots[(i + 1) % layRots.length]);
+  };
+  // Where to keep the board scrolled: a move-triggered lay centres the one cell you
+  // stepped onto; a proactive LAY-phase lay (placements across the frontier) and a
+  // normal turn centre on your own tile.
+  const myTile = me ? v.tiles.find((ti) => ti.id === me.tile) : undefined;
+  const focus = layActive && !v.pending?.phaseLay && layOpts[0]
+    ? { x: layOpts[0].x, y: layOpts[0].y }
+    : myTile ? { x: myTile.x, y: myTile.y } : null;
+
   if (v.ph === "lobby") {
     return (
       <div className="game-room cr-room">
@@ -336,17 +430,93 @@ function CrawlerRoom({
     );
   }
 
+  const isPhaseLay = !!v.pending?.phaseLay;
+  const status =
+    v.ph === "won"
+      ? "Victory 🎉"
+      : v.ph === "lost"
+        ? "Defeat 💀"
+        : v.step === "lay"
+          ? isPhaseLay
+            ? "Lay phase"
+            : "Lay a tile"
+          : myTurn
+            ? "Your turn"
+            : `${nameOf(v.turn)}'s turn`;
+
   return (
     <div className="game-room cr-room">
       {bar}
+      <LossFlash show={hpLost} icon="💔" label="damage" />
       <div className="mind-hud panel">
         <span>🂠 {v.deckLeft} tiles{v.bossNear ? " · boss near!" : ""}</span>
-        <span>{v.ph === "playing" ? (myTurn ? "Your turn" : `${nameOf(v.turn)}'s turn`) : v.ph === "won" ? "Victory 🎉" : "Defeat 💀"}</span>
+        <span>{status}</span>
       </div>
 
-      {/* everything about your character, up top: sheet (sprite, HP + Courage
-          bars, menu, specials), then the party, then the dice + turn controls. */}
-      {me && <CharacterSheet me={me} />}
+      {/* top row: character sheet (3/4) beside the dice + actions (1/4) */}
+      <div className="cr-top-row">
+        {me && <CharacterSheet me={me} />}
+        <div className="panel cr-action-col">
+          {v.step === "lay" ? (
+            layActive && layPreview ? (
+              <>
+                <strong>{isPhaseLay ? "Lay phase · you drew" : "You drew"}: {tileKind(v.pending!.kind).label}</strong>
+                <span className="muted-note">{tileKind(v.pending!.kind).blurb}</span>
+                <div
+                  className="cr-lay-tile"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", "tile")}
+                  title={isPhaseLay ? "Rotate me, then drop me on any glowing cell" : "Rotate me, then drop me on the glowing cell"}
+                >
+                  <TilePreview kind={v.pending!.kind} edges={layPreview.edges} rot={layPreview.rotation} size={92} />
+                </div>
+                <div className="cr-lay-ctl">
+                  {layRots.length > 1 && <button className="game-btn ghost" onClick={rotateLay}>⟳ Rotate</button>}
+                  <span className="muted-note">
+                    {isPhaseLay
+                      ? "Rotate the tile, then drag it onto any glowing cell (or click one) to lay it so the paths line up. You move on your own turn."
+                      : "The spot is fixed (where you stepped): rotate the tile, then click the glowing cell to step through."}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="muted-note">{nameOf(v.turn)} is laying a tile…</p>
+            )
+          ) : myTurn && me ? (
+            <>
+              <div className="cr-dice">
+                {v.dice.map((d, i) => (
+                  <Die
+                    key={i}
+                    value={d.value}
+                    spent={d.spent}
+                    selected={sel === i}
+                    usedFor={d.usedFor}
+                    disabled={d.spent}
+                    onClick={() => setSel(sel === i ? null : i)}
+                  />
+                ))}
+              </div>
+              {sel != null && v.dice[sel] && !v.dice[sel].spent && (
+                <CrawlerActions
+                  die={v.dice[sel]}
+                  me={me}
+                  view={v}
+                  onAct={(msg) => { g.send(msg); setSel(null); }}
+                  onReroll={() => { g.send({ t: "reroll", die: sel }); }}
+                />
+              )}
+              <div className="cr-turn-actions">
+                {!me.unlocked[0] && <button className="game-btn ghost" disabled={me.courage < 3} onClick={() => g.send({ t: "unlock", which: 0 })}>Unlock 1st special (need 3✊)</button>}
+                {me.unlocked[0] && !me.unlocked[1] && <button className="game-btn ghost" disabled={me.courage < 5} onClick={() => g.send({ t: "unlock", which: 1 })}>Unlock 2nd special (need 5✊)</button>}
+                <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>End turn</button>
+              </div>
+            </>
+          ) : (
+            <p className="muted-note">Waiting for {nameOf(v.turn)}…</p>
+          )}
+        </div>
+      </div>
 
       {/* party */}
       <div className="cr-party">
@@ -359,69 +529,6 @@ function CrawlerRoom({
         ))}
       </div>
 
-      {/* lay a tile */}
-      {v.ph === "playing" && v.step === "lay" && v.pending && (
-        <div className="panel cr-lay">
-          <strong>
-            {myTurn ? "Lay the new tile. Pick an orientation:" : `${nameOf(v.turn)} is laying a tile…`}
-          </strong>
-          <span className="cr-lay-kind">
-            <b>{tileKind(v.pending.kind).label}</b>
-            <span className="muted-note"> {tileKind(v.pending.kind).blurb}</span>
-          </span>
-          {myTurn && (
-            <div className="cr-lay-options">
-              {v.pending.options.map((o, i) => (
-                <button key={i} className="cr-lay-opt" onClick={() => g.send({ t: "layTile", x: o.x, y: o.y, rotation: o.rotation })}>
-                  <TileGlyph edges={o.edges} />
-                  <small>rot {o.rotation * 90}°</small>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* turn controls */}
-      {v.ph === "playing" && v.step === "spend" && myTurn && me && (
-        <div className="panel cr-controls">
-          <div className="cr-dice">
-            {v.dice.map((d, i) => (
-              <button
-                key={i}
-                className={`cr-die${d.spent ? " spent" : ""}${sel === i ? " sel" : ""}`}
-                disabled={d.spent}
-                onClick={() => setSel(sel === i ? null : i)}
-                title={d.spent ? d.usedFor : "select"}
-              >
-                {d.value}
-                {d.spent && <small>{d.usedFor[0]}</small>}
-              </button>
-            ))}
-          </div>
-
-          {sel != null && !v.dice[sel].spent && (
-            <CrawlerActions
-              die={v.dice[sel]}
-              me={me}
-              view={v}
-              onAct={(msg) => { g.send(msg); setSel(null); }}
-              onReroll={() => { g.send({ t: "reroll", die: sel }); }}
-            />
-          )}
-
-          <div className="cr-turn-actions">
-            {!me.unlocked[0] && <button className="game-btn ghost" disabled={me.courage < 3} onClick={() => g.send({ t: "unlock", which: 0 })}>Unlock 1st special (3✊)</button>}
-            {me.unlocked[0] && !me.unlocked[1] && <button className="game-btn ghost" disabled={me.courage < 5} onClick={() => g.send({ t: "unlock", which: 1 })}>Unlock 2nd special (5✊)</button>}
-            <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>End turn</button>
-          </div>
-        </div>
-      )}
-
-      {v.ph === "playing" && !myTurn && v.step === "spend" && (
-        <p className="muted-note wl-wait">Waiting for {nameOf(v.turn)}…</p>
-      )}
-
       {(v.ph === "won" || v.ph === "lost") && (
         <div className="mind-controls panel mind-over">
           <strong>{v.ph === "won" ? "The boss falls. You win! 🎉" : "The dungeon claims you. 💀"}</strong>
@@ -430,7 +537,11 @@ function CrawlerRoom({
       )}
 
       {/* the board */}
-      <CrawlerMap v={v} />
+      <CrawlerMap
+        v={v}
+        focus={focus}
+        lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt } : null}
+      />
 
       {/* the game log */}
       {v.log.length > 0 && (
@@ -531,7 +642,12 @@ function CrawlerActions({
         <div className="cr-action-row">
           <span>Attack:</span>
           {monsters.map((m) => (
-            <button key={m.id} className="game-btn" onClick={() => onAct({ t: "spend", die: dieIdx(view, die), action: "attack", monster: m.id })}>
+            <button
+              key={m.id}
+              className="game-btn"
+              title={`Needs a die ≥${m.armour} to wound. Health ${m.health}/${m.maxHP} (landed hits to kill).`}
+              onClick={() => onAct({ t: "spend", die: dieIdx(view, die), action: "attack", monster: m.id })}
+            >
               {m.isBoss ? "💀" : "👹"} A{m.armour} · ❤{m.health}/{m.maxHP}
             </button>
           ))}
@@ -577,9 +693,84 @@ function TileGlyph({ edges }: { edges: [boolean, boolean, boolean, boolean] }) {
   );
 }
 
-// CrawlerMap lays out placed tiles (and frontier markers) on a grid.
-function CrawlerMap({ v }: { v: CrView }) {
+// TilePreview shows a tile's art (rotated to its edges) at an arbitrary size, or
+// the line glyph if the kind has no art. Used for the lay panel and the map ghost.
+function TilePreview({ kind, edges, rot = 0, size = 56 }: { kind: string; edges: Edges; rot?: number; size?: number }) {
+  const art = tileArt(kind, edges, rot);
+  if (!art) return <TileGlyph edges={edges} />;
+  return (
+    <span
+      className="cr-tile-prev"
+      style={{
+        width: size,
+        height: size,
+        backgroundImage: `url(/sprites/crawler/tiles/${art.file}.png)`,
+        transform: `rotate(${art.deg}deg)`,
+      }}
+    />
+  );
+}
+
+// Pip layout (row,col on a 3x3) for each die value, drawn as dots (no image fetch).
+const DIE_PIPS: Record<number, [number, number][]> = {
+  1: [[1, 1]],
+  2: [[0, 0], [2, 2]],
+  3: [[0, 0], [1, 1], [2, 2]],
+  4: [[0, 0], [0, 2], [2, 0], [2, 2]],
+  5: [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]],
+  6: [[0, 0], [1, 0], [2, 0], [0, 2], [1, 2], [2, 2]],
+};
+
+// Die renders a value as pips. The face is keyed by value so it remounts and plays
+// the tumble animation whenever the value changes (a roll or a reroll).
+function Die({ value, spent, selected, usedFor, disabled, onClick }: {
+  value: number; spent: boolean; selected: boolean; usedFor: string; disabled: boolean; onClick: () => void;
+}) {
+  const on = new Set((DIE_PIPS[value] ?? []).map(([r, c]) => r * 3 + c));
+  return (
+    <button
+      className={`cr-die${spent ? " spent" : ""}${selected ? " sel" : ""}`}
+      disabled={disabled}
+      onClick={onClick}
+      title={spent ? usedFor : "select this die"}
+    >
+      <span className="cr-die-face" key={value}>
+        {Array.from({ length: 9 }, (_, i) => (
+          <i key={i} className={on.has(i) ? "pip on" : "pip"} />
+        ))}
+      </span>
+      {spent && <small>{usedFor[0]}</small>}
+    </button>
+  );
+}
+
+type LayState = {
+  kind: string;
+  rot: number; // the orientation the player has chosen (0..3)
+  options: CrLayOption[];
+  place: (x: number, y: number) => void;
+};
+
+// CrawlerMap lays out placed tiles (and frontier markers) on a scrollable grid.
+// `focus` is the cell to keep centred (your tile, or the tile being laid); `lay`
+// turns every legal frontier cell into a glowing drop-zone, with a ghost of the
+// tile on the currently-selected cell.
+function CrawlerMap({ v, focus, lay }: { v: CrView; focus: { x: number; y: number } | null; lay: LayState | null }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Keep the focus cell centred in the scroll box as the map grows / you move.
+  useEffect(() => {
+    const c = scrollRef.current;
+    if (!c) return;
+    const el = c.querySelector('[data-focus="1"]') as HTMLElement | null;
+    if (!el) return;
+    const cr = c.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    c.scrollLeft += er.left + er.width / 2 - (cr.left + cr.width / 2);
+    c.scrollTop += er.top + er.height / 2 - (cr.top + cr.height / 2);
+  }, [focus?.x, focus?.y, v.tiles.length]);
+
   const coords = [...v.tiles.map((t) => [t.x, t.y]), ...v.frontiers.map((f) => [f.x, f.y])];
+  if (lay) lay.options.forEach((o) => coords.push([o.x, o.y]));
   if (coords.length === 0) return null;
   const xs = coords.map((c) => c[0]);
   const ys = coords.map((c) => c[1]);
@@ -588,35 +779,71 @@ function CrawlerMap({ v }: { v: CrView }) {
   const cols = maxX - minX + 1;
   const tileAt = (x: number, y: number) => v.tiles.find((t) => t.x === x && t.y === y);
   const frontierAt = (x: number, y: number) => v.frontiers.some((f) => f.x === x && f.y === y);
+  const layAt = (x: number, y: number) => (lay ? lay.options.filter((o) => o.x === x && o.y === y) : []);
+  const isFocus = (x: number, y: number) => !!focus && focus.x === x && focus.y === y;
 
   const cells = [];
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
+      const key = `${x},${y}`;
       const tile = tileAt(x, y);
-      if (tile) {
-        cells.push(<CrawlerTileCell key={`${x},${y}`} tile={tile} v={v} />);
+      const atCell = layAt(x, y);
+      if (lay && atCell.length > 0) {
+        // Show the chosen rotation where it fits; otherwise this cell's first legal one.
+        const hasRot = atCell.some((o) => o.rotation === lay.rot);
+        const ghost = atCell.find((o) => o.rotation === lay.rot) ?? atCell[0];
+        const art = tileArt(lay.kind, ghost.edges, ghost.rotation);
+        cells.push(
+          <div
+            key={key}
+            className={`cr-cell cr-lay-drop${hasRot ? " sel" : " alt"}${isFocus(x, y) ? " focus" : ""}`}
+            data-focus={isFocus(x, y) ? "1" : undefined}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); lay.place(x, y); }}
+            onClick={() => lay.place(x, y)}
+            title={hasRot ? "Drop or click to place here (your rotation)" : "Drop or click to place here (this cell's rotation)"}
+          >
+            {art ? (
+              <div className="cr-tile-art" style={{ backgroundImage: `url(/sprites/crawler/tiles/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }} />
+            ) : (
+              <TileGlyph edges={ghost.edges} />
+            )}
+          </div>,
+        );
+      } else if (tile) {
+        cells.push(<CrawlerTileCell key={key} tile={tile} v={v} focus={isFocus(x, y)} />);
       } else if (frontierAt(x, y)) {
-        cells.push(<div key={`${x},${y}`} className="cr-cell cr-frontier">?</div>);
+        cells.push(<div key={key} className="cr-cell cr-frontier">?</div>);
       } else {
-        cells.push(<div key={`${x},${y}`} className="cr-cell cr-empty" />);
+        cells.push(<div key={key} className="cr-cell cr-empty" />);
       }
     }
   }
   return (
-    <div className="cr-map" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-      {cells}
+    <div className="cr-map-scroll" ref={scrollRef}>
+      <div className="cr-map" style={{ gridTemplateColumns: `repeat(${cols}, var(--cr-cell))` }}>
+        {cells}
+      </div>
     </div>
   );
 }
 
-function CrawlerTileCell({ tile, v }: { tile: CrTile; v: CrView }) {
+function CrawlerTileCell({ tile, v, focus }: { tile: CrTile; v: CrView; focus?: boolean }) {
   const heroesHere = v.heroes.filter((h) => h.tile === tile.id && h.alive);
   const edgeClass = ["n", "e", "s", "w"].filter((_, d) => tile.edges[d]).map((s) => `open-${s}`).join(" ");
+  const art = tileArt(tile.kind, tile.edges, tile.rot);
   return (
     <div
       className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}`}
+      data-focus={focus ? "1" : undefined}
       title={`${tileKind(tile.kind).label}: ${tileKind(tile.kind).blurb}`}
     >
+      {art && (
+        <div
+          className="cr-tile-art"
+          style={{ backgroundImage: `url(/sprites/crawler/tiles/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }}
+        />
+      )}
       <span className="cr-tile-kind">{tileKind(tile.kind).label}</span>
       <div className="cr-squares">
         {Array.from({ length: 9 }, (_, sq) => {
@@ -626,16 +853,19 @@ function CrawlerTileCell({ tile, v }: { tile: CrTile; v: CrView }) {
             <div key={sq} className="cr-sq">
               {monster && (
                 <span className="cr-mon">
-                  {monster.isBoss ? "💀" : "👹"}
+                  <MonsterSprite m={monster} />
                   <span className="cr-mon-stats">
-                    {monster.isBoss ? "BOSS · " : ""}Armour {monster.armour} · ❤ {monster.health}/{monster.maxHP} · Damage {monster.damage}
-                    {monster.engaged ? " · engaged" : ""}
+                    <b>{monster.isBoss ? "BOSS" : "Monster"}</b>
+                    <br />Armour {monster.armour} <small>(hit on a die ≥{monster.armour})</small>
+                    <br />Health {monster.health}/{monster.maxHP} <small>(landed hits to kill)</small>
+                    <br />Damage {monster.damage} <small>(dealt back at end of turn, minus Shields)</small>
+                    {monster.engaged ? <><br /><small>engaged this turn</small></> : null}
                   </span>
                 </span>
               )}
               {here.map((h) => (
                 <span key={h.s} className={`cr-pawn${h.s === v.turn ? " active" : ""}${h.s === v.you ? " you" : ""}`} title={h.n}>
-                  <TotemSprite slug={h.totem} size={18} />
+                  <TotemSprite slug={h.totem} size={40} />
                 </span>
               ))}
             </div>

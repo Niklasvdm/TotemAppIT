@@ -36,8 +36,14 @@ const (
 	mindMsgStart   = "start"   // host: deal level 1 and begin
 	mindMsgPlay    = "play"    // play YOUR lowest card onto the pile
 	mindMsgStar    = "star"    // toggle your vote to use a throwing star
+	mindMsgNext    = "next"    // host: start the next round (after a level is cleared)
 	mindMsgRestart = "restart" // host: back to the lobby
 )
+
+// Milestone rewards: completing one of these levels grants a bonus throwing star
+// or an extra life (as in the base game, which prints them on specific level cards).
+var mindStarLevels = map[int]bool{2: true, 3: true, 5: true, 6: true, 8: true, 9: true}
+var mindLifeLevels = map[int]bool{3: true, 6: true, 9: true}
 
 type mindPlayer struct {
 	name   string
@@ -59,6 +65,10 @@ type theMindGame struct {
 	pileSeq  []int // the cards face-up on the pile, in play order, for display
 	hands    map[int][]int
 	starVote map[int]bool
+
+	cleared    bool // a level is complete; the board stays up until the host starts the next round
+	gainedStar bool // the just-cleared level awarded a throwing star (for the pause screen)
+	gainedLife bool // ...and/or an extra life
 }
 
 func newTheMindGame(out Outbox, seed uint64) Game {
@@ -115,11 +125,11 @@ func (g *theMindGame) WelcomeExtra() WelcomeExtra { return WelcomeExtra{} }
 
 // Joined/Dropped refresh EVERY connected seat: a turn-based game has no tick, so
 // membership changes are the only moment existing players' views get updated.
-func (g *theMindGame) Joined(int)  { g.broadcastViews() }
-func (g *theMindGame) Dropped(int) { g.broadcastViews() }
-func (g *theMindGame) ToLobby()                   { g.resetToLobby(); g.broadcastViews() }
-func (g *theMindGame) TickHz() int                { return 0 }
-func (g *theMindGame) Tick(time.Time)             {}
+func (g *theMindGame) Joined(int)     { g.broadcastViews() }
+func (g *theMindGame) Dropped(int)    { g.broadcastViews() }
+func (g *theMindGame) ToLobby()       { g.resetToLobby(); g.broadcastViews() }
+func (g *theMindGame) TickHz() int    { return 0 }
+func (g *theMindGame) Tick(time.Time) {}
 
 func (g *theMindGame) Command(seat int, isHost bool, raw []byte) {
 	var c struct {
@@ -147,17 +157,23 @@ func (g *theMindGame) Command(seat int, isHost bool, raw []byte) {
 		g.phase = mindPlaying
 
 	case mindMsgPlay:
-		if g.phase != mindPlaying {
+		if g.phase != mindPlaying || g.cleared {
 			return
 		}
 		g.play(seat)
 
 	case mindMsgStar:
-		if g.phase != mindPlaying || g.stars <= 0 {
+		if g.phase != mindPlaying || g.cleared || g.stars <= 0 {
 			return
 		}
 		g.starVote[seat] = !g.starVote[seat]
 		g.maybeStar()
+
+	case mindMsgNext:
+		if !isHost || g.phase != mindPlaying || !g.cleared {
+			return
+		}
+		g.nextRound()
 
 	case mindMsgRestart:
 		if !isHost || (g.phase != mindWon && g.phase != mindLost) {
@@ -276,11 +292,32 @@ func (g *theMindGame) checkLevelDone() {
 			return
 		}
 	}
+	// Level cleared: award milestone bonuses (shown on the pause screen).
+	g.gainedStar = mindStarLevels[g.level]
+	g.gainedLife = mindLifeLevels[g.level]
+	if g.gainedStar {
+		g.stars++
+	}
+	if g.gainedLife {
+		g.lives++
+	}
 	if g.level >= mindLevelsToWin(len(g.players)) {
 		g.phase = mindWon
 		return
 	}
+	// Hold the finished board until the host starts the next round.
+	g.cleared = true
+}
+
+// nextRound deals the next level after the host confirms (the board was held so
+// everyone could see the completed round and any bonuses earned).
+func (g *theMindGame) nextRound() {
+	if !g.cleared {
+		return
+	}
 	g.level++
+	g.cleared = false
+	g.gainedStar, g.gainedLife = false, false
 	g.deal()
 }
 
@@ -290,6 +327,7 @@ func (g *theMindGame) resetToLobby() {
 	g.pileSeq = nil
 	g.hands = map[int][]int{}
 	g.starVote = map[int]bool{}
+	g.cleared, g.gainedStar, g.gainedLife = false, false, false
 }
 
 // --- per-seat views ---------------------------------------------------------
@@ -313,6 +351,9 @@ type mindView struct {
 	LevelsToWin int               `json:"levelsToWin"`
 	Hand        []int             `json:"hand"` // YOUR cards only (private)
 	You         int               `json:"you"`
+	Cleared     bool              `json:"cleared"`    // level done, waiting for the host's Next round
+	GainedStar  bool              `json:"gainedStar"` // bonus from the just-cleared level
+	GainedLife  bool              `json:"gainedLife"`
 	Roster      []mindRosterEntry `json:"roster"`
 }
 
@@ -321,7 +362,8 @@ func (g *theMindGame) viewFor(seat int) mindView {
 		T: MsgState, Phase: g.phase, Level: g.level, Lives: g.lives, Stars: g.stars,
 		Pile: g.pile, PileSeq: append([]int{}, g.pileSeq...),
 		LevelsToWin: mindLevelsToWin(len(g.players)), You: seat,
-		Hand:        append([]int{}, g.hands[seat]...), // never nil
+		Hand:    append([]int{}, g.hands[seat]...), // never nil
+		Cleared: g.cleared, GainedStar: g.gainedStar, GainedLife: g.gainedLife,
 	}
 	connected := map[int]bool{}
 	for _, s := range g.out.Seats() {
