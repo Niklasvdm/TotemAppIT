@@ -450,6 +450,111 @@ header {
 .han-discard-row { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .3rem; }
 .han-dchip { width: 1.5rem; height: 1.5rem; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; }
 
+/* --- Totem Crawler ---------------------------------------------------- */
+.cr-room { display: flex; flex-direction: column; gap: .6rem; }
+.cr-map { display: grid; gap: 4px; justify-content: center; margin: .3rem auto; }
+.cr-cell { width: 64px; height: 64px; box-sizing: border-box; }
+.cr-empty { background: transparent; }
+.cr-frontier { display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line, rgba(0,0,0,.3)); border-radius: 8px; color: var(--line, rgba(0,0,0,.4)); font-weight: 800; }
+.cr-tile { position: relative; border: 2px solid var(--ink, #333); border-radius: 6px; background: var(--surface-2, #efe7d8); }
+.cr-tile.boss { border-color: var(--red, #c0392b); box-shadow: 0 0 0 2px var(--red, #c0392b) inset; }
+/* doorway notches: a light gap on each open edge */
+.cr-tile.open-n::before, .cr-tile.open-s::after { content: ""; position: absolute; left: 40%; width: 20%; height: 3px; background: var(--gold, #c9a227); }
+.cr-tile.open-n::before { top: -2px; }
+.cr-tile.open-s::after { bottom: -2px; }
+.cr-tile.open-e, .cr-tile.open-w { }
+.cr-tile.open-e { border-right-color: var(--gold, #c9a227); }
+.cr-tile.open-w { border-left-color: var(--gold, #c9a227); }
+.cr-tile.open-n { border-top-color: var(--gold, #c9a227); }
+.cr-tile.open-s { border-bottom-color: var(--gold, #c9a227); }
+.cr-squares { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 100%; }
+.cr-sq { position: relative; display: flex; align-items: center; justify-content: center; font-size: .7rem; }
+.cr-mon { font-size: .95rem; }
+.cr-pawn { font-size: .8rem; }
+.cr-pawn.active { filter: drop-shadow(0 0 2px var(--gold, #c9a227)); }
+.cr-party { display: flex; flex-wrap: wrap; gap: .4rem; }
+.cr-hero { flex: 1 1 8rem; display: flex; flex-direction: column; border: 1px solid var(--line, rgba(0,0,0,.15)); border-radius: 8px; padding: .35rem .5rem; font-size: .82rem; }
+.cr-hero.active { border-color: var(--gold, #c9a227); box-shadow: 0 0 0 2px var(--gold, #c9a227) inset; }
+.cr-hero.down { opacity: .5; }
+.cr-controls { display: flex; flex-direction: column; gap: .5rem; }
+.cr-dice { display: flex; gap: .5rem; }
+.cr-die { width: 2.6rem; height: 2.6rem; border-radius: 10px; border: 2px solid var(--ink, #333); background: var(--panel, #fff); font-size: 1.3rem; font-weight: 800; cursor: pointer; position: relative; }
+.cr-die.sel { border-color: var(--gold, #c9a227); box-shadow: 0 0 0 2px var(--gold, #c9a227) inset; }
+.cr-die.spent { opacity: .45; cursor: default; }
+.cr-die small { position: absolute; bottom: 1px; right: 3px; font-size: .55rem; }
+.cr-actions { display: flex; flex-direction: column; gap: .35rem; }
+.cr-action-row { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.cr-action-row > span { font-size: .8rem; font-weight: 700; min-width: 3.5rem; }
+.cr-action-row .game-btn { padding: .25rem .55rem; }
+.cr-turn-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.cr-lay { display: flex; flex-direction: column; gap: .5rem; }
+.cr-lay-options { display: flex; flex-wrap: wrap; gap: .6rem; }
+.cr-lay-opt { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .4rem; border: 2px solid var(--line, rgba(0,0,0,.2)); border-radius: 8px; background: var(--panel, #fff); cursor: pointer; }
+.cr-glyph { position: relative; display: inline-block; width: 42px; height: 42px; border: 2px solid var(--ink, #333); border-radius: 5px; background: var(--surface-2, #efe7d8); }
+.cr-door { position: absolute; background: var(--gold, #c9a227); }
+.cr-door.n { top: -2px; left: 40%; width: 20%; height: 3px; }
+.cr-door.s { bottom: -2px; left: 40%; width: 20%; height: 3px; }
+.cr-door.e { right: -2px; top: 40%; height: 20%; width: 3px; }
+.cr-door.w { left: -2px; top: 40%; height: 20%; width: 3px; }
+.cr-log { font-size: .78rem; opacity: .85; display: flex; flex-direction: column; gap: .15rem; max-height: 9rem; overflow-y: auto; }
+/* totem sprite drawn from the Bomberman atlas */
+.cr-sprite { display: inline-block; background-repeat: no-repeat; vertical-align: middle; image-rendering: auto; }
+/* character sheet (top of the room) */
+.cr-sheet { display: flex; flex-direction: column; gap: .5rem; }
+.cr-sheet-head { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+.cr-sheet-id { display: flex; flex-direction: column; min-width: 6rem; }
+.cr-sheet-id strong { font-size: 1.05rem; }
+.cr-sheet-stats { flex: 1; min-width: 12rem; display: flex; flex-direction: column; gap: .3rem; }
+.cr-bar-row { display: flex; align-items: center; gap: .5rem; }
+.cr-bar-label { font-size: .8rem; font-weight: 800; min-width: 3.5rem; }
+.cr-bar { flex: 1; height: 12px; border-radius: 6px; background: var(--line, rgba(0,0,0,.15)); overflow: hidden; }
+.cr-bar span { display: block; height: 100%; transition: width .2s; }
+.cr-hpbar span { background: var(--red, #c0392b); }
+.cr-courbar span { background: #3b82f6; }
+.cr-menu { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.cr-menu-item { font-size: .8rem; padding: .2rem .5rem; border-radius: 999px; background: var(--chip, rgba(0,0,0,.06)); display: inline-flex; align-items: center; gap: .25rem; }
+.cr-menu-item b { color: var(--accent, #c9803a); }
+.cr-specials { display: flex; flex-wrap: wrap; gap: .5rem; font-size: .82rem; }
+.cr-specials > span { opacity: .65; display: inline-flex; align-items: center; gap: .25rem; }
+.cr-specials .on { opacity: 1; font-weight: 700; color: var(--gold, #c9a227); }
+/* Courage has reached this special's unlock cost: make it obviously ready (blue) */
+.cr-specials .ready { opacity: 1; font-weight: 800; color: #3b82f6; }
+/* hero pawn on the map */
+.cr-pawn { position: relative; line-height: 0; }
+.cr-pawn.active .cr-sprite { filter: drop-shadow(0 0 3px var(--gold, #c9a227)); }
+.cr-pawn.you::after { content: "★"; position: absolute; top: -6px; right: -4px; font-size: .55rem; color: var(--gold, #c9a227); }
+/* monster hover stat box — fixed dark panel + light text so it is readable in
+   both themes (var(--ink) is light in dark mode, which made this white-on-cream) */
+.cr-mon { position: relative; cursor: help; }
+.cr-mon-stats {
+  display: none; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%);
+  white-space: nowrap; z-index: 20; padding: .35rem .6rem; border-radius: 7px;
+  background: #1b1712; color: #fdf6e8; border: 1px solid #c9a227;
+  font-size: .72rem; font-weight: 700; line-height: 1.3; box-shadow: 0 4px 14px rgba(0,0,0,.45);
+}
+.cr-mon:hover .cr-mon-stats, .cr-mon:focus .cr-mon-stats { display: block; }
+
+/* tile-type label badge in the corner of each placed tile */
+.cr-tile-kind {
+  position: absolute; top: -1px; left: -1px; z-index: 2; pointer-events: none;
+  padding: 0 .3rem; border-radius: 6px 0 6px 0; font-size: .56rem; font-weight: 800;
+  letter-spacing: .02em; text-transform: uppercase;
+  background: rgba(0,0,0,.55); color: #fdf6e8;
+}
+.cr-tile.boss .cr-tile-kind { background: var(--red, #c0392b); }
+.cr-lay-kind { font-size: .82rem; }
+
+/* ⓘ info badge with a hover/focus explanation box (specials, actions) */
+.cr-info { position: relative; display: inline-flex; cursor: help; font-size: .72rem; color: var(--muted, #888); outline: none; }
+.cr-info-box {
+  display: none; position: absolute; bottom: 135%; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: 15rem; white-space: normal; z-index: 20;
+  padding: .4rem .6rem; border-radius: 7px; background: #1b1712; color: #fdf6e8;
+  border: 1px solid #c9a227; font-size: .72rem; font-weight: 600; line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+}
+.cr-info:hover .cr-info-box, .cr-info:focus .cr-info-box { display: block; }
+
 /* --- "how to play" (ⓘ) button + rules modal ---------------------------- */
 .info-btn {
   width: 1.7rem; height: 1.7rem; flex: 0 0 auto; border-radius: 50%;
@@ -458,6 +563,14 @@ header {
   display: inline-flex; align-items: center; justify-content: center;
 }
 .info-btn:hover { background: var(--gold-soft); }
+/* "report a problem" flag sized to sit inline in the game bar, next to ⓘ */
+.game-report-flag {
+  width: 1.7rem; height: 1.7rem; flex: 0 0 auto; border-radius: 50%;
+  border: 2px solid var(--red); background: var(--red); color: #fff;
+  font-size: .95rem; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.game-report-flag:hover { filter: brightness(1.08); transform: scale(1.06); }
 .game-card-wrap { position: relative; }
 .game-card-info { position: absolute; top: .55rem; right: .55rem; z-index: 2; }
 .game-rules h2 { margin: 0 0 .2rem; }

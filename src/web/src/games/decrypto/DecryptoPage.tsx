@@ -161,7 +161,7 @@ function DecryptoRoom({ code, name, onLeave }: { code: string; name: string; onL
   const [clues, setClues] = useState(["", "", ""]);
   const [myGuess, setMyGuess] = useState([0, 0, 0]);
   const v = g.view;
-  const bar = <RoomBar code={code} title={t("gameDecrypto")} infoSlug="decrypto" onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameDecrypto")} infoSlug="decrypto" gameSlug="decrypto" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

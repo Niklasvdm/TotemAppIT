@@ -127,7 +127,7 @@ function JustOneRoom({ code, name, onLeave }: { code: string; name: string; onLe
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState("");
   const v = g.view;
-  const bar = <RoomBar code={code} title={t("gameJustOne")} infoSlug="justone" onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameJustOne")} infoSlug="justone" gameSlug="just-one" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.0
+version: 0.4.3
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.4.0`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.0+a1b2c3d`.
+**Build `0.4.3`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -235,6 +235,8 @@ trait  ||--o{ trait_translation
 ```
 
 **Design Decision — normalised tables vs. JSON columns.** SQLite could store `traits`/`translations` as JSON columns (closer to today's shape, fewer tables). We normalise instead because it is the more instructive relational model, it makes the Postgres migration clean, and 471 rows makes the performance difference irrelevant. Fetching an animal with its localized text stays a single JOIN (see [Projection](#concepts)); an optional `animal_localized` VIEW can hide that join from the Go queries if desired.
+
+**Art is not in this model.** Sprites and game art are **static files**, not database rows, so they do not appear in the ERD above. Totem sprites live in `src/web/public/sprites/` (the shared atlas `totems.{png,json}`, see [Totem sprites](#totem-sprites)); game-specific art (e.g. the Crawler's tiles and monsters) follows the same pattern under `src/web/public/sprites/`. Vite copies `public/` verbatim into the built SPA, `totemd` embeds it via `embed.FS`, and it is served at the root path with no API or DB involvement. The crawler's asset layout and conventions are in the [crawler architecture doc](docs/crawler-architecture.md#assets-and-sprites). Animal **photos** are the one exception to "art is a file in the repo": they are served from `TOTEM_IMAGE_DIR` on disk (not embedded, not in git) with their credit columns in the DB (see [Images](#images)).
 
 ### Ingestion pipeline
 
@@ -1196,6 +1198,26 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.4.3 — 2026-10-10
+- `[FEATURE]` **Totem Crawler playtest polish (client).** A second pass over the V0 crawler UI:
+  - **Character zone pulled to the top.** The layout is now character first (sheet, party, dice and turn controls), then the board, then the game log, so everything you act with sits above the map.
+  - **Courage bar** (blue) added next to the health bar, and a special's label **turns blue the moment your Courage reaches its unlock cost** (3 then 5), so "you can unlock this now" is unmissable.
+  - **Info hovers on the specials** (and the menu's Special action): a small ⓘ with a one-line explanation of what Brace / Thick Hide / Bulwark (or the generic Guard / Resolve / Second Wind) actually do.
+  - **Tile types are legible.** Each placed tile shows its kind (straight / bend / T-junction / crossroads / dead end / boss lair) as a corner badge with a hover description, and the lay-a-tile prompt names the shape you drew. The tile `kind` is now carried on the pending-lay view.
+  - **Monster hover box fixed.** It was white-on-cream (it used `var(--ink)`, which is light in dark mode); it is now a fixed dark panel with light text, readable in both themes.
+- `[DOCS]` **Where game art lives.** Documented asset storage for incoming crawler art: static files under `src/web/public/sprites/` (Vite copies them into the SPA, `totemd` embeds them via `embed.FS`, served at the root path, no DB), the proposed `sprites/crawler/` atlas convention, and a note in the README data model that sprites are files, not rows. See the crawler doc's [Assets and sprites](docs/crawler-architecture.md#assets-and-sprites).
+
+### 0.4.2 — 2026-10-10
+- `[FEATURE]` **Totem Crawler refinements.** Several changes to the V0 crawler from the first playtest, reflected in [docs/crawler-architecture.md](docs/crawler-architecture.md):
+  - **Combat continues until the enemy is defeated.** A monster's Health is now a current value that drops live per hit and **persists across turns**, so a tough enemy (or the boss) is whittled down over several turns instead of resetting each turn. A lethal blow kills immediately; a monster you fought but did not finish retaliates once at end of turn. (`hits`-per-turn replaced by persistent `health` + an `engaged` flag; combat tests updated, plus a new "damage persists across turns" test.)
+  - **Named tile types** (straight, bend, tee, cross, dead-end) from a weighted draw pool, and tiles can be **laid on all four sides** (the start tile is a cross; rotations cover every orientation). The tile `kind` is on the wire for the client, with a test that laying works in every direction.
+  - **Client: heroes drawn from the Bomberman sprite atlas** (`public/sprites/totems.{png,json}`) instead of emoji, via a CSS-background `TotemSprite` that needs no extra fetch (the front frame is column 0 of each totem's row). The **character sheet moved to the top** (sprite, health bar, resources, the action-menu thresholds and the two specials), and **hovering a monster shows a stat box** (Armour / current Health / Damage).
+- `[DOCS]` Updated the crawler spec (combat sequence diagram, a tile-types table, the V0 scope) and bumped the build to `0.4.2`.
+
+### 0.4.1 — 2026-10-09
+- `[FEATURE]` **Totem Crawler V0 (original co-op dungeon crawler).** First playable slice of the original game (`internal/game/crawler.go`, slug `crawler`, 11 Go tests), built to the locked spec in [docs/crawler-architecture.md](docs/crawler-architecture.md). It runs on the same engine as the other games (event-driven, co-op, 1–6 heroes). The core loop: roll a dice pool, spend each die through a per-sheet action menu where **each action has a minimum die value** (Move>=1, Special>=2/3, Attack>=4, Courage>=5, so "you can go down" and no roll is wasted), move square by square on 3x3 tiles, and **lay the next tile yourself** (choosing an orientation from the legal options) when you leave a tile onto a frontier. Random banded tile stack (easy early, nasty late) with the boss shuffled into the final band; static enemies with Armour/Health/Damage resolved at end of turn; Courage (reroll + two unlockable specials) and Shields; the **Beaver** fully specced (Brace, Thick Hide), other seats on a generic sheet. Win by defeating the boss, lose on a party wipe or a drained stack. Client `games/crawler/CrawlerPage.tsx` renders the tile map, the party, the dice-and-action controls and the tile-lay choices. V0 simplifications (group fights, loot/hazards, the other totems' sheets) are deferred to V1 per the spec.
+- `[FEATURE]` **Report a problem — now for games, not just animals.** The ⚑ report flag now lives in every game's room bar (all nine games plus the crawler, and Bomberman's bar), mirroring the animal `ReportBox`. A new `POST /api/v1/games/reports` endpoint (`{game, reason, note}`, reasons: bug / rules / unclear / other) validates the game slug against the registry (`game.Exists`) and stores a deduped, counted, moderated row in a new `game_report` table (migration `0004_game_reports.sql`), exactly like animal reports. The SysAdmin reviews them with `totem-admin game-reports` and `accept-game-report` / `reject-game-report`. Client: `games/GameReportButton.tsx` + `reportGame()` in `api.ts`, wired through `RoomBar`'s new `gameSlug` prop. 3 new Go tests (API + mock); `game.Exists(slug)` added to the engine.
 
 ### 0.4.0 — 2026-10-09
 - `[FEATURE]` **Four more games: Just One, Love Letter, Decrypto, Hanabi.** All four plug into the existing engine (one Go `Game` per game, per-seat private views via `Outbox.Send`, event-driven `TickHz 0`) and the shared React transport (`useRoom()` + `RoomBar`), and each ships with a rules entry behind the ⓘ button (`games/rules.ts`), an index card, a router route and i18n title/blurb in all three languages. Rules follow the published editions; the per-game notes below flag the simplifications. Full Go suite green on DEV (`build`/`vet`/`test`), clients `tsc` clean + 22 Vitest + `vite build`, and `?game=…` rooms create (HTTP 201) for every new slug.

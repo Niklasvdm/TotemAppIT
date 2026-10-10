@@ -131,4 +131,17 @@ export const GAME_RULES: Record<string, GameRules> = {
     ],
     example: "A teammate's hand shows a red 1 (you can see it, they can't). Hint “red”, or hint “1”, to point it out.",
   },
+  crawler: {
+    icon: "🏰",
+    title: "Totem Crawler",
+    players: "1–6 players, co-op",
+    summary: "Roll dice, explore a dungeon of tiles, and beat the boss before the tile stack runs out.",
+    steps: [
+      "On your turn, roll your dice. Each die can be spent on an action your sheet allows: Move, Attack, a Special, or Courage. Higher dice can also do lower actions, so no roll is wasted.",
+      "Move one square per Move die. Leaving a tile lets you lay the next tile and pick how it is oriented.",
+      "Fight a monster on your tile by spending Attack dice: each die that meets its Armour is a hit; enough hits kill it, otherwise it hits back for its Damage (minus your Shields). Combat settles at end of turn.",
+      "Spend Courage (earned on high dice and on kills) to reroll a die or unlock your two specials. The boss is shuffled into the last tiles: beat it to win, but a drained stack or a wiped party loses.",
+    ],
+    example: "You roll 1, 2, 5, 6. Spend the 5 to Attack a Gor (Armour 4) for a hit, the 6 as Courage, the 2 to Brace an ally for Shields, and the 1 to Move toward the exit.",
+  },
 };

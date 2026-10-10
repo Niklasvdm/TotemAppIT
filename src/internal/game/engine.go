@@ -60,6 +60,13 @@ type Game interface {
 	Tick(now time.Time)
 }
 
+// Exists reports whether slug names a registered game. Used by the API to
+// validate a game slug (room creation, game reports) without exposing the map.
+func Exists(slug string) bool {
+	_, ok := gameFactories[slug]
+	return ok
+}
+
 // gameFactory builds a Game bound to its Room's Outbox. seed makes any
 // randomness deterministic for tests.
 type gameFactory func(out Outbox, seed uint64) Game
@@ -76,4 +83,5 @@ var gameFactories = map[string]gameFactory{
 	"love-letter": newLoveLetterGame,
 	"decrypto":    newDecryptoGame,
 	"hanabi":      newHanabiGame,
+	"crawler":     newCrawlerGame,
 }

@@ -20,6 +20,7 @@ type fakeCatalog struct {
 	gotFilter store.Filter
 	gotSugg   [2]string // name, note
 	gotReport [3]string // slug, reason, note
+	gotGameRep [3]string // game, reason, note
 }
 
 func (f *fakeCatalog) ListAnimals(_ context.Context, flt store.Filter) ([]store.Animal, error) {
@@ -50,6 +51,10 @@ func (f *fakeCatalog) AddReport(_ context.Context, slug, reason, note string) er
 		return store.ErrNotFound
 	}
 	f.gotReport = [3]string{slug, reason, note}
+	return nil
+}
+func (f *fakeCatalog) AddGameReport(_ context.Context, gameSlug, reason, note string) error {
+	f.gotGameRep = [3]string{gameSlug, reason, note}
 	return nil
 }
 
@@ -203,6 +208,24 @@ func TestCreateReport(t *testing.T) {
 	}
 	if rec := doPost(t, srv, "/api/v1/animals/nope/reports", `{"reason":"unknown"}`); rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown animal: want 404, got %d", rec.Code)
+	}
+}
+
+func TestCreateGameReport(t *testing.T) {
+	fc := &fakeCatalog{}
+	srv := New(fc, nil, nil)
+
+	if rec := doPost(t, srv, "/api/v1/games/reports", `{"game":"codenames","reason":"bug","note":"board froze"}`); rec.Code != http.StatusAccepted {
+		t.Fatalf("valid game report: want 202, got %d (%s)", rec.Code, rec.Body)
+	}
+	if fc.gotGameRep[0] != "codenames" || fc.gotGameRep[1] != "bug" {
+		t.Fatalf("passed through: %+v", fc.gotGameRep)
+	}
+	if rec := doPost(t, srv, "/api/v1/games/reports", `{"game":"codenames","reason":"nonsense"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad reason: want 400, got %d", rec.Code)
+	}
+	if rec := doPost(t, srv, "/api/v1/games/reports", `{"game":"not-a-game","reason":"bug"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("unknown game: want 400, got %d", rec.Code)
 	}
 }
 

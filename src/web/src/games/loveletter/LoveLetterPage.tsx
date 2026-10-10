@@ -144,7 +144,7 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
   const [target, setTarget] = useState<number | null>(null);
   const [guess, setGuess] = useState<number>(2);
   const v = g.view;
-  const bar = <RoomBar code={code} title={t("gameLoveLetter")} infoSlug="loveletter" onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameLoveLetter")} infoSlug="loveletter" gameSlug="love-letter" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

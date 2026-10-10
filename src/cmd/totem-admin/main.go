@@ -4,8 +4,10 @@
 //
 //	totem-admin [--db PATH] [--status pending|accepted|rejected|all] suggestions
 //	totem-admin [--db PATH] [--status ...]                            reports
-//	totem-admin accept-suggestion <id> | reject-suggestion <id>
-//	totem-admin accept-report <id>     | reject-report <id>
+//	totem-admin [--db PATH] [--status ...]                            game-reports
+//	totem-admin accept-suggestion <id>  | reject-suggestion <id>
+//	totem-admin accept-report <id>      | reject-report <id>
+//	totem-admin accept-game-report <id> | reject-game-report <id>
 //
 // The key comes from TOTEM_DB_KEY / TOTEM_DB_KEY_FILE, as with totemd.
 package main
@@ -36,7 +38,7 @@ func main() {
 
 	cmd := flag.Arg(0)
 	if cmd == "" {
-		log.Fatal("usage: totem-admin [--db PATH] [--status ...] <suggestions|reports|accept-*|reject-*> [id]")
+		log.Fatal("usage: totem-admin [--db PATH] [--status ...] <suggestions|reports|game-reports|accept-*|reject-*> [id]")
 	}
 
 	st, err := store.Open(*dbPath, cfg.DBKey)
@@ -60,10 +62,14 @@ func main() {
 		listSuggestions(ctx, st, filter)
 	case "reports":
 		listReports(ctx, st, filter)
+	case "game-reports":
+		listGameReports(ctx, st, filter)
 	case "accept-suggestion", "reject-suggestion":
 		setSuggestion(ctx, st, cmd, flag.Arg(1))
 	case "accept-report", "reject-report":
 		setReport(ctx, st, cmd, flag.Arg(1))
+	case "accept-game-report", "reject-game-report":
+		setGameReport(ctx, st, cmd, flag.Arg(1))
 	default:
 		log.Fatalf("unknown command %q", cmd)
 	}
@@ -107,6 +113,25 @@ func listReports(ctx context.Context, st *store.Store, status string) {
 	fmt.Print(buf.String())
 }
 
+func listGameReports(ctx context.Context, st *store.Store, status string) {
+	items, err := st.ListGameReports(ctx, status)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(items) == 0 {
+		fmt.Println("no game reports")
+		return
+	}
+	var buf bytes.Buffer
+	tw := tabwriter.NewWriter(&buf, 0, 2, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tCOUNT\tSTATUS\tGAME\tREASON\tNOTE")
+	for _, r := range items {
+		fmt.Fprintf(tw, "%d\t%d\t%s\t%s\t%s\t%s\n", r.ID, r.Count, r.Status, r.Game, r.Reason, r.Note)
+	}
+	tw.Flush()
+	fmt.Print(buf.String())
+}
+
 // statusFor maps an accept-*/reject-* command to the status it sets.
 func statusFor(cmd string) string {
 	if cmd[:6] == "accept" {
@@ -137,6 +162,18 @@ func setReport(ctx context.Context, st *store.Store, cmd, idArg string) {
 		log.Fatalf("no report with id %d", id)
 	}
 	fmt.Printf("report %d -> %s\n", id, statusFor(cmd))
+}
+
+func setGameReport(ctx context.Context, st *store.Store, cmd, idArg string) {
+	id := parseID(idArg)
+	ok, err := st.SetGameReportStatus(ctx, id, statusFor(cmd))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !ok {
+		log.Fatalf("no game report with id %d", id)
+	}
+	fmt.Printf("game report %d -> %s\n", id, statusFor(cmd))
 }
 
 func parseID(arg string) int64 {

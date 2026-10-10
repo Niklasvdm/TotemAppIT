@@ -117,6 +117,14 @@ export function reportAnimal(slug: string, reason: ReportReason, note: string): 
   return postJSON(`/api/v1/animals/${encodeURIComponent(slug)}/reports`, { reason, note });
 }
 
+// Report a problem with a game (bug, rule, unclear, other). `game` is the
+// backend game slug (e.g. "the-mind", "crawler"), validated server-side.
+export type GameReportReason = "bug" | "rules" | "unclear" | "other";
+
+export function reportGame(game: string, reason: GameReportReason, note: string): Promise<void> {
+  return postJSON(`/api/v1/games/reports`, { game, reason, note });
+}
+
 // Games. Creating a room allocates a tick loop on the server, so this is
 // rate-limited there; the returned code is what other players type to join.
 export async function createGameRoom(game = "bomberman"): Promise<{ code: string }> {

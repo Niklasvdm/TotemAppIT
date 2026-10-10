@@ -134,7 +134,7 @@ function WavelengthRoom({ code, name, onLeave }: { code: string; name: string; o
   const { t } = useTranslation();
   const g = useRoom<WlView>(code, name);
   const v = g.view;
-  const bar = <RoomBar code={code} title={t("gameWavelength")} infoSlug="wavelength" onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameWavelength")} infoSlug="wavelength" gameSlug="wavelength" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

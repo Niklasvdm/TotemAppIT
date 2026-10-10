@@ -44,6 +44,29 @@ func ValidReportReason(r string) bool {
 	}
 }
 
+// GameReport is a community report about a game (a bug, a rule implemented
+// wrong, something unclear), deduplicated per (game, reason) with a count.
+type GameReport struct {
+	ID        int64
+	Game      string
+	Reason    string
+	Note      string
+	Count     int
+	Status    string
+	CreatedAt string
+}
+
+// ValidGameReportReason reports whether r is an accepted game-report reason.
+// Enforced again by a CHECK constraint in migration 0004.
+func ValidGameReportReason(r string) bool {
+	switch r {
+	case "bug", "rules", "unclear", "other":
+		return true
+	default:
+		return false
+	}
+}
+
 // ValidStatus reports whether s is an accepted moderation status.
 func ValidStatus(s string) bool {
 	switch s {
@@ -102,6 +125,59 @@ func (s *Store) AddReport(ctx context.Context, slug, reason, note string) error 
 		return fmt.Errorf("add report: %w", err)
 	}
 	return nil
+}
+
+// AddGameReport records a report about a game. A repeat of the same (game,
+// reason) bumps the count. The game slug is validated by the caller (the API
+// checks it against the game registry); reason is whitelisted here.
+func (s *Store) AddGameReport(ctx context.Context, gameSlug, reason, note string) error {
+	if !ValidGameReportReason(reason) {
+		return fmt.Errorf("invalid game-report reason %q", reason)
+	}
+	if strings.TrimSpace(gameSlug) == "" {
+		return errors.New("empty game slug")
+	}
+	_, err := s.DB.ExecContext(ctx, `
+		INSERT INTO game_report (game, reason, note) VALUES (?, ?, ?)
+		ON CONFLICT(game, reason) DO UPDATE SET count = count + 1, updated_at = datetime('now')`,
+		gameSlug, reason, note)
+	if err != nil {
+		return fmt.Errorf("add game report: %w", err)
+	}
+	return nil
+}
+
+// ListGameReports returns game reports with the given status (most-reported
+// first). An empty status returns every report.
+func (s *Store) ListGameReports(ctx context.Context, status string) ([]GameReport, error) {
+	q := `SELECT id, game, reason, note, count, status, created_at FROM game_report`
+	var args []any
+	if status != "" {
+		q += ` WHERE status = ?`
+		args = append(args, status)
+	}
+	q += ` ORDER BY count DESC, updated_at DESC`
+
+	rows, err := s.DB.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list game reports: %w", err)
+	}
+	defer rows.Close()
+
+	var out []GameReport
+	for rows.Next() {
+		var x GameReport
+		if err := rows.Scan(&x.ID, &x.Game, &x.Reason, &x.Note, &x.Count, &x.Status, &x.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan game report: %w", err)
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
+}
+
+// SetGameReportStatus updates one game report's status; false if no row matched.
+func (s *Store) SetGameReportStatus(ctx context.Context, id int64, status string) (bool, error) {
+	return s.setStatus(ctx, "game_report", id, status)
 }
 
 // ListSuggestions returns suggestions with the given status (most-suggested

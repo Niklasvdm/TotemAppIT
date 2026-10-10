@@ -143,6 +143,9 @@ OVERRIDES = {
     "jakhals": ("\U0001F43A", "category"),          # jackal
     "dingo": ("\U0001F43A", "category"),
     # misc birds that trip keywords
+    "boomklever": ("\U0001F426", "category"),       # nuthatch -> bird (nl "boomklEVER" hit "ever"=boar)
+    "wever": ("\U0001F426", "category"),            # weaver -> bird (nl "wEVER" hit "ever"=boar)
+    "comorenwever": ("\U0001F426", "category"),     # Comoros fody -> bird (nl "comorenwEVER" hit "ever"=boar)
     "secretarisvogel": ("\U0001F985", "category"),  # secretary bird -> raptor
     "slangehalsvogel": ("\U0001F426", "category"),  # anhinga/darter -> bird
     "spitsvogel": ("\U0001F426", "category"),       # red-backed shrike -> bird

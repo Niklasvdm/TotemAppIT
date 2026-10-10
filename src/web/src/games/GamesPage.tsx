@@ -14,6 +14,7 @@ const GAMES = [
   { slug: "loveletter", icon: "💌", titleKey: "gameLoveLetter", blurbKey: "gameLoveLetterBlurb" },
   { slug: "decrypto", icon: "🔐", titleKey: "gameDecrypto", blurbKey: "gameDecryptoBlurb" },
   { slug: "hanabi", icon: "🎆", titleKey: "gameHanabi", blurbKey: "gameHanabiBlurb" },
+  { slug: "crawler", icon: "🏰", titleKey: "gameCrawler", blurbKey: "gameCrawlerBlurb" },
 ];
 
 export default function GamesPage() {

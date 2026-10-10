@@ -57,7 +57,7 @@
       "ingenuo",
       "comico",
       "saggio",
-      "allegro",
+      "gaio",
       "premuroso"
     ],
     "slug": "aap",
@@ -447,7 +447,7 @@
       "listig"
     ],
     "traits_it": [
-      "allegro",
+      "gaio",
       "affascinante",
       "animale di gruppo",
       "premuroso",
@@ -621,7 +621,7 @@
       "fiero",
       "combattivo",
       "focoso",
-      "allegro",
+      "gaio",
       "impetuoso",
       "attivo",
       "disponibile",
@@ -1822,7 +1822,7 @@
     "traits_it": [
       "piacevole",
       "agile",
-      "allegro",
+      "gioioso",
       "coraggioso",
       "bonaccione",
       "giocoso",
@@ -2662,7 +2662,7 @@
       "agitato",
       "giocoso",
       "tollerante",
-      "allegro"
+      "gaio"
     ],
     "slug": "damhert",
     "desc_nl": "Het damhert is klein, ongedurig en onrustig. Het leeft in grote groepen, tenminste als de omstandigheden het toelaten. Het merendeel van de tijd leeft die in roedels. Het stelt zich dan verdraagzaam op ten opzichte van soortgenoten. Het damhert is speels en vrolijk, maar niet zo schuw en voorzichtig als andere herten.",
@@ -2982,7 +2982,7 @@
       "allegro",
       "socievole",
       "giocoso",
-      "allegro"
+      "gaio"
     ],
     "slug": "dolfijn",
     "desc_nl": "De dolfijn is gezellig, dartel, vrolijk en heel beweeglijk. Het is een knappe imitator, ondeugend maar vriendelijk. Door de gebogen lijnen van hun bek lijkt een dolfijn te glimlachen.",
@@ -3851,10 +3851,10 @@
     "traits_it": [
       "attraente",
       "agile",
-      "allegro",
+      "gioioso",
       "vivace",
       "territoriale",
-      "allegro",
+      "gaio",
       "canterino"
     ],
     "slug": "fitis",
@@ -5663,7 +5663,7 @@
       "colorato",
       "vivace",
       "socievole",
-      "allegro"
+      "gaio"
     ],
     "slug": "groenling",
     "desc_nl": "De groenling is een kleurrijke zangvogel. Met hun opmerkelijke zang communiceert die vanuit hoge boomtoppen met hun soortgenoten. Deze levendige en vrolijke vogel is een goede imitator en is erg sociaal ingesteld. De groenling leeft in grote groepen en houdt van het gezelschap van andere vogels. Tijdens het broedseizoen maakt die vaak acrobatische duikelingen.",
@@ -5936,7 +5936,7 @@
       "furbo",
       "tollerante",
       "prudente",
-      "allegro"
+      "gaio"
     ],
     "slug": "haas",
     "desc_nl": "De haas is vrolijk en slim. Door verschillende sprongen af te wisselen houdt die zijn achtervolgers voor de gek. De haas gaat nooit recht naar zijn leger, die gebruikt omwegen en listen om hun doel te bereiken. Ze zijn voorzichtig, oplettend en honkvast. De haas is niet territoriaal en verdraagzaam naar soortgenoten.",
@@ -6540,7 +6540,7 @@
       "fedele",
       "prudente",
       "pauroso",
-      "allegro",
+      "gaio",
       "canterino"
     ],
     "slug": "hop",
@@ -7110,7 +7110,7 @@
       "desideroso di imparare",
       "cooperativo",
       "prudente",
-      "allegro",
+      "gaio",
       "mite"
     ],
     "slug": "jako",
@@ -7599,7 +7599,7 @@
       "socievole",
       "artistico",
       "chiacchierone",
-      "allegro",
+      "gaio",
       "canterino",
       "premuroso"
     ],
@@ -7752,7 +7752,7 @@
       "furbo",
       "socievole",
       "amichevole",
-      "allegro"
+      "gaio"
     ],
     "slug": "kauw",
     "desc_nl": "Deze kleine kraaiachtige staat bekend om zijn roep “Kauw-kauw”. Ze zijn levendig, behendig en slim. De kauw weet onder alle omstandigheden hun opgewekte humeur te bewaren en hun omgeving op te vrolijken. Ze hebben een buitengewoon sterke gemeenschapszin en hebben over het algemeen veel vrienden.",
@@ -11036,7 +11036,7 @@
       "irrequieto",
       "perspicace",
       "saggio",
-      "allegro"
+      "gaio"
     ],
     "slug": "muis",
     "desc_nl": "Dit kleine knaagdier is energiek: het springt, klimt en huppelt. De muis is heel vrolijk, argeloos en verstandig. Dit dier hoort scherp, ruikt op grote afstand en ziet voortreffelijk. De muis is rusteloos, begerig en heeft een grote snoeplust.",
@@ -12651,7 +12651,7 @@
       "rumoroso",
       "intraprendente",
       "socievole",
-      "allegro",
+      "gaio",
       "premuroso"
     ],
     "slug": "parkiet",
@@ -13008,7 +13008,7 @@
       "colorato",
       "furbo",
       "forte",
-      "allegro"
+      "gaio"
     ],
     "slug": "pimpelmees",
     "desc_nl": "Deze vogel heeft een onvergelijkbaar verenkleed, met blauwige kop, staart en vleugels en een geel lijf. Met hun sterke klauwen klimt die erg goed. De pimpelmees is een slimme, vrolijke, beweeglijke vogel met levendige kleuren. Dit dier heeft een fijne lokroep.",
@@ -13406,7 +13406,7 @@
       "furbo",
       "veloce",
       "socievole",
-      "allegro",
+      "gaio",
       "vigile",
       "consapevole di sé"
     ],
@@ -13837,7 +13837,7 @@
       "allegro",
       "dispettoso",
       "prudente",
-      "allegro",
+      "gaio",
       "canterino"
     ],
     "slug": "roodborstje",
@@ -15310,7 +15310,7 @@
     "traits_it": [
       "premuroso",
       "vigile",
-      "allegro",
+      "gaio",
       "sagace",
       "allegro",
       "rumoroso",
@@ -15572,7 +15572,7 @@
       "pianificatore",
       "socievole",
       "perseverante",
-      "allegro",
+      "gaio",
       "agile",
       "spensierato"
     ],
@@ -15661,7 +15661,7 @@
       "cooperativo",
       "territoriale",
       "difensivo",
-      "allegro",
+      "gaio",
       "operoso",
       "accurato"
     ],
@@ -15705,7 +15705,7 @@
     "traits_it": [
       "adattabile",
       "modesto",
-      "allegro",
+      "gioioso",
       "coraggioso",
       "familiare",
       "di buon umore",
@@ -16322,7 +16322,7 @@
       "giocoso",
       "lungimirante",
       "pacifico",
-      "allegro"
+      "gaio"
     ],
     "slug": "steppelemming",
     "desc_nl": "Dit knaagdier heeft een lange, dichte vacht. De steppelemming is vooruitziend en gaat met overleg te werk. Ze zijn klein, maar zeker niet kwetsbaar. De steppelemming is opgewekt, speels en vrolijk. Dit knaagdier vertoont geen agressief gedrag, ook niet tegenover andere dieren. Deze is uitermate nieuwsgierig. De steppelemming is bouwlustig, maar niet altijd werkzaam. Een steppelemming leert snel, vooral door ervaring.",
@@ -16370,7 +16370,7 @@
       "irascibile",
       "chiacchierone",
       "svelto",
-      "allegro",
+      "gaio",
       "mite",
       "spensierato",
       "premuroso"
@@ -17045,7 +17045,7 @@
     ],
     "traits_it": [
       "agile",
-      "allegro",
+      "gioioso",
       "comunicativo",
       "coraggioso",
       "agitato",
@@ -17357,7 +17357,7 @@
       "veloce",
       "saggio",
       "lungimirante",
-      "allegro"
+      "gaio"
     ],
     "slug": "veldmuis",
     "desc_nl": "Dit kleine knaagdier heeft een ruige vacht en korte staart. Het springt, klimt, huppelt en is geweldig snel. De veldmuis is zeer vrolijk, goedhartig, argeloos en verstandig. Dit dier hoort scherp, ruikt op grote afstand en ziet voortreffelijk. De veldmuis is vooruitziend en verzamelt voedselvoorraden in hun nest.",
@@ -17404,7 +17404,7 @@
       "diligente",
       "prudente",
       "pacifico",
-      "allegro",
+      "gaio",
       "canterino"
     ],
     "slug": "vink",
@@ -17739,7 +17739,7 @@
       "curioso",
       "allegro",
       "dispettoso",
-      "allegro"
+      "gaio"
     ],
     "slug": "wasbeer",
     "desc_nl": "Deze kleine boombewoner kan zich goed handhaven in verschillende omgevingen en eet bijna alles. De wasbeer is intelligent en bevallig. Ze maken met hun behendigheid en lenigheid een aangename indruk. De wasbeer is vrolijk, opgewekt, nieuwsgierig, plagerig en guitig. In nood is die moedig en behulpzaam.",
@@ -17942,14 +17942,14 @@
     "traits_it": [
       "premuroso",
       "abile",
-      "allegro",
+      "gioioso",
       "vivace",
       "allegro",
       "veloce",
       "socievole",
       "audace",
       "amichevole",
-      "allegro",
+      "gaio",
       "canterino"
     ],
     "slug": "winterkoninkje",

@@ -161,7 +161,7 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
   const g = useRoom<HanView>(code, name);
   const [hintTarget, setHintTarget] = useState<number | null>(null);
   const v = g.view;
-  const bar = <RoomBar code={code} title={t("gameHanabi")} infoSlug="hanabi" onLeave={onLeave} />;
+  const bar = <RoomBar code={code} title={t("gameHanabi")} infoSlug="hanabi" gameSlug="hanabi" onLeave={onLeave} />;
 
   if (g.status === "closed") {
     return (

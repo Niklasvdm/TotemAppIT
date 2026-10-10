@@ -39,6 +39,7 @@ type Catalog interface {
 	ListTraits(ctx context.Context, lang string) ([]store.Trait, error)
 	AddSuggestion(ctx context.Context, name, note string) error
 	AddReport(ctx context.Context, slug, reason, note string) error
+	AddGameReport(ctx context.Context, gameSlug, reason, note string) error
 }
 
 // Server holds the router and its dependencies.
@@ -114,6 +115,7 @@ func New(cat Catalog, images fs.FS, emoji map[string]string, opts ...Option) *Se
 		// -lived connection is the point (it has its own per-frame budget).
 		r.Route("/games", func(r chi.Router) {
 			r.With(newRateLimiter(20, time.Minute).middleware).Post("/rooms", s.createRoom)
+			r.With(newRateLimiter(10, time.Minute).middleware).Post("/reports", s.createGameReport)
 			r.Get("/ws", s.gameWS)
 		})
 	})
@@ -387,6 +389,41 @@ func (s *Server) createReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "could not save report")
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "received"})
+}
+
+type gameReportReq struct {
+	Game   string `json:"game"`
+	Reason string `json:"reason"`
+	Note   string `json:"note"`
+}
+
+// createGameReport accepts a report about a game (bug, rule, unclear, other).
+// The game slug is validated against the registry so reports can't be seeded
+// for arbitrary strings. Deduped + counted in the store; always "received".
+func (s *Server) createGameReport(w http.ResponseWriter, r *http.Request) {
+	var req gameReportReq
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if !game.Exists(req.Game) {
+		writeErr(w, http.StatusBadRequest, "unknown game")
+		return
+	}
+	if !store.ValidGameReportReason(req.Reason) {
+		writeErr(w, http.StatusBadRequest, "invalid reason")
+		return
+	}
+	note, ok := cleanNote(req.Note)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "note too long or contains disallowed characters")
+		return
+	}
+	if err := s.cat.AddGameReport(r.Context(), req.Game, req.Reason, note); err != nil {
 		writeErr(w, http.StatusInternalServerError, "could not save report")
 		return
 	}

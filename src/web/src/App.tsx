@@ -18,6 +18,7 @@ import JustOnePage from "./games/justone/JustOnePage";
 import LoveLetterPage from "./games/loveletter/LoveLetterPage";
 import DecryptoPage from "./games/decrypto/DecryptoPage";
 import HanabiPage from "./games/hanabi/HanabiPage";
+import CrawlerPage from "./games/crawler/CrawlerPage";
 
 export default function App() {
   // Load the slug->emoji map once; cards fall back to 🐾 if it's unavailable.
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/games/loveletter" element={<LoveLetterPage />} />
         <Route path="/games/decrypto" element={<DecryptoPage />} />
         <Route path="/games/hanabi" element={<HanabiPage />} />
+        <Route path="/games/crawler" element={<CrawlerPage />} />
       </Routes>
       {quizOpen && <Quiz onClose={() => setQuizOpen(false)} />}
       {aboutOpen && <AboutTotems onClose={closeAbout} />}
