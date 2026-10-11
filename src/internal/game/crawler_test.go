@@ -91,21 +91,82 @@ func advanceToSpend(t *testing.T, g *crawlerGame) {
 func TestCrawlerMenuMinValues(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	s := g.players[0].sheet // Beaver
-	// Move >=1, Brace >=2, Attack >=4, Courage >=5.
+	// Move >=1, Brace >=2, Courage >=5, and Attack has NO minimum (any die; the hit
+	// is decided by the monster's Armour, not the menu).
 	for _, tc := range []struct {
 		action string
 		min    int
-	}{{actMove, 1}, {actBrace, 2}, {actAttack, 4}, {actCourage, 5}} {
+	}{{actMove, 1}, {actBrace, 2}, {actAttack, 1}, {actCourage, 5}} {
 		if m, _ := s.min(tc.action); m != tc.min {
 			t.Fatalf("%s min = %d, want %d", tc.action, m, tc.min)
 		}
 	}
-	// A die must meet the minimum: a 1 cannot Attack, a 4 can Move (go down).
-	if v := 1; v >= func() int { m, _ := s.min(actAttack); return m }() {
-		t.Fatal("a 1 should not qualify for Attack")
+	// Any die qualifies for Attack now; a 4 can still Move (go down).
+	if m, _ := s.min(actAttack); m != 1 {
+		t.Fatalf("attack should accept any die (min 1), got %d", m)
 	}
 	if v := 4; v < func() int { m, _ := s.min(actMove); return m }() {
 		t.Fatal("a 4 should qualify for Move")
+	}
+}
+
+func TestCrawlerWeightedDicePerCharacter(t *testing.T) {
+	// Each designed totem rolls its own weighted die faces, not a plain d6.
+	for _, tc := range []struct {
+		totem string
+		faces []int
+		hp    int
+		diceN int
+	}{
+		{"bever", diceLow, 7, 4},
+		{"pijlinktvis", diceHigh, 4, 4},
+		{"boomkikker", diceLow, 6, 4},
+		{"wasbeer", diceBalanced, 5, 5},
+		{"comorenwever", diceLow, 5, 5},
+	} {
+		s := sheetFor(tc.totem)
+		if s.maxHP != tc.hp || s.diceN != tc.diceN {
+			t.Fatalf("%s: hp=%d diceN=%d, want %d/%d", tc.totem, s.maxHP, s.diceN, tc.hp, tc.diceN)
+		}
+		if len(s.faces) != len(tc.faces) {
+			t.Fatalf("%s: faces=%v want %v", tc.totem, s.faces, tc.faces)
+		}
+		for i := range s.faces {
+			if s.faces[i] != tc.faces[i] {
+				t.Fatalf("%s: faces=%v want %v", tc.totem, s.faces, tc.faces)
+			}
+		}
+	}
+}
+
+func TestCrawlerAttackTiedToArmourNotDieMin(t *testing.T) {
+	// Attack has no fixed menu minimum: the enemy's Armour is the threshold. A die below
+	// the Armour cannot land, so it is refused (not a wasted "miss"), and a die that
+	// meets the Armour, however low the menu would rank it, lands a hit.
+	g, _ := startedCrawler(t, 1)
+	m := setupFight(g, 4, 2, 1) // Armour 4
+	g.dice = []crawlerDie{{Value: 2}, {Value: 5}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0}) // a 2 vs Armour 4
+	if g.dice[0].Spent {
+		t.Fatal("a 2 vs Armour 4 cannot land, so attacking with it must be refused (die not spent)")
+	}
+	if m.health != 2 {
+		t.Fatalf("a refused attack must not change Health: %d", m.health)
+	}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actAttack, "monster": 0}) // a 5 vs Armour 4
+	if !g.dice[1].Spent || m.health != 1 {
+		t.Fatalf("a 5 vs Armour 4 should land a hit: spent=%v Health %d", g.dice[1].Spent, m.health)
+	}
+}
+
+func TestCrawlerMendHeals(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.players[0].sheet = treefrogSheet() // Mend special
+	g.players[0].health = 3
+	g.dice = []crawlerDie{{Value: 2}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMend, "ally": 0})
+	if g.players[0].health != 5 {
+		t.Fatalf("Mend should heal 2 (3 -> 5), got %d", g.players[0].health)
 	}
 }
 
@@ -206,17 +267,69 @@ func TestCrawlerEndTurnNextToEnemyTakesDamage(t *testing.T) {
 	}
 }
 
-func TestCrawlerShieldsResetEachTurn(t *testing.T) {
+func TestCrawlerShieldsResetEachRound(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	h := g.players[0]
-	h.unlocked[0] = true // Thick Hide re-grants 2 shields at the start of each turn
-	h.shields = 4        // e.g. 2 from Thick Hide + 2 from a Brace this turn
+	h.courage = 3 // Thick Hide is auto-active at >=3 Courage
+	h.shields = 4 // e.g. 2 from Thick Hide + 2 from a Brace this round
 	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
-	advanceToSpend(t, g) // the new round's lay phase, then this hero's spend turn
-	// Shields do not carry over; the next spend turn starts with just Thick Hide's 2.
+	advanceToSpend(t, g) // round end clears shields, then the new round's spend turn
+	// Shields do not carry over; the next round starts with just Thick Hide's 2.
 	if g.players[0].shields != 2 {
-		t.Fatalf("shields must not stack across turns: want 2 (Thick Hide re-grant), got %d", g.players[0].shields)
+		t.Fatalf("shields must not stack across rounds: want 2 (Thick Hide re-grant), got %d", g.players[0].shields)
+	}
+}
+
+func TestCrawlerThickHideDeactivatesBelowThreshold(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.courage = 2 // below 3: Thick Hide is NOT active
+	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
+	advanceToSpend(t, g)
+	if g.players[0].shields != 0 {
+		t.Fatalf("Thick Hide should be inactive below 3 Courage, got %d shields", g.players[0].shields)
+	}
+}
+
+func TestCrawlerGroupFightDamagesAllHeroesOnTileAtRoundEnd(t *testing.T) {
+	// Two heroes share a monster's tile. Neither takes damage mid-round; both take it
+	// once, at the end of the round, after every hero has acted.
+	g, _ := startedCrawler(t, 2)
+	m := &crawlerMonster{armour: 3, health: 5, maxHealth: 5, damage: 2, square: 4, alive: true, reward: 1}
+	t2 := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "cross", false, []*crawlerMonster{m})
+	for s := 0; s < 2; s++ {
+		g.players[s].tileID = t2.id
+		g.players[s].square = 4
+		g.players[s].shields = 0
+	}
+	hp0, hp1 := g.players[0].health, g.players[1].health
+	g.dice = []crawlerDie{{Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn}) // hero 0 ends; no damage yet
+	if g.players[0].health != hp0 || g.players[1].health != hp1 {
+		t.Fatal("no hero should take damage before the whole round is over")
+	}
+	g.dice = []crawlerDie{{Value: 1}}
+	crCmd(t, g, 1, false, map[string]any{"t": crMsgEndTurn}) // hero 1 ends: round over, monster strikes both
+	if g.players[0].health != hp0-2 || g.players[1].health != hp1-2 {
+		t.Fatalf("both heroes on the tile should take Damage 2 at round end: %d, %d", g.players[0].health, g.players[1].health)
+	}
+	if !m.engaged {
+		t.Fatal("a monster that struck should be flagged engaged (for its attack animation)")
+	}
+}
+
+func TestCrawlerMaxCourageBlocksMoreCourage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.players[0].courage = crCourageCap
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actCourage})
+	if g.dice[0].Spent {
+		t.Fatal("Courage at the cap should refuse the action and not consume the die")
+	}
+	if g.players[0].courage != crCourageCap {
+		t.Fatalf("courage should stay at the cap, got %d", g.players[0].courage)
 	}
 }
 
@@ -241,35 +354,22 @@ func TestCrawlerCourageEconomy(t *testing.T) {
 	if g.players[0].courage != 0 {
 		t.Fatalf("a reroll should cost 1 Courage, got %d", g.players[0].courage)
 	}
-	// You must have earned the Courage to unlock, but it is NOT spent.
-	g.players[0].courage = 2
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgUnlock, "which": 0})
-	if g.players[0].unlocked[0] {
-		t.Fatal("unlock 0 should be refused below 3 Courage")
-	}
-	g.players[0].courage = 3
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgUnlock, "which": 0})
-	if !g.players[0].unlocked[0] || g.players[0].courage != 3 {
-		t.Fatalf("unlock 0 needs 3 Courage but must not spend it: unlocked=%v courage=%d", g.players[0].unlocked, g.players[0].courage)
-	}
-	// The second unlock needs the first AND 5 Courage, still without spending.
-	g.players[0].courage = 4
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgUnlock, "which": 1})
-	if g.players[0].unlocked[1] {
-		t.Fatal("unlock 1 should be refused below 5 Courage")
-	}
-	g.players[0].courage = 5
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgUnlock, "which": 1})
-	if !g.players[0].unlocked[1] || g.players[0].courage != 5 {
-		t.Fatalf("unlock 1 needs 5 Courage but must not spend it: unlocked=%v courage=%d", g.players[0].unlocked, g.players[0].courage)
-	}
 }
 
-func TestCrawlerSecondUnlockNeedsFirst(t *testing.T) {
-	g, _ := startedCrawler(t, 1)
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgUnlock, "which": 1})
-	if g.players[0].unlocked[1] {
-		t.Fatal("the second special must not unlock before the first")
+func TestCrawlerSpecialsAutoActivateByCourage(t *testing.T) {
+	// No manual unlock: a special is active exactly while Courage is at/above its
+	// threshold (3, then 5), and switches off again when Courage drops.
+	h := &crawlerHero{sheet: beaverSheet()}
+	for _, tc := range []struct {
+		courage int
+		a0, a1  bool
+	}{
+		{2, false, false}, {3, true, false}, {4, true, false}, {5, true, true}, {4, true, false}, {0, false, false},
+	} {
+		h.courage = tc.courage
+		if h.specialActive(0) != tc.a0 || h.specialActive(1) != tc.a1 {
+			t.Fatalf("courage %d: active=%v/%v want %v/%v", tc.courage, h.specialActive(0), h.specialActive(1), tc.a0, tc.a1)
+		}
 	}
 }
 
@@ -540,6 +640,178 @@ func TestCrawlerBossInFinalBand(t *testing.T) {
 		if g.deck[bossIdx].band != g.bands-1 {
 			t.Fatalf("seed %d: boss in band %d, want final band %d", seed, g.deck[bossIdx].band, g.bands-1)
 		}
+	}
+}
+
+// A tile can hold several monsters (a swarm), each laid on its own walkable square.
+func TestCrawlerMultipleMonstersPerTile(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	mons := []*crawlerMonster{
+		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "drone", alive: true, reward: 1},
+		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "drone", alive: true, reward: 1},
+		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "drone", alive: true, reward: 1},
+	}
+	edges := [4]bool{true, true, true, true} // a cross: centre + four doorways walkable
+	assignMonsterSquares(edges, mons)
+	seen := map[int]bool{}
+	for _, m := range mons {
+		if seen[m.square] {
+			t.Fatalf("two monsters share square %d: a swarm must spread out", m.square)
+		}
+		if !crawlerWalkable(edges)[m.square] {
+			t.Fatalf("monster placed on non-walkable square %d", m.square)
+		}
+		seen[m.square] = true
+	}
+	// And they all surface in the tile view so the client can draw them.
+	bt := g.placeTile(5, 5, edges, 1, "cross", false, mons)
+	g.players[0].tileID = bt.id
+	g.broadcastViews()
+	v := crLast(t, g.out.(*fakeOutbox), 0)
+	var tv *crawlerTileView
+	for i := range v.Tiles {
+		if v.Tiles[i].ID == bt.id {
+			tv = &v.Tiles[i]
+		}
+	}
+	if tv == nil || len(tv.Monsters) != 3 {
+		t.Fatalf("tile view should carry 3 monsters, got %v", tv)
+	}
+	if tv.Monsters[0].Reward != 1 {
+		t.Fatalf("monster view should carry its Courage reward, got %d", tv.Monsters[0].Reward)
+	}
+}
+
+// The boss's Health scales with the party size (~3 per hero) rather than a flat value.
+func TestCrawlerBossHealthScalesWithPlayers(t *testing.T) {
+	for _, n := range []int{1, 2, 4, 6} {
+		g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+		for i := 0; i < n; i++ {
+			g.AddPlayer("hero", "")
+		}
+		g.bands = 3
+		g.buildDeck()
+		want := 3 * n
+		if want < 3 {
+			want = 3
+		}
+		found := false
+		for _, s := range g.deck {
+			if !s.isBoss {
+				continue
+			}
+			found = true
+			if len(s.monsters) != 1 || s.monsters[0].maxHealth != want {
+				t.Fatalf("%d players: boss Health = %v, want %d", n, s.monsters, want)
+			}
+		}
+		if !found {
+			t.Fatalf("%d players: no boss in the deck", n)
+		}
+	}
+}
+
+// A fast mover's Move die gives a second step the player directs separately, so the
+// two squares can turn a corner (east, then north) instead of going straight.
+func TestCrawlerFastMoveIsDirected(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.players[0].sheet = comorosSheet() // moveRange 2
+	g.players[0].square = 3             // W doorway of the start cross
+	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1}) // East -> centre
+	if g.players[0].square != 4 || g.bonusMoves != 1 {
+		t.Fatalf("first step East should reach centre with 1 bonus move: sq=%d bonus=%d", g.players[0].square, g.bonusMoves)
+	}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgStep, "dir": 0}) // North -> N doorway (a turn)
+	if g.players[0].square != 1 || g.bonusMoves != 0 {
+		t.Fatalf("directed second step North should reach the N doorway: sq=%d bonus=%d", g.players[0].square, g.bonusMoves)
+	}
+}
+
+// The Arrow Squid has no dash: its signature is ranged attack, not movement, so there
+// is no Jet action on its sheet (only Move, Attack, Courage).
+func TestCrawlerSquidHasNoSpecialAction(t *testing.T) {
+	s := squidSheet()
+	if s.special != "" {
+		t.Fatalf("the Arrow Squid should have no active special action, got %q", s.special)
+	}
+	for _, m := range s.menu {
+		if m.Action != actMove && m.Action != actAttack && m.Action != actCourage {
+			t.Fatalf("the Squid menu should be Move/Attack/Courage only, found %q", m.Action)
+		}
+	}
+	if !s.ranged {
+		t.Fatal("the Arrow Squid should be ranged")
+	}
+}
+
+// A hero on a portal's centre can teleport to another portal; a non-portal target is
+// refused.
+func TestCrawlerPortalTeleport(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	pa := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindPortal, false, nil)
+	pb := g.placeTile(8, 8, [4]bool{true, true, true, true}, 0, crKindPortal, false, nil)
+	plain := g.placeTile(2, 2, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	g.players[0].tileID = pa.id
+	g.players[0].square = 4
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgPortal, "tile": plain.id})
+	if g.players[0].tileID != pa.id {
+		t.Fatal("teleporting to a non-portal tile must be refused")
+	}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgPortal, "tile": pb.id})
+	if g.players[0].tileID != pb.id || g.players[0].square != 4 {
+		t.Fatalf("portal should move the hero to the other portal's centre: tile=%d sq=%d", g.players[0].tileID, g.players[0].square)
+	}
+}
+
+// A healing spring heals the moment a hero steps onto its centre, costs no die, and is
+// not consumed: stepping off and back on heals again.
+func TestCrawlerHealingSpringHealsOnEntryRepeatable(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	spring := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindHealing, false, nil)
+	h := g.players[0]
+	h.tileID = spring.id
+	h.square = 3 // W doorway, not yet on the spring
+	h.health = 2
+	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1}) // East -> centre
+	if h.square != 4 || h.health != 2+crSpringHeal {
+		t.Fatalf("stepping onto the spring centre should heal with no extra die: sq=%d hp=%d", h.square, h.health)
+	}
+	// Step off to the N doorway and back onto the centre: it heals again (not depleted).
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actMove, "dir": 0}) // North -> N door
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 2, "action": actMove, "dir": 2}) // South -> centre
+	if h.square != 4 || h.health != 2+2*crSpringHeal {
+		t.Fatalf("re-entering the spring centre should heal again (not depleted): sq=%d hp=%d", h.square, h.health)
+	}
+}
+
+// Arrow Squid specials: Barbed Shot (Courage >= 3) lets a lower die land; Deep Volley
+// (Courage >= 5) makes an attacking 6 count as two hits, once a turn.
+func TestCrawlerSquidBarbedShotAndDeepVolley(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.players[0].sheet = squidSheet()
+	m := setupFight(g, 4, 6, 1) // Armour 4, Health 6
+	g.players[0].courage = 0
+	g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0}) // 3 vs Armour 4, no Barbed
+	if g.dice[0].Spent || m.health != 6 {
+		t.Fatalf("without Barbed Shot a 3 vs Armour 4 is refused: spent=%v hp=%d", g.dice[0].Spent, m.health)
+	}
+	g.players[0].courage = crUnlock0Courage // Barbed Shot active: Armour effectively 3
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actAttack, "monster": 0})
+	if !g.dice[1].Spent || m.health != 5 {
+		t.Fatalf("Barbed Shot should let a 3 land on Armour 4: spent=%v hp=%d", g.dice[1].Spent, m.health)
+	}
+	g.players[0].courage = crUnlock1Courage // Deep Volley active
+	g.dice = []crawlerDie{{Value: 6}, {Value: 6}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.health != 3 {
+		t.Fatalf("Deep Volley: an attacking 6 should land two hits (5 -> 3): hp=%d", m.health)
+	}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actAttack, "monster": 0})
+	if m.health != 2 {
+		t.Fatalf("Deep Volley is once a turn: the second 6 lands one hit (3 -> 2): hp=%d", m.health)
 	}
 }
 

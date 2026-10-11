@@ -495,6 +495,8 @@ header {
    while engaged (the hero is fighting it this turn), which also shows the attack frame */
 .cr-enemy { display: inline-block; width: 2.4rem; height: 2.4rem; background-size: contain; background-position: center; background-repeat: no-repeat; animation: cr-hover 2.2s ease-in-out infinite; }
 .cr-enemy.engaged { animation: cr-enemy-atk .5s ease-in-out infinite; }
+.cr-enemy.boss { width: 3rem; height: 3rem; }
+.cr-enemy.dead { animation: none; opacity: .72; filter: grayscale(.4); } /* defeated: destroyed frame, no bob */
 @keyframes cr-hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes cr-enemy-atk { 0%, 100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-2px) scale(1.14) rotate(-4deg); } 70% { transform: translateY(0) scale(1.05) rotate(3deg); } }
 .cr-pawn { font-size: 1.4rem; }
@@ -560,21 +562,34 @@ header {
 .cr-bar { flex: 1; height: 12px; border-radius: 6px; background: var(--line, rgba(0,0,0,.15)); overflow: hidden; }
 .cr-bar span { display: block; height: 100%; transition: width .2s; }
 .cr-hpbar span { background: var(--red, #c0392b); }
+.cr-courbar { position: relative; }
 .cr-courbar span { background: #3b82f6; }
+.cr-bar-tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: rgba(255,255,255,.75); box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .cr-menu { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .cr-menu-item { font-size: .8rem; padding: .2rem .5rem; border-radius: 999px; background: var(--chip, rgba(0,0,0,.06)); display: inline-flex; align-items: center; gap: .25rem; }
 .cr-menu-item b { color: var(--accent, #c9803a); }
 .cr-specials { display: flex; flex-wrap: wrap; gap: .5rem; font-size: .82rem; }
-.cr-specials > span { opacity: .65; display: inline-flex; align-items: center; gap: .25rem; }
-.cr-specials .on { opacity: 1; font-weight: 700; color: var(--gold, #c9a227); }
-/* Courage has reached this special's unlock cost: make it obviously ready (blue) */
-.cr-specials .ready { opacity: 1; font-weight: 800; color: #3b82f6; }
+/* Inactive specials are dimmed by COLOUR, not opacity: an ancestor opacity<1 would
+   make the hover tooltip translucent too (it inherits the stacking opacity). */
+.cr-specials > span { color: var(--muted, #8a8277); display: inline-flex; align-items: center; gap: .25rem; transition: color .25s; }
+.cr-specials .on { font-weight: 700; color: var(--gold, #c9a227); }
+/* Courage is at/above this special's threshold: it is ACTIVE (blue), with a pulse as
+   it switches on. */
+.cr-specials .ready { font-weight: 800; color: #3b82f6; animation: cr-power-on .5s ease-out; }
+@keyframes cr-power-on { 0% { text-shadow: 0 0 0 transparent; } 40% { text-shadow: 0 0 10px #3b82f6; } 100% { text-shadow: 0 0 0 transparent; } }
 /* hero pawn on the map */
 .cr-pawn { position: relative; line-height: 0; }
 .cr-pawn.active .cr-sprite { filter: drop-shadow(0 0 3px var(--gold, #c9a227)); }
 /* monster hover stat box — fixed dark panel + light text so it is readable in
    both themes (var(--ink) is light in dark mode, which made this white-on-cream) */
-.cr-mon { position: relative; cursor: help; }
+.cr-mon { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
+.cr-mon-badge {
+  margin-top: -2px; font-size: .62rem; font-weight: 800; line-height: 1; white-space: nowrap;
+  padding: .1rem .25rem; border-radius: 5px; background: rgba(20,15,9,.88); color: #fdf6e8;
+  border: 1px solid rgba(201,162,39,.7); box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.cr-pawn.dead { opacity: .75; filter: grayscale(.4); }
+.cr-debug { max-height: 38vh; overflow: auto; width: 100%; pointer-events: auto; margin: .4rem 0; }
 .cr-mon-stats {
   display: none; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%);
   white-space: normal; text-align: left; width: max-content; max-width: 13rem;

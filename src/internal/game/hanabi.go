@@ -253,7 +253,11 @@ func (g *hanabiGame) refill(seat int) {
 	}
 	if len(g.deck) == 0 && !g.lastRound {
 		g.lastRound = true
-		g.lastTurnsLeft = len(g.order) // one final turn each
+		// Each player gets one more turn once the deck empties, INCLUDING the player who
+		// drew the last card (standard rule). This runs inside that player's own turn,
+		// just before advance() decrements once for it, so we need len(order)+1 to leave
+		// a full round of len(order) fresh turns (the drawer's final turn included).
+		g.lastTurnsLeft = len(g.order) + 1
 	}
 }
 

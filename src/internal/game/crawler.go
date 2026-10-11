@@ -87,18 +87,36 @@ const (
 	crMsgSpend   = "spend"   // {die, action, dir|monster|ally}
 	crMsgLay     = "layTile" // {x, y, rotation} from the offered options
 	crMsgReroll  = "reroll"  // {die}
-	crMsgUnlock  = "unlock"  // {which: 0|1}
 	crMsgEndTurn = "endTurn"
 	crMsgRestart = "restart"
+	crMsgStep    = "step"   // {dir} one bonus step of a multi-square move (no die)
+	crMsgPortal  = "portal" // {tile} teleport from a portal tile to another portal tile (no die)
 )
 
-// Actions on the menu.
+// Special (non-combat) tile kinds placed into the deck. They carry no monster; their
+// behaviour is their kind: portals teleport between each other, a healing spring heals
+// a hero who steps onto its centre, the shop is a (V0-inert) vendor stall.
+const (
+	crKindPortal  = "portal"
+	crKindHealing = "healing"
+	crKindShop    = "shop"
+)
+
+// crSpringHeal is how much health a healing spring restores each time a hero steps onto
+// its centre square. It is not consumed (the spring keeps healing on every fresh entry).
+const crSpringHeal = 2
+
+// Actions on the menu. Attack has no fixed die minimum: per the design, ANY die may
+// be spent as an attack die and it lands a hit only if it meets the target monster's
+// Armour (see tryAttack), so the threshold is the enemy, not the menu.
 const (
 	actMove    = "move"
 	actAttack  = "attack"
 	actCourage = "courage"
 	actBrace   = "brace" // Beaver special: 2 Shields to self or an ally on the tile
-	actGuard   = "guard" // generic special: 1 Shield to self
+	actMend    = "mend"  // Treefrog special: heal 2 to a hero on your tile
+	actCarry   = "carry" // Comoros Weaver special: give an ally on your tile a 1-square move
+	actGuard   = "guard" // generic/placeholder special: 1 Shield to self
 )
 
 const crCourageCap = 10
@@ -123,32 +141,106 @@ type crawlerMenuEntry struct {
 }
 
 type crawlerSheet struct {
-	totem   string
-	maxHP   int
-	diceN   int
-	menu    []crawlerMenuEntry
-	special string // the special action's name (brace/guard)
-	unlock0 string // first unlock label
-	unlock1 string // second unlock label
+	totem     string
+	maxHP     int
+	diceN     int
+	faces     []int // the die's weighted faces (the three types below); roll picks one
+	menu      []crawlerMenuEntry
+	special   string // the inherent special action's name (brace/mend/carry/guard), or "" for none
+	moveRange int    // squares per Move die (1, or 2 for a fast mover)
+	ranged    bool   // may attack a monster on an adjacent tile, not only its own
+	unlock0   string // first unlock label
+	unlock1   string // second unlock label
 }
 
+// The three die types from the design. Every number rolled stays useful: the sheet,
+// not the face, decides what it can become. A High die meets Armour far more often; a
+// Low die rarely attacks but feeds Move/Special.
+var (
+	diceLow      = []int{1, 2, 2, 3, 3, 6} // favours Move/Special, weak attack
+	diceBalanced = []int{1, 2, 3, 4, 5, 6} // flexible, a plain d6
+	diceHigh     = []int{2, 4, 5, 5, 6, 6} // favours Attack/Courage
+)
+
+// baseMenu is the default die-value map shared by every sheet, with the sheet's own
+// special in the 2+ slot. Move is any die (>=1), the special >=2, Courage >=5, and
+// Attack has no minimum (any die; the hit is decided by the monster's Armour).
+func baseMenu(special string) []crawlerMenuEntry {
+	return []crawlerMenuEntry{{actMove, 1}, {special, 2}, {actAttack, 1}, {actCourage, 5}}
+}
+
+// Beaver (Guardian): tanky, Low dice whose weak numbers become Shields.
 func beaverSheet() crawlerSheet {
 	return crawlerSheet{
-		totem: "bever", maxHP: 7, diceN: 4,
-		menu: []crawlerMenuEntry{
-			{actMove, 1}, {actBrace, 2}, {actAttack, 4}, {actCourage, 5},
-		},
-		special: actBrace, unlock0: "Thick Hide", unlock1: "Bulwark",
+		totem: "bever", maxHP: 7, diceN: 4, faces: diceLow, moveRange: 1,
+		menu: baseMenu(actBrace), special: actBrace, unlock0: "Thick Hide", unlock1: "Bulwark",
 	}
 }
 
+// Arrow Squid (Striker): fragile, High dice that meet Armour often. Its signature is
+// RANGED damage: its Attack can reach a monster on an adjacent tile (ranged), so it has
+// no active special-action slot (its edge is reach, plus the Courage unlocks below). The
+// menu is the default map minus the Special entry.
+func squidSheet() crawlerSheet {
+	return crawlerSheet{
+		totem: "pijlinktvis", maxHP: 4, diceN: 4, faces: diceHigh, moveRange: 1, ranged: true,
+		menu:    []crawlerMenuEntry{{actMove, 1}, {actAttack, 1}, {actCourage, 5}},
+		special: "", unlock0: "Barbed Shot", unlock1: "Deep Volley",
+	}
+}
+
+// Treefrog (Healer): staying power, Low dice that become frequent Mends.
+func treefrogSheet() crawlerSheet {
+	return crawlerSheet{
+		totem: "boomkikker", maxHP: 6, diceN: 4, faces: diceLow, moveRange: 1,
+		menu: baseMenu(actMend), special: actMend, unlock0: "Spores", unlock1: "Bloom",
+	}
+}
+
+// Raccoon (Trickster): 5 Balanced dice. Pilfer is a V0 placeholder (1 Shield) until
+// the loot system exists; specials are spec'd.
+func raccoonSheet() crawlerSheet {
+	return crawlerSheet{
+		totem: "wasbeer", maxHP: 5, diceN: 5, faces: diceBalanced, moveRange: 1,
+		menu: baseMenu(actGuard), special: actGuard, unlock0: "Lucky Paws", unlock1: "Big Score",
+	}
+}
+
+// Comoros Weaver (Carrier): 5 Low dice, the fast mover (2 squares per Move die).
+// Carry gives an ally on your tile a free 1-square move.
+func comorosSheet() crawlerSheet {
+	return crawlerSheet{
+		totem: "comorenwever", maxHP: 5, diceN: 5, faces: diceLow, moveRange: 2,
+		menu: baseMenu(actCarry), special: actCarry, unlock0: "Ferry", unlock1: "Flock",
+	}
+}
+
+// genericSheet is the fallback for totems without a bespoke design: a standard 4
+// Balanced dice, Guard special.
 func genericSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: totem, maxHP: 5, diceN: 4,
-		menu: []crawlerMenuEntry{
-			{actMove, 1}, {actGuard, 3}, {actAttack, 4}, {actCourage, 5},
-		},
-		special: actGuard, unlock0: "Resolve", unlock1: "Second Wind",
+		totem: totem, maxHP: 5, diceN: 4, faces: diceBalanced, moveRange: 1,
+		menu: baseMenu(actGuard), special: actGuard, unlock0: "Resolve", unlock1: "Second Wind",
+	}
+}
+
+// sheetFor maps a totem slug to its design sheet, falling back to the generic one.
+func sheetFor(totem string) crawlerSheet {
+	switch totem {
+	case "bever":
+		return beaverSheet()
+	case "pijlinktvis":
+		return squidSheet()
+	case "boomkikker":
+		return treefrogSheet()
+	case "wasbeer":
+		return raccoonSheet()
+	case "comorenwever":
+		return comorosSheet()
+	case "":
+		return genericSheet("totem")
+	default:
+		return genericSheet(totem)
 	}
 }
 
@@ -164,15 +256,26 @@ func (s crawlerSheet) min(action string) (int, bool) {
 // --- state ------------------------------------------------------------------
 
 type crawlerHero struct {
-	name     string
-	sheet    crawlerSheet
-	health   int
-	courage  int
-	shields  int
-	tileID   int
-	square   int
-	unlocked [2]bool
-	alive    bool
+	name       string
+	sheet      crawlerSheet
+	health     int
+	courage    int
+	shields    int
+	tileID     int
+	square     int
+	alive      bool
+	volleyUsed bool // Arrow Squid: Deep Volley spent this turn (once-a-turn, reset in beginTurn)
+}
+
+// specialActive reports whether a Courage-unlocked special is currently active:
+// specials auto-unlock at their Courage threshold and switch OFF again the moment
+// Courage drops below it (there is no manual unlock). which 0 needs 3, which 1 needs 5.
+func (h *crawlerHero) specialActive(which int) bool {
+	need := crUnlock0Courage
+	if which == 1 {
+		need = crUnlock1Courage
+	}
+	return h.courage >= need
 }
 
 type crawlerDie struct {
@@ -202,13 +305,15 @@ type crawlerTile struct {
 	isBoss   bool
 }
 
-// tileSpec is one entry in the shuffled stack, drawn when a tile is laid.
+// tileSpec is one entry in the shuffled stack, drawn when a tile is laid. A tile may
+// carry several monsters (a swarm); their squares are assigned when the tile is laid
+// and its final edges (so its walkable squares) are known (see layTile).
 type tileSpec struct {
-	band    int
-	kind    string
-	base    [4]bool
-	monster *crawlerMonster
-	isBoss  bool
+	band     int
+	kind     string
+	base     [4]bool
+	monsters []*crawlerMonster
+	isBoss   bool
 }
 
 type crawlerLayOption struct {
@@ -257,6 +362,12 @@ type crawlerGame struct {
 	// since every drawn tile has been laid) before the run is lost.
 	grace int
 
+	// bonusMoves is how many extra single-square steps the active hero may still take
+	// from a multi-square move (a fast mover's Move die, e.g. the Comoros Weaver).
+	// Each step is directed separately (crMsgStep), so a 2-move can go left then up, not
+	// only straight. Reset at the start of each turn.
+	bonusMoves int
+
 	pending *crawlerPending
 	log     []string
 }
@@ -285,13 +396,7 @@ func (g *crawlerGame) AddPlayer(name, meta string) (int, bool) {
 	if seat == -1 {
 		return 0, false
 	}
-	sheet := genericSheet(meta)
-	if meta == "bever" {
-		sheet = beaverSheet()
-	}
-	if meta == "" {
-		sheet = genericSheet("totem")
-	}
+	sheet := sheetFor(meta)
 	g.players[seat] = &crawlerHero{name: name, sheet: sheet, health: sheet.maxHP, alive: true}
 	g.order = append(g.order, seat)
 	return seat, true
@@ -330,11 +435,11 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 		Action   string `json:"action"`
 		Dir      int    `json:"dir"`
 		Monster  int    `json:"monster"`
+		Tile     int    `json:"tile"` // target tile for a ranged attack (own tile if 0/omitted)
 		Ally     int    `json:"ally"`
 		X        int    `json:"x"`
 		Y        int    `json:"y"`
 		Rotation int    `json:"rotation"`
-		Which    int    `json:"which"`
 	}
 	if json.Unmarshal(raw, &c) != nil {
 		return
@@ -353,22 +458,27 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
 			return
 		}
-		g.spendDie(seat, c.Die, c.Action, c.Dir, c.Monster, c.Ally)
+		g.spendDie(seat, c.Die, c.Action, c.Dir, c.Monster, c.Tile, c.Ally)
 	case crMsgLay:
 		if g.phase != crPlaying || g.step != crStepLay || seat != g.turn {
 			return
 		}
 		g.layTile(seat, c.X, c.Y, c.Rotation)
+	case crMsgStep:
+		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
+			return
+		}
+		g.bonusStep(seat, c.Dir)
+	case crMsgPortal:
+		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
+			return
+		}
+		g.usePortal(seat, c.Tile)
 	case crMsgReroll:
 		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
 			return
 		}
 		g.reroll(seat, c.Die)
-	case crMsgUnlock:
-		if g.phase != crPlaying || seat != g.turn {
-			return
-		}
-		g.unlock(seat, c.Which)
 	case crMsgEndTurn:
 		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
 			return
@@ -397,14 +507,15 @@ func (g *crawlerGame) startRun() {
 	g.grace = -1
 	g.buildDeck()
 
-	// Start tile: a cross at (0,0) with no monster; heroes start on the centre.
-	start := g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	// Start tile: the transporter (a crossroads portal) at (0,0), no monster; heroes
+	// start on its centre. Being a portal, it is one end of the teleport network, so a
+	// single portal drawn later makes a usable pair.
+	start := g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, crKindPortal, false, nil)
 	for _, s := range g.order {
 		h := g.players[s]
 		h.health = h.sheet.maxHP
 		h.courage = 0
 		h.shields = 0
-		h.unlocked = [2]bool{}
 		h.alive = true
 		h.tileID = start.id
 		h.square = 4
@@ -614,6 +725,11 @@ var crawlerTilePool = []crawlerTileType{
 
 // buildDeck lays out the shuffled stack: tiles in difficulty bands, the boss
 // shuffled into the final band.
+//
+// This is THE place to tune tile mix and difficulty pacing: `perBand` and `g.bands`
+// (set in startRun) size the stack and the boss clock; `crawlerTilePool` weights the
+// tile shapes drawn; `rollMonster` decides the enemies (and swarms) per band. The boss
+// stat line is built here too.
 func (g *crawlerGame) buildDeck() {
 	perBand := 4
 	g.deck = nil
@@ -622,13 +738,33 @@ func (g *crawlerGame) buildDeck() {
 		band := make([]tileSpec, 0, perBand)
 		for i := 0; i < perBand; i++ {
 			tt := crawlerTilePool[g.rng.IntN(len(crawlerTilePool))]
-			band = append(band, tileSpec{band: b, kind: tt.kind, base: tt.base, monster: g.rollMonster(b)})
+			band = append(band, tileSpec{band: b, kind: tt.kind, base: tt.base, monsters: g.rollMonster(b)})
 		}
 		g.rng.Shuffle(len(band), func(i, j int) { band[i], band[j] = band[j], band[i] })
+		// Special tiles, one per band, shuffled in at a random spot: a healing spring in
+		// each outer band (two total), and in the middle band the second portal (paired
+		// with the start tile) and the shop. They carry no monster; their kind is their
+		// effect. Edge shapes: portal = crossroads, healing = T-junction, shop = dead-end.
+		switch b {
+		case 0:
+			band = g.insertSpec(band, tileSpec{band: b, kind: crKindHealing, base: ttTee.base})
+		case 1:
+			band = g.insertSpec(band, tileSpec{band: b, kind: crKindPortal, base: ttCross.base})
+			band = g.insertSpec(band, tileSpec{band: b, kind: crKindShop, base: ttDeadEnd.base})
+		case g.bands - 1:
+			band = g.insertSpec(band, tileSpec{band: b, kind: crKindHealing, base: ttTee.base})
+		}
 		if b == g.bands-1 {
 			// Boss (a dead-end lair) shuffled into the last few of the final band.
+			// Design: Armour 4, Damage 4, and Health that scales with party size
+			// (~3 per hero) so the fight lasts about the same few rounds at any count,
+			// rather than a flat value that a big party melts (see the spec).
+			bossHP := 3 * len(g.order)
+			if bossHP < 3 {
+				bossHP = 3
+			}
 			boss := tileSpec{band: b, kind: "boss", base: ttDeadEnd.base, isBoss: true,
-				monster: &crawlerMonster{armour: 5, health: 4, maxHealth: 4, damage: 4, square: 4, kind: "boss", alive: true, isBoss: true, reward: 3}}
+				monsters: []*crawlerMonster{{armour: 4, health: bossHP, maxHealth: bossHP, damage: 4, square: 4, kind: "boss", alive: true, isBoss: true, reward: 3}}}
 			pos := len(band)
 			if len(band) > 0 {
 				pos = len(band) - g.rng.IntN(min2(len(band), 3)+1)
@@ -639,26 +775,89 @@ func (g *crawlerGame) buildDeck() {
 	}
 }
 
-func (g *crawlerGame) rollMonster(band int) *crawlerMonster {
+// rollMonster rolls the enemies for one tile in a band: 0, 1 or a small swarm. A 3x3
+// tile has at most five walkable squares (centre + up to four doorways), so a tile
+// holds up to three robots comfortably; their squares are assigned when the tile is
+// laid (layTile). Tougher types show up deeper in the stack.
+//
+// To tweak the enemy mix or add a swarm, this is the single place to look: edit the
+// per-band weights and the slices returned. `mk` builds one robot (Armour, Health,
+// Damage, Courage reward, art kind).
+// insertSpec shuffles one special tile into a band at a random position.
+func (g *crawlerGame) insertSpec(band []tileSpec, spec tileSpec) []tileSpec {
+	pos := g.rng.IntN(len(band) + 1)
+	out := make([]tileSpec, 0, len(band)+1)
+	out = append(out, band[:pos]...)
+	out = append(out, spec)
+	out = append(out, band[pos:]...)
+	return out
+}
+
+func (g *crawlerGame) rollMonster(band int) []*crawlerMonster {
 	roll := g.rng.IntN(100)
-	mk := func(a, h, d int, kind string) *crawlerMonster {
-		return &crawlerMonster{armour: a, health: h, maxHealth: h, damage: d, square: 4, kind: kind, alive: true, reward: 1}
+	mk := func(a, h, d, reward int, kind string) *crawlerMonster {
+		return &crawlerMonster{armour: a, health: h, maxHealth: h, damage: d, square: 4, kind: kind, alive: true, reward: reward}
 	}
+	// Archetypes (design stat lines + Courage reward scaled by toughness): drone =
+	// Scrapling 3/1/1 reward 1, brute (mid bruiser) 4/2/3 reward 2, tank = Hulk 3/4/3
+	// reward 2.
+	drone := func() *crawlerMonster { return mk(3, 1, 1, 1, "drone") }
+	brute := func() *crawlerMonster { return mk(4, 2, 3, 2, "brute") }
+	tank := func() *crawlerMonster { return mk(3, 4, 3, 2, "tank") }
 	switch band {
 	case 0:
-		if roll < 50 {
-			return mk(3, 1, 1, "drone") // the weakest enemy
+		switch {
+		case roll < 45:
+			return []*crawlerMonster{drone()} // a lone drone
+		case roll < 55:
+			return []*crawlerMonster{drone(), drone()} // early swarm
 		}
 	case 1:
-		if roll < 70 {
-			return mk(4, 2, 2, "brute") // tougher second-tier enemy
+		switch {
+		case roll < 25:
+			return []*crawlerMonster{drone()}
+		case roll < 50:
+			return []*crawlerMonster{brute()}
+		case roll < 65:
+			return []*crawlerMonster{tank()}
+		case roll < 85:
+			return []*crawlerMonster{drone(), drone()}
 		}
 	default:
-		if roll < 80 {
-			return mk(4, 2, 3, "brute")
+		switch {
+		case roll < 20:
+			return []*crawlerMonster{brute()}
+		case roll < 45:
+			return []*crawlerMonster{tank()}
+		case roll < 65:
+			return []*crawlerMonster{brute(), drone()}
+		case roll < 85:
+			return []*crawlerMonster{drone(), drone(), drone()} // late scrap swarm
 		}
 	}
 	return nil
+}
+
+// crawlerSquareOrder is the preference order for placing several monsters on a tile:
+// the centre first, then each doorway (N, E, S, W). assignMonsterSquares drops each
+// monster on the next free walkable square so a swarm spreads out instead of stacking.
+var crawlerSquareOrder = [5]int{4, crawlerDoor[0], crawlerDoor[1], crawlerDoor[2], crawlerDoor[3]}
+
+func assignMonsterSquares(edges [4]bool, mons []*crawlerMonster) {
+	w := crawlerWalkable(edges)
+	slots := make([]int, 0, 5)
+	for _, sq := range crawlerSquareOrder {
+		if w[sq] {
+			slots = append(slots, sq)
+		}
+	}
+	for i, m := range mons {
+		if i < len(slots) {
+			m.square = slots[i]
+		} else {
+			m.square = 4 // more monsters than squares (shouldn't happen): stack on centre
+		}
+	}
 }
 
 func min2(a, b int) int {
@@ -673,24 +872,30 @@ func min2(a, b int) int {
 func (g *crawlerGame) beginTurn(seat int) {
 	h := g.players[seat]
 	g.step = crStepSpend
-	// Thick Hide: start the turn with 2 Shields if unlocked (Beaver, unlock 0).
-	if h.unlocked[0] && h.sheet.totem == "bever" {
+	g.bonusMoves = 0
+	h.volleyUsed = false
+	// Thick Hide (Beaver, first special): start the turn with 2 Shields while it is
+	// active, i.e. while Courage is at or above its threshold.
+	if h.sheet.totem == "bever" && h.specialActive(0) {
 		h.shields += 2
 	}
 	g.dice = make([]crawlerDie, h.sheet.diceN)
 	for i := range g.dice {
-		g.dice[i] = crawlerDie{Value: 1 + g.rng.IntN(6)}
+		g.dice[i] = crawlerDie{Value: g.rollFace(h.sheet)}
 	}
-	// Fresh turn: clear "engaged this turn" on the hero's current tile (damage
-	// already dealt to monsters persists; only the retaliation flag resets).
-	if t := g.tiles[h.tileID]; t != nil {
+}
+
+// clearEngaged drops the "attacked" flag on every monster, done at the start of each
+// round so a monster's attack animation shows for exactly the round after it struck.
+func (g *crawlerGame) clearEngaged() {
+	for _, t := range g.tiles {
 		for _, m := range t.monsters {
 			m.engaged = false
 		}
 	}
 }
 
-func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx, ally int) {
+func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx, tile, ally int) {
 	h := g.players[seat]
 	if dieIdx < 0 || dieIdx >= len(g.dice) || g.dice[dieIdx].Spent {
 		return
@@ -701,23 +906,38 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 	}
 	switch action {
 	case actMove:
+		// First step now, in the chosen direction; a fast mover (moveRange > 1) then
+		// gets the rest of its movement as directed bonus steps (crMsgStep), so one die
+		// can turn a corner (e.g. left then up) instead of only going straight.
 		if !g.tryMove(seat, dir) {
 			return
 		}
+		if h.sheet.moveRange > 1 && g.pending == nil {
+			g.bonusMoves = h.sheet.moveRange - 1
+		}
+	case actCarry: // give an ally on your tile a free 1-square move
+		if !g.tryCarry(seat, ally, dir) {
+			return
+		}
 	case actAttack:
-		if !g.tryAttack(seat, monsterIdx, g.dice[dieIdx].Value) {
+		if !g.tryAttack(seat, tile, monsterIdx, g.dice[dieIdx].Value) {
 			return
 		}
 	case actBrace:
 		if !g.grantShields(seat, ally, 2) {
 			return
 		}
+	case actMend:
+		if !g.grantHeal(seat, ally, 2) {
+			return
+		}
 	case actGuard:
 		h.shields++
 	case actCourage:
-		if h.courage < crCourageCap {
-			h.courage++
+		if h.courage >= crCourageCap {
+			return // already at the cap: the die is not consumed, pick another action
 		}
+		h.courage++
 	default:
 		return
 	}
@@ -726,11 +946,53 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 	g.maybeAutoEnd(seat)
 }
 
+// bonusStep spends one of the active hero's remaining multi-move steps (from a fast
+// mover's Move die) in a direction the player picks, so
+// the two squares of a 2-move need not be a straight line. Each step is validated like
+// a normal move (and may itself trigger a frontier tile lay).
+func (g *crawlerGame) bonusStep(seat, dir int) {
+	if g.bonusMoves <= 0 || g.pending != nil {
+		return
+	}
+	if !g.tryMove(seat, dir) {
+		return
+	}
+	g.bonusMoves--
+	g.maybeAutoEnd(seat)
+}
+
+// tryCarry (Comoros Weaver's Carry) gives a living ally on the hero's own tile a
+// single square move in dir, within that tile's path.
+func (g *crawlerGame) tryCarry(seat, ally, dir int) bool {
+	src := g.players[seat]
+	a, ok := g.players[ally]
+	if !ok || ally == seat || !a.alive || a.tileID != src.tileID || dir < 0 || dir > 3 {
+		return false
+	}
+	t := g.tiles[a.tileID]
+	col, row := a.square%3, a.square/3
+	ncol, nrow := col+crawlerDelta[dir][0], row+crawlerDelta[dir][1]
+	if ncol < 0 || ncol >= 3 || nrow < 0 || nrow >= 3 {
+		return false // V0 Carry stays within the tile
+	}
+	nsq := nrow*3 + ncol
+	if !crawlerWalkable(t.edges)[nsq] {
+		return false
+	}
+	a.square = nsq
+	g.maybeSpring(ally) // a carried ally also heals if set down on a spring centre
+	g.log = append(g.log, src.name+" carries "+a.name+".")
+	return true
+}
+
 // maybeAutoEnd ends the turn automatically once every die is spent (and the hero is
 // not paused mid-lay), so a player with no dice left does not have to click End turn.
 func (g *crawlerGame) maybeAutoEnd(seat int) {
 	if g.phase != crPlaying || g.step != crStepSpend || g.pending != nil || seat != g.turn {
 		return
+	}
+	if g.bonusMoves > 0 {
+		return // a multi-move still has directed steps left; let the player use or skip them
 	}
 	for _, d := range g.dice {
 		if !d.Spent {
@@ -757,6 +1019,7 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 			return false // off the tile's path: only the centre + open doorways are walkable
 		}
 		h.square = nsq
+		g.maybeSpring(seat) // landed; a healing spring centre heals on entry
 		return true
 	}
 	// Crossing the tile edge: must be at that side's doorway and the edge open.
@@ -775,46 +1038,129 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 	return g.beginLay(seat, dir, nx, ny)
 }
 
-func (g *crawlerGame) enterTile(seat, id int) {
-	t := g.tiles[id]
-	for _, m := range t.monsters {
-		m.engaged = false
-	}
-}
+func (g *crawlerGame) enterTile(seat, id int) {} // reserved: per-tile entry hooks
 
-// tryAttack applies one Attack die immediately: a die that meets the Armour
-// reduces the monster's (persistent) Health, and a lethal blow kills it right
-// away. Damage carries across turns, so combat continues until it is defeated.
-func (g *crawlerGame) tryAttack(seat, monsterIdx, value int) bool {
+// tryAttack applies one Attack die immediately: a die that meets the Armour reduces
+// the monster's (persistent) Health, and a lethal blow kills it right away. The
+// target is a monster on the hero's own tile, or, for a ranged totem (Arrow Squid),
+// a monster on a tile reachable through an open edge of the hero's tile.
+func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 	h := g.players[seat]
-	t := g.tiles[h.tileID]
-	if monsterIdx < 0 || monsterIdx >= len(t.monsters) {
+	t := g.attackTarget(h, tileID)
+	if t == nil || monsterIdx < 0 || monsterIdx >= len(t.monsters) {
 		return false
 	}
 	m := t.monsters[monsterIdx]
 	if !m.alive {
 		return false
 	}
+	// A die below the monster's (effective) Armour cannot land, so it is not a legal
+	// attack: refuse it rather than burning the die on a guaranteed miss. The player
+	// spends low dice on Move/Special instead, which is the point of the die map.
+	if value < g.effectiveArmour(h, m) {
+		return false
+	}
 	m.engaged = true
-	if value >= m.armour {
-		m.health--
-		if m.health <= 0 {
-			m.health = 0
-			m.alive = false
-			if h.courage < crCourageCap {
-				h.courage += m.reward
-				if h.courage > crCourageCap {
-					h.courage = crCourageCap
-				}
+	hits := 1
+	// Arrow Squid, Deep Volley (second special): once a turn a 6 lands two hits.
+	if h.sheet.totem == "pijlinktvis" && h.specialActive(1) && !h.volleyUsed && value >= 6 {
+		hits = 2
+		h.volleyUsed = true
+		g.log = append(g.log, h.name+"'s Deep Volley strikes twice.")
+	}
+	m.health -= hits
+	if m.health <= 0 {
+		m.health = 0
+		m.alive = false
+		if h.courage < crCourageCap {
+			h.courage += m.reward
+			if h.courage > crCourageCap {
+				h.courage = crCourageCap
 			}
-			g.log = append(g.log, h.name+" defeats a monster.")
-			if m.isBoss {
-				g.phase = crWon
-				g.log = append(g.log, "The boss falls! You win.")
-			}
+		}
+		g.log = append(g.log, h.name+" defeats a monster.")
+		if m.isBoss {
+			g.phase = crWon
+			g.log = append(g.log, "The boss falls! You win.")
 		}
 	}
 	return true
+}
+
+// effectiveArmour is the die value an attack needs to land on m: the monster's Armour,
+// lowered by 1 while the Arrow Squid's Barbed Shot (first special) is active (minimum
+// 1). The client mirrors this so the Attack buttons it offers match what the server
+// will accept.
+func (g *crawlerGame) effectiveArmour(h *crawlerHero, m *crawlerMonster) int {
+	a := m.armour
+	if h.sheet.totem == "pijlinktvis" && h.specialActive(0) {
+		a--
+	}
+	if a < 1 {
+		a = 1
+	}
+	return a
+}
+
+// maybeSpring heals a hero the moment it lands on a healing spring's centre square. It
+// costs nothing and is not consumed: stepping onto the centre again heals again (capped
+// at the hero's max). Called from every landing (a normal move, a bonus step, a carried
+// ally), so it fires on entry, not merely for standing there.
+func (g *crawlerGame) maybeSpring(seat int) {
+	h := g.players[seat]
+	t := g.tiles[h.tileID]
+	if t == nil || t.kind != crKindHealing || h.square != 4 || !h.alive {
+		return
+	}
+	if h.health >= h.sheet.maxHP {
+		return
+	}
+	h.health += crSpringHeal
+	if h.health > h.sheet.maxHP {
+		h.health = h.sheet.maxHP
+	}
+	g.log = append(g.log, h.name+" is healed by the spring.")
+}
+
+// usePortal teleports a hero standing on a portal tile's centre to the centre of
+// another portal tile the player chose. Free (no die); it is a repositioning tool. The
+// destination must be a different, placed portal tile.
+func (g *crawlerGame) usePortal(seat, destID int) {
+	h := g.players[seat]
+	src := g.tiles[h.tileID]
+	if src == nil || src.kind != crKindPortal || h.square != 4 {
+		return
+	}
+	dest, ok := g.tiles[destID]
+	if !ok || dest.id == src.id || dest.kind != crKindPortal {
+		return
+	}
+	h.tileID = dest.id
+	h.square = 4
+	g.log = append(g.log, h.name+" steps through the portal.")
+}
+
+// attackTarget resolves which tile an attack lands on. tileID 0 or the hero's own
+// tile means melee (your tile). Any other tile is allowed only for a ranged totem and
+// only if it is directly reachable through an open edge of the hero's tile.
+func (g *crawlerGame) attackTarget(h *crawlerHero, tileID int) *crawlerTile {
+	own := g.tiles[h.tileID]
+	if tileID == 0 || tileID == h.tileID || own == nil {
+		return own
+	}
+	if !h.sheet.ranged {
+		return nil
+	}
+	for d := 0; d < 4; d++ {
+		if !own.edges[d] {
+			continue
+		}
+		nx, ny := own.x+crawlerDelta[d][0], own.y+crawlerDelta[d][1]
+		if id, ok := g.at[[2]int{nx, ny}]; ok && id == tileID {
+			return g.tiles[id]
+		}
+	}
+	return nil
 }
 
 func (g *crawlerGame) grantShields(seat, ally, n int) bool {
@@ -828,6 +1174,29 @@ func (g *crawlerGame) grantShields(seat, ally, n int) bool {
 		tgt = a
 	}
 	tgt.shields += n
+	return true
+}
+
+// grantHeal (Treefrog's Mend) restores health to a hero on the acting hero's tile,
+// capped at that hero's max. The target must be alive and sharing the tile.
+func (g *crawlerGame) grantHeal(seat, ally, n int) bool {
+	src := g.players[seat]
+	tgt := src
+	if ally != seat {
+		a, ok := g.players[ally]
+		if !ok || !a.alive || a.tileID != src.tileID {
+			return false
+		}
+		tgt = a
+	}
+	if tgt.health >= tgt.sheet.maxHP {
+		return false // already full: do not waste the die
+	}
+	tgt.health += n
+	if tgt.health > tgt.sheet.maxHP {
+		tgt.health = tgt.sheet.maxHP
+	}
+	g.log = append(g.log, src.name+" mends "+tgt.name+".")
 	return true
 }
 
@@ -901,10 +1270,11 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 	entryDir := g.pending.entryDir
 	phaseLay := g.pending.phaseLay
 	var mons []*crawlerMonster
-	if spec.monster != nil {
-		m := *spec.monster
-		mons = []*crawlerMonster{&m}
+	for _, sm := range spec.monsters {
+		m := *sm // copy the template so each laid tile owns its monsters
+		mons = append(mons, &m)
 	}
+	assignMonsterSquares(chosen.Edges, mons) // spread a swarm over the walkable squares
 	t := g.placeTile(chosen.X, chosen.Y, chosen.Edges, spec.band, spec.kind, spec.isBoss, mons)
 	t.rot = chosen.Rotation
 	h := g.players[seat]
@@ -946,42 +1316,53 @@ func (g *crawlerGame) reroll(seat, dieIdx int) {
 		return
 	}
 	h.courage--
-	g.dice[dieIdx].Value = 1 + g.rng.IntN(6)
+	g.dice[dieIdx].Value = g.rollFace(h.sheet)
 }
 
-func (g *crawlerGame) unlock(seat, which int) {
-	h := g.players[seat]
-	if which < 0 || which > 1 || h.unlocked[which] {
-		return
+// diceTypeName labels a face set as low/balanced/high for the character sheet.
+func diceTypeName(faces []int) string {
+	sum := 0
+	for _, f := range faces {
+		sum += f
 	}
-	if which == 1 && !h.unlocked[0] {
-		return // the second unlock still needs the first
+	switch {
+	case len(faces) == 0:
+		return "balanced"
+	case sum <= 17: // {1,2,2,3,3,6}=17
+		return "low"
+	case sum >= 28: // {2,4,5,5,6,6}=28
+		return "high"
+	default:
+		return "balanced"
 	}
-	need := crUnlock0Courage
-	if which == 1 {
-		need = crUnlock1Courage
+}
+
+// rollFace rolls one weighted die face for the sheet's die type (falls back to a
+// plain d6 for a sheet with no faces set).
+func (g *crawlerGame) rollFace(s crawlerSheet) int {
+	if len(s.faces) == 0 {
+		return 1 + g.rng.IntN(6)
 	}
-	if h.courage < need {
-		return // you must have earned the Courage to unlock, though it is NOT spent
-	}
-	h.unlocked[which] = true
+	return s.faces[g.rng.IntN(len(s.faces))]
 }
 
 func (g *crawlerGame) endTurn(seat int) {
-	g.resolveCombat(seat)
-	// Shields are a per-turn resource: whatever you had or gained this turn (Thick
-	// Hide's auto-shields, Brace, Guard) is cleared now, so they never stack across
-	// turns. Thick Hide re-grants its 2 at the start of your next turn.
-	g.players[seat].shields = 0
 	if g.phase != crPlaying {
 		return
 	}
-	if g.aliveHeroes() == 0 {
-		g.phase = crLost
-		g.log = append(g.log, "The party has fallen. The dungeon wins.")
+	g.bonusMoves = 0 // any unused multi-move steps are forfeited when the turn ends
+	if next := g.nextInOrder(seat); next >= 0 {
+		// Mid-round: just pass the dice to the next hero. Monsters do not strike yet.
+		g.turn = next
+		g.beginTurn(g.turn)
 		return
 	}
-	// Once the stack has run out, each completed turn ticks the collapse countdown.
+	// Everyone has taken their turn: NOW the monsters strike (group fight), then the
+	// collapse countdown ticks and a new round opens with its LAY phase.
+	g.resolveRound()
+	if g.phase != crPlaying {
+		return
+	}
 	if g.grace > 0 {
 		g.grace--
 		if g.grace == 0 {
@@ -990,47 +1371,84 @@ func (g *crawlerGame) endTurn(seat int) {
 			return
 		}
 	}
-	if next := g.nextInOrder(seat); next >= 0 {
-		g.turn = next
-		g.beginTurn(g.turn)
-		return
-	}
-	// Everyone has spent: the round is over, so a fresh round opens with its LAY phase.
 	g.beginLayPhase()
 }
 
-// resolveCombat is the end-of-turn damage step: every monster still alive on the
-// active hero's tile strikes for its Damage (reduced by Shields), whether or not
-// the hero attacked it. Kills happen immediately in tryAttack and a monster's lost
-// Health persists, so a tough enemy is whittled down over successive turns; but
-// until it is dead it keeps hurting whoever ends their turn on its tile.
-func (g *crawlerGame) resolveCombat(seat int) {
-	h := g.players[seat]
-	t := g.tiles[h.tileID]
-	if t == nil {
-		return
+// resolveRound is the end-of-ROUND damage step: once every hero has acted, every
+// monster still alive strikes EVERY living hero sharing its tile for its Damage
+// (reduced by that hero's Shields). This is the group fight: allies on a tile pool
+// their attacks across the round (persistent monster Health) and share the retaliation
+// at the end. The Beaver's Bulwark (when active) soaks an ally's hit onto himself.
+// Shields are then cleared for everyone (a per-round resource), and the monster is
+// flagged engaged so the client plays its attack animation.
+func (g *crawlerGame) resolveRound() {
+	g.clearEngaged() // drop last round's flags; this round's strikes set them afresh
+	for _, t := range g.tiles {
+		for _, m := range t.monsters {
+			if !m.alive {
+				continue
+			}
+			struck := false
+			for _, s := range g.order {
+				h := g.players[s]
+				if !h.alive || h.tileID != t.id {
+					continue
+				}
+				g.strike(m, h)
+				struck = true
+			}
+			if struck {
+				m.engaged = true // show the monster's attack pose next round
+			}
+		}
 	}
-	for _, m := range t.monsters {
-		if !m.alive {
+	for _, s := range g.order {
+		g.players[s].shields = 0
+	}
+	if g.aliveHeroes() == 0 {
+		g.phase = crLost
+		g.log = append(g.log, "The party has fallen. The dungeon wins.")
+	}
+}
+
+// strike applies one monster's Damage to one hero, routing it to the Beaver's Bulwark
+// if an ally would be hit on the Beaver's tile and the Beaver's Bulwark is active.
+func (g *crawlerGame) strike(m *crawlerMonster, h *crawlerHero) {
+	tgt := h
+	if bw := g.bulwarkFor(h); bw != nil {
+		tgt = bw
+		g.log = append(g.log, bw.name+" shields "+h.name+" with Bulwark.")
+	}
+	dmg := m.damage - tgt.shields
+	if tgt.shields > m.damage {
+		tgt.shields -= m.damage
+	} else {
+		tgt.shields = 0
+	}
+	if dmg > 0 {
+		tgt.health -= dmg
+		g.log = append(g.log, tgt.name+" takes "+strconv.Itoa(dmg)+" damage.")
+	}
+	if tgt.health <= 0 {
+		tgt.health = 0
+		tgt.alive = false
+		g.log = append(g.log, tgt.name+" falls.")
+	}
+}
+
+// bulwarkFor returns the Beaver on hero h's tile whose Bulwark (second special) is
+// active and who is not h, or nil. Such a Beaver takes an ally's hit instead.
+func (g *crawlerGame) bulwarkFor(h *crawlerHero) *crawlerHero {
+	for _, s := range g.order {
+		b := g.players[s]
+		if b == h || !b.alive || b.tileID != h.tileID {
 			continue
 		}
-		dmg := m.damage - h.shields
-		if h.shields > m.damage {
-			h.shields -= m.damage
-		} else {
-			h.shields = 0
+		if b.sheet.totem == "bever" && b.specialActive(1) {
+			return b
 		}
-		if dmg > 0 {
-			h.health -= dmg
-			g.log = append(g.log, h.name+" takes "+strconv.Itoa(dmg)+" damage.")
-		}
-		if h.health <= 0 {
-			h.health = 0
-			h.alive = false
-			g.log = append(g.log, h.name+" falls.")
-		}
-		m.engaged = false
 	}
+	return nil
 }
 
 func (g *crawlerGame) aliveHeroes() int {
@@ -1054,31 +1472,42 @@ func (g *crawlerGame) resetToLobby() {
 	g.deck = nil
 	g.deckPos = 0
 	g.grace = -1
+	g.bonusMoves = 0
 	for _, h := range g.players {
 		h.health = h.sheet.maxHP
 		h.courage = 0
 		h.shields = 0
-		h.unlocked = [2]bool{}
 		h.alive = true
+		h.volleyUsed = false
 	}
 }
 
 // --- view -------------------------------------------------------------------
 
+type crawlerMenuView struct {
+	Action string `json:"action"`
+	Min    int    `json:"min"`
+}
+
 type crawlerHeroView struct {
-	S        int     `json:"s"`
-	N        string  `json:"n"`
-	Totem    string  `json:"totem"`
-	Health   int     `json:"health"`
-	MaxHP    int     `json:"maxHP"`
-	Courage  int     `json:"courage"`
-	Shields  int     `json:"shields"`
-	TileID   int     `json:"tile"`
-	Square   int     `json:"square"`
-	Unlocked [2]bool `json:"unlocked"`
-	Alive    bool    `json:"alive"`
-	Special  string  `json:"special"`
-	Gone     bool    `json:"gone,omitempty"`
+	S        int               `json:"s"`
+	N        string            `json:"n"`
+	Totem    string            `json:"totem"`
+	Health   int               `json:"health"`
+	MaxHP    int               `json:"maxHP"`
+	Courage  int               `json:"courage"`
+	Shields  int               `json:"shields"`
+	TileID   int               `json:"tile"`
+	Square   int               `json:"square"`
+	Unlocked [2]bool           `json:"unlocked"` // specials currently ACTIVE (auto, by Courage)
+	Alive    bool              `json:"alive"`
+	Special  string            `json:"special"`
+	Menu     []crawlerMenuView `json:"menu,omitempty"`     // sheet's action menu (only on your own hero)
+	Unlock0  string            `json:"unlock0,omitempty"`  // first special's name
+	Unlock1  string            `json:"unlock1,omitempty"`  // second special's name
+	DiceType string            `json:"diceType,omitempty"` // low/balanced/high, for display
+	Ranged   bool              `json:"ranged,omitempty"`   // attack can reach adjacent tiles
+	Gone     bool              `json:"gone,omitempty"`
 }
 
 type crawlerMonsterView struct {
@@ -1088,6 +1517,7 @@ type crawlerMonsterView struct {
 	Health  int    `json:"health"` // current, persists across turns
 	MaxHP   int    `json:"maxHP"`
 	Damage  int    `json:"damage"`
+	Reward  int    `json:"reward"` // Courage granted on defeat (scales with toughness)
 	Square  int    `json:"square"`
 	Engaged bool   `json:"engaged"`
 	Alive   bool   `json:"alive"`
@@ -1111,21 +1541,22 @@ type crawlerFrontierView struct {
 }
 
 type crawlerView struct {
-	T         string                `json:"t"`
-	Phase     string                `json:"ph"`
-	Step      string                `json:"step"`
-	Turn      int                   `json:"turn"`
-	You       int                   `json:"you"`
-	Dice      []crawlerDie          `json:"dice"`
-	Heroes    []crawlerHeroView     `json:"heroes"`
-	Tiles     []crawlerTileView     `json:"tiles"`
-	Frontiers []crawlerFrontierView `json:"frontiers"`
-	Pending   *crawlerPendingView   `json:"pending"`
-	DeckLeft  int                   `json:"deckLeft"`
-	Bands     int                   `json:"bands"`
-	BossNear  bool                  `json:"bossNear"`
-	Grace     int                   `json:"grace"` // collapse countdown once the stack is empty; -1 while tiles remain
-	Log       []string              `json:"log"`
+	T          string                `json:"t"`
+	Phase      string                `json:"ph"`
+	Step       string                `json:"step"`
+	Turn       int                   `json:"turn"`
+	You        int                   `json:"you"`
+	Dice       []crawlerDie          `json:"dice"`
+	Heroes     []crawlerHeroView     `json:"heroes"`
+	Tiles      []crawlerTileView     `json:"tiles"`
+	Frontiers  []crawlerFrontierView `json:"frontiers"`
+	Pending    *crawlerPendingView   `json:"pending"`
+	DeckLeft   int                   `json:"deckLeft"`
+	Bands      int                   `json:"bands"`
+	BossNear   bool                  `json:"bossNear"`
+	BonusMoves int                   `json:"bonusMoves"` // directed steps left in the active hero's multi-move
+	Grace      int                   `json:"grace"`      // collapse countdown once the stack is empty; -1 while tiles remain
+	Log        []string              `json:"log"`
 }
 
 type crawlerPendingView struct {
@@ -1139,7 +1570,7 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 	v := crawlerView{
 		T: MsgState, Phase: g.phase, Step: g.step, Turn: g.turn, You: seat,
 		Dice: append([]crawlerDie{}, g.dice...), DeckLeft: len(g.deck) - g.deckPos,
-		Bands: g.bands, Grace: g.grace, Log: lastLog(g.log, 12),
+		Bands: g.bands, Grace: g.grace, BonusMoves: g.bonusMoves, Log: lastLog(g.log, 12),
 		Heroes: []crawlerHeroView{}, Tiles: []crawlerTileView{}, Frontiers: []crawlerFrontierView{},
 	}
 	// Boss band reached once the final band is the only thing left in the stack.
@@ -1152,18 +1583,28 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 	}
 	for _, s := range g.order {
 		h := g.players[s]
-		v.Heroes = append(v.Heroes, crawlerHeroView{
+		hv := crawlerHeroView{
 			S: s, N: h.name, Totem: h.sheet.totem, Health: h.health, MaxHP: h.sheet.maxHP,
 			Courage: h.courage, Shields: h.shields, TileID: h.tileID, Square: h.square,
-			Unlocked: h.unlocked, Alive: h.alive, Special: h.sheet.special, Gone: !connected[s],
-		})
+			Unlocked: [2]bool{h.specialActive(0), h.specialActive(1)}, Alive: h.alive, Special: h.sheet.special, Gone: !connected[s],
+		}
+		if s == seat { // the viewer's own sheet carries its menu, specials and die type
+			hv.Menu = make([]crawlerMenuView, 0, len(h.sheet.menu))
+			for _, m := range h.sheet.menu {
+				hv.Menu = append(hv.Menu, crawlerMenuView{Action: m.Action, Min: m.Min})
+			}
+			hv.Unlock0, hv.Unlock1 = h.sheet.unlock0, h.sheet.unlock1
+			hv.DiceType = diceTypeName(h.sheet.faces)
+			hv.Ranged = h.sheet.ranged
+		}
+		v.Heroes = append(v.Heroes, hv)
 	}
 	for _, t := range g.tiles {
 		tv := crawlerTileView{ID: t.id, X: t.x, Y: t.y, Kind: t.kind, Rot: t.rot, Edges: t.edges, IsBoss: t.isBoss, Monsters: []crawlerMonsterView{}}
 		for i, m := range t.monsters {
 			tv.Monsters = append(tv.Monsters, crawlerMonsterView{
 				ID: i, Kind: m.kind, Armour: m.armour, Health: m.health, MaxHP: m.maxHealth, Damage: m.damage,
-				Square: m.square, Engaged: m.engaged, Alive: m.alive, IsBoss: m.isBoss,
+				Reward: m.reward, Square: m.square, Engaged: m.engaged, Alive: m.alive, IsBoss: m.isBoss,
 			})
 		}
 		v.Tiles = append(v.Tiles, tv)

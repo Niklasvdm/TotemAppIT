@@ -105,3 +105,42 @@ func TestHanabiSuccessfulPlayBuildsStack(t *testing.T) {
 		t.Fatalf("playing a 1 on an empty stack should set it to 1, got %d", g.stacks[1])
 	}
 }
+
+// The deck emptying is not an instant end: it starts a final round in which every
+// player, including the one who drew the last card, takes one more turn, then the game
+// ends and is scored (standard rule). Regression for an off-by-one that skipped the
+// drawer's final turn.
+func TestHanabiFinalRoundIncludesDrawer(t *testing.T) {
+	g, _ := startedHanabi(t, 3, 7)
+	n := len(g.order)
+	// Shrink the deck to a single card so the current player's discard empties it.
+	// Start with hint tokens spent so discarding is allowed (you may not discard at the
+	// full 8 tokens); each discard regains one but never reaches the cap within this round.
+	g.deck = g.deck[:1]
+	g.hints = 0
+	g.lastRound = false
+	drawer := g.turn
+	hanCmd(t, g, drawer, false, map[string]any{"t": hanMsgDiscard, "card": 0})
+	if !g.lastRound || g.phase != hanPlay {
+		t.Fatalf("emptying the deck should start a final round, not end the game: lastRound=%v phase=%q", g.lastRound, g.phase)
+	}
+	// Each player (including the drawer) takes exactly one final turn; discarding is
+	// always a legal turn and never ends the game another way.
+	seen := map[int]bool{}
+	turns := 0
+	for g.phase == hanPlay {
+		cur := g.turn
+		seen[cur] = true
+		turns++
+		if turns > n+2 {
+			t.Fatal("final round ran too long")
+		}
+		hanCmd(t, g, cur, false, map[string]any{"t": hanMsgDiscard, "card": 0})
+	}
+	if turns != n {
+		t.Fatalf("final round should be exactly %d turns (one per player, drawer included), got %d", n, turns)
+	}
+	if !seen[drawer] {
+		t.Fatal("the player who drew the last card must still get a final turn")
+	}
+}

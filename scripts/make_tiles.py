@@ -20,8 +20,15 @@ The client maps engine tile kinds (straight/bend/tee/cross/dead-end/boss) to the
 files in TILE_ART (CrawlerPage.tsx); re-running with a new sheet refreshes the art
 with no code change as long as the grid shape is the same.
 
+--start N numbers the FIRST cell tile-N instead of tile-0, so a small sheet can
+overwrite specific tiles without clobbering the rest: splitting a single corrected
+T-junction over the existing tile-3 is `--rows 1 --cols 1 --start 3`. The manifest is
+MERGED with any existing tiles.json (only the regenerated indices change), so a
+partial re-split never drops the tiles it did not touch.
+
   scripts/make_tiles.py SHEET --rows 3 --cols 3
   scripts/make_tiles.py SHEET --rows 3 --cols 3 --size 256 --inset 8
+  scripts/make_tiles.py ONE-TILE.png --rows 1 --cols 1 --start 3   # overwrite tile-3
 """
 import argparse
 import json
@@ -40,6 +47,7 @@ def main() -> None:
     ap.add_argument("--out", default=DEFAULT_OUT, help=f"output dir (default {DEFAULT_OUT})")
     ap.add_argument("--size", type=int, default=256, help="square px per tile (0 keeps the source size)")
     ap.add_argument("--inset", type=int, default=0, help="px trimmed from each side of a cell (drop the frame)")
+    ap.add_argument("--start", type=int, default=0, help="index of the first cell (tile-<start>); overwrite a specific tile without renumbering the rest")
     args = ap.parse_args()
 
     img = Image.open(args.sheet).convert("RGBA")
@@ -47,8 +55,16 @@ def main() -> None:
     cw, ch = w / args.cols, h / args.rows
     os.makedirs(args.out, exist_ok=True)
 
-    manifest = []
-    i = 0
+    # Merge into any existing manifest so a partial re-split keeps untouched tiles.
+    by_index = {}
+    existing = os.path.join(args.out, "tiles.json")
+    if os.path.exists(existing):
+        with open(existing) as f:
+            for t in json.load(f).get("tiles", []):
+                by_index[t["i"]] = t
+
+    written = []
+    i = args.start
     for r in range(args.rows):
         for c in range(args.cols):
             left = round(c * cw) + args.inset
@@ -60,12 +76,14 @@ def main() -> None:
                 cell = cell.resize((args.size, args.size), Image.LANCZOS)
             file = f"tile-{i}.png"
             cell.save(os.path.join(args.out, file))
-            manifest.append({"i": i, "row": r, "col": c, "file": file})
+            by_index[i] = {"i": i, "row": r, "col": c, "file": file}
+            written.append(i)
             i += 1
 
-    with open(os.path.join(args.out, "tiles.json"), "w") as f:
+    manifest = [by_index[k] for k in sorted(by_index)]
+    with open(existing, "w") as f:
         json.dump({"size": args.size, "rows": args.rows, "cols": args.cols, "tiles": manifest}, f, indent=2)
-    print(f"wrote {i} tiles ({args.size or 'source'}px) to {args.out}")
+    print(f"wrote tiles {written} ({args.size or 'source'}px) to {args.out}")
 
 
 if __name__ == "__main__":
