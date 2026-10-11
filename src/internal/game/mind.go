@@ -11,9 +11,11 @@ import (
 // a 1..100 deck and must play them onto a shared pile in ascending order WITHOUT
 // communicating; playing out of order costs a life. It is event-driven (TickHz
 // 0) — the "timing" tension is felt on the client, the server just validates
-// plays. Rules follow the base game (deck 1..100, level N deals N cards each,
-// a mistake discards every lower card and loses a life, a throwing star has
-// everyone discard their lowest; win at level 12/10/8 for 2/3/4 players).
+// plays. Rules follow the base game (deck 1..100, level N deals N cards each, a
+// throwing star has everyone discard their lowest; win at level 12/10/8 for 2/3/4
+// players), with one house rule: a mistake (a card played out of order) loses a life
+// AND restarts the whole level from a fresh deal, rather than discarding the lower
+// cards and continuing.
 //
 // FOUNDATION: the core loop (deal, play, mistake, star, level/lives, win/lose)
 // is here; bonus life/star rewards at milestone levels are a TODO. Like
@@ -69,6 +71,7 @@ type theMindGame struct {
 	cleared    bool // a level is complete; the board stays up until the host starts the next round
 	gainedStar bool // the just-cleared level awarded a throwing star (for the pause screen)
 	gainedLife bool // ...and/or an extra life
+	mistake    bool // the last play was out of order: a life was lost and the level restarted
 }
 
 func newTheMindGame(out Outbox, seed uint64) Game {
@@ -229,6 +232,7 @@ func (g *theMindGame) play(seat int) {
 	if len(hand) == 0 {
 		return
 	}
+	g.mistake = false
 	card := hand[0] // sorted
 	g.hands[seat] = hand[1:]
 	g.pile = card
@@ -243,17 +247,16 @@ func (g *theMindGame) play(seat int) {
 	}
 	if mistake {
 		g.lives--
-		for s, h := range g.hands {
-			k := 0
-			for k < len(h) && h[k] < card {
-				k++
-			}
-			g.hands[s] = h[k:]
-		}
 		if g.lives <= 0 {
 			g.phase = mindLost
 			return
 		}
+		// House rule: a wrong card does not just discard the lower cards and limp on.
+		// You lose a life AND the whole level restarts from a fresh deal at the same
+		// level, so the round is played again from the top.
+		g.mistake = true
+		g.deal()
+		return
 	}
 	g.checkLevelDone()
 }
@@ -318,6 +321,7 @@ func (g *theMindGame) nextRound() {
 	g.level++
 	g.cleared = false
 	g.gainedStar, g.gainedLife = false, false
+	g.mistake = false
 	g.deal()
 }
 
@@ -328,6 +332,7 @@ func (g *theMindGame) resetToLobby() {
 	g.hands = map[int][]int{}
 	g.starVote = map[int]bool{}
 	g.cleared, g.gainedStar, g.gainedLife = false, false, false
+	g.mistake = false
 }
 
 // --- per-seat views ---------------------------------------------------------
@@ -354,6 +359,7 @@ type mindView struct {
 	Cleared     bool              `json:"cleared"`    // level done, waiting for the host's Next round
 	GainedStar  bool              `json:"gainedStar"` // bonus from the just-cleared level
 	GainedLife  bool              `json:"gainedLife"`
+	Mistake     bool              `json:"mistake"` // last play was wrong: a life lost and the level restarted
 	Roster      []mindRosterEntry `json:"roster"`
 }
 
@@ -363,7 +369,7 @@ func (g *theMindGame) viewFor(seat int) mindView {
 		Pile: g.pile, PileSeq: append([]int{}, g.pileSeq...),
 		LevelsToWin: mindLevelsToWin(len(g.players)), You: seat,
 		Hand:    append([]int{}, g.hands[seat]...), // never nil
-		Cleared: g.cleared, GainedStar: g.gainedStar, GainedLife: g.gainedLife,
+		Cleared: g.cleared, GainedStar: g.gainedStar, GainedLife: g.gainedLife, Mistake: g.mistake,
 	}
 	connected := map[int]bool{}
 	for _, s := range g.out.Seats() {

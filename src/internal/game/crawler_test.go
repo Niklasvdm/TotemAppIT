@@ -487,6 +487,41 @@ func TestCrawlerNewRoundReturnsToLay(t *testing.T) {
 	}
 }
 
+func TestCrawlerStackEmptyGivesGraceThenCollapses(t *testing.T) {
+	// Running the tile stack out is no longer an instant loss: it starts a collapse
+	// countdown (crGraceTurns) and only loses when that reaches zero.
+	g, _ := startedCrawler(t, 1)
+	g.deckPos = len(g.deck) // stack exhausted
+	g.grace = -1
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
+	if g.phase != crPlaying {
+		t.Fatalf("an empty stack must not instantly lose; phase=%q", g.phase)
+	}
+	if g.grace != crGraceTurns {
+		t.Fatalf("the collapse countdown should start at %d, got %d", crGraceTurns, g.grace)
+	}
+	for i := 0; i < crGraceTurns-1; i++ {
+		crCmd(t, g, g.turn, false, map[string]any{"t": crMsgEndTurn})
+		if g.phase != crPlaying {
+			t.Fatalf("collapsed too early (turn %d, grace=%d)", i, g.grace)
+		}
+	}
+	crCmd(t, g, g.turn, false, map[string]any{"t": crMsgEndTurn})
+	if g.phase != crLost {
+		t.Fatalf("after %d turns the dungeon should collapse; phase=%q grace=%d", crGraceTurns, g.phase, g.grace)
+	}
+}
+
+func TestCrawlerAutoEndsWhenAllDiceSpent(t *testing.T) {
+	// Spending your last die ends the turn automatically (no need to click End turn).
+	g, _ := startedCrawler(t, 2)
+	g.dice = []crawlerDie{{Value: 6}} // a single die; spending it should pass the turn
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actCourage})
+	if g.turn != 1 || g.step != crStepSpend {
+		t.Fatalf("spending the last die should auto-end to the next hero; turn=%d step=%q", g.turn, g.step)
+	}
+}
+
 func TestCrawlerBossInFinalBand(t *testing.T) {
 	for seed := uint64(1); seed <= 40; seed++ {
 		g := newCrawlerGame(newFakeOutbox(0), seed).(*crawlerGame)

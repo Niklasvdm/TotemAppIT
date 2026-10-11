@@ -37,7 +37,8 @@ V0 is the first playable build this spec defines. It is a full vertical slice of
 - Combat against static enemies (Armour / Health / Damage): hits land live, a monster's lost Health **persists across turns** so combat continues until it is defeated, and **every monster still alive on your tile deals its Damage (minus Shields) when you end your turn on it**, whether or not you attacked it.
 - Courage economy (earn on high dice and on kills, spend on rerolls) and Shields. **Shields are a per-turn resource**: they do not stack across turns (cleared at end of turn; Thick Hide re-grants its 2 next turn). Unlocking the two specials costs no Courage but **requires** having earned it (3 then 5); the second needs the first.
 - The **Beaver** fully specced (Brace, Thick Hide, Bulwark); every other player joins as a generic totem on the default menu.
-- Win (boss defeated) and lose (party wiped, or the stack runs out before the boss falls), plus a per-tile narrated beat.
+- Win (boss defeated) and lose (party wiped, or the dungeon collapses). Running the tile stack out is **not** an instant loss: it starts a collapse countdown (5 turns) during which the party must reach and defeat the boss (which is already on the map, since every drawn tile was laid) before the run is lost. Plus a per-tile narrated beat.
+- **No dice left auto-ends the turn** (you do not have to click End turn once every die is spent).
 - Client: heroes are drawn from the **Bomberman totem sprite atlas** (not emoji), the player's **character sheet** sits at the top (sprite, health bar, resources, the action menu and the two specials), and hovering a monster shows its stats.
 - A seeded RNG so a whole run reproduces, and a first-class test suite.
 
@@ -236,7 +237,7 @@ state LayPhase {
   LayDraw --> LayDraw : next hero lays
 }
 LayPhase --> SpendPhase : every hero has laid
-LayPhase --> Lost : stack empty
+LayPhase --> SpendPhase : stack empty (skip lay; collapse countdown begins)
 
 state SpendPhase {
   [*] --> Roll
@@ -250,19 +251,21 @@ state SpendPhase {
   Idle --> MoveLay : Move steps onto a frontier
   MoveLay : draw the tile; lay it HERE; pick the rotation
   MoveLay --> Idle : placed; the move completes onto it
-  Idle --> Resolve : End Turn (or no dice left)
-  Resolve : monsters still alive on your tile deal Damage - Shields;\nthen your Shields are cleared (per-turn)
+  Idle --> Resolve : End Turn (auto when no dice left)
+  Resolve : monsters still alive on your tile deal Damage - Shields;\nthen your Shields are cleared (per-turn);\nif the stack is empty, tick the collapse countdown
   Resolve --> Roll : next hero's turn
 }
 SpendPhase --> LayPhase : last hero ended; a new round begins
 SpendPhase --> Won : boss defeated
-SpendPhase --> Lost : all heroes down, or stack empty
+SpendPhase --> Lost : all heroes down, or the collapse countdown hits 0
 @enduml
 ```
 
 A round always lays before it plays. In the **LAY phase** every living hero draws one tile, mandatory, and lays it anywhere legal on the frontier: the server offers every cell and rotation where the drawn tile both fits its neighbours (`edgesFit`) and joins the map on at least one open side (`connects`), and the hero drags it to the spot where the doorways line up. The hero does not move onto it. Because the whole frontier is in play rather than only the cells next to the hero, a hero whose own tile is boxed in still lays elsewhere; a hero is skipped only when nothing fits anywhere. Then the **SPEND phase** gives each hero a dice turn. Dice are rolled once at the start of your turn and spent in any order. Each Attack die is applied **immediately** and the monster's Health drops live; a lethal blow kills it at once. **A monster's lost Health persists across turns**, so a tough enemy is whittled down over several turns: combat continues until it is defeated. At the **end of your turn, every monster still alive on your tile deals its Damage (minus your Shields) to you**, whether or not you attacked it this turn: standing on a monster's square is dangerous until it is dead. Moving onto an empty frontier mid-turn lays a tile there too (the move-triggered lay), with the same rotation-only choice. Combat in V0 is the active hero alone; allies pooling dice (a group fight) is the first V1 feature, since it needs a cross-turn interrupt.
 
 Mandatory laying makes the stack drain faster (every hero spends one tile per round before any move-triggered draws), which shortens a run and brings the boss band sooner; `perBand` and `bands` in `buildDeck` are the knobs to retune the run length against the party size if playtests want it longer.
+
+Two quality-of-life rules round out the turn. **Spending your last die auto-ends the turn** (`maybeAutoEnd`): there is nothing left to do, so the player does not have to click End turn. And **running the stack out is not an instant loss**: the first time the deck empties, `startGrace` begins a `crGraceTurns` (5) collapse countdown, the lay phase is skipped (there is nothing to draw), and each end of turn ticks it down; the run is lost only if the countdown reaches zero with the boss still alive. By then every drawn tile has been laid, so the boss lair is on the map and the party's job is to fight their way to it in time. The view carries `grace` (-1 while tiles remain, else the turns left) so the HUD can show the countdown.
 
 ## Combat
 
@@ -377,7 +380,7 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 - **Shields**: block one Damage each; Brace grants two to the chosen target. They are a **per-turn** resource, cleared at the end of your turn so they do not stack across turns (Thick Hide simply re-grants its 2 at the start of your next turn).
 - **Movement**: one square per Move die (two for a fast totem), inner walls and closed edges block it, and a Move that leaves the tile draws exactly one tile and sets a pending lay.
 - **Tile laying**: the server offers at least one legal option whenever a legal placement exists; every offered `(coord, rotation)` has an opening on the entry side and matches its neighbours; `layTile` accepts only an offered option and rejects anything else; the deck drains in band order; the boss always lands in the final band.
-- **Win and lose**: defeating the boss wins; all heroes down loses; draining the stack before the boss falls loses.
+- **Win and lose**: defeating the boss wins; all heroes down loses; draining the stack starts a 5-turn collapse countdown and loses only if the boss is not beaten before it runs out.
 - **Determinism**: a fixed seed reproduces a whole run (same rolls, same tiles, same placements).
 
 ## Roadmap

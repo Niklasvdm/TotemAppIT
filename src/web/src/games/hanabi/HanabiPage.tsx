@@ -228,6 +228,15 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
         <span>💥 {v.fuses}/3</span>
         <span>🂠 {v.deck}{v.lastRound ? " · final round!" : ""}</span>
         <span>★ {v.score}/25</span>
+        {isHost && v.ph === "play" && (
+          <button
+            className="game-btn ghost tiny"
+            title="Restart the whole game for everyone"
+            onClick={() => { if (window.confirm("Restart the game for everyone? The current hands are lost.")) g.send({ t: "restart" }); }}
+          >
+            ↻ Restart
+          </button>
+        )}
       </div>
 
       <div className="han-stacks">

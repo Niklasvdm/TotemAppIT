@@ -179,7 +179,9 @@ func (g *hanabiGame) Command(seat int, isHost bool, raw []byte) {
 		g.giveHint(seat, c.Target, c.Kind, c.Value)
 
 	case hanMsgRestart:
-		if !isHost || g.phase != hanOver {
+		// The host can restart from game over OR mid-game (a stuck or spoiled table):
+		// it drops back to the lobby so a fresh game can be dealt. Not from the lobby.
+		if !isHost || g.phase == hanLobby {
 			return
 		}
 		g.resetToLobby()

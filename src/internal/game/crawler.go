@@ -103,6 +103,11 @@ const (
 
 const crCourageCap = 10
 
+// crGraceTurns is how many turns the party gets to defeat the boss after the tile
+// stack runs out, before the dungeon collapses (a loss). The stack running out is no
+// longer an instant loss.
+const crGraceTurns = 5
+
 // Courage needed to unlock the two specials. Unlocking does NOT spend it; you just
 // need to have earned this much (the "ready" threshold).
 const (
@@ -246,6 +251,12 @@ type crawlerGame struct {
 	deckPos int
 	bands   int
 
+	// grace is the "dungeon collapse" countdown once the tile stack runs out: -1
+	// while tiles remain, then crGraceTurns, decremented at each end of turn. The
+	// party has that many turns to defeat the boss (which is on the map by then,
+	// since every drawn tile has been laid) before the run is lost.
+	grace int
+
 	pending *crawlerPending
 	log     []string
 }
@@ -383,6 +394,7 @@ func (g *crawlerGame) startRun() {
 	g.pending = nil
 	g.log = nil
 	g.bands = 3
+	g.grace = -1
 	g.buildDeck()
 
 	// Start tile: a cross at (0,0) with no monster; heroes start on the centre.
@@ -432,8 +444,27 @@ func (g *crawlerGame) nextInOrder(from int) int {
 }
 
 // beginLayPhase opens the LAY phase of a round: the first living hero lays a tile.
+// Once the stack is empty there is nothing to lay, so the round skips straight to the
+// spend phase and the collapse countdown runs instead.
 func (g *crawlerGame) beginLayPhase() {
+	if g.deckPos >= len(g.deck) {
+		g.startGrace()
+		g.beginSpendPhase()
+		return
+	}
 	g.beginLayTurn(g.firstAlive())
+}
+
+// startGrace begins the "dungeon collapse" countdown the first time the tile stack
+// runs out: the party now has crGraceTurns turns to defeat the boss (already on the
+// map, since every drawn tile was laid) before the run is lost. A no-op if already
+// counting down.
+func (g *crawlerGame) startGrace() {
+	if g.grace >= 0 {
+		return
+	}
+	g.grace = crGraceTurns
+	g.log = append(g.log, "The tile stack is empty! The dungeon starts to collapse: "+strconv.Itoa(crGraceTurns)+" turns to reach and defeat the boss.")
 }
 
 // beginLayTurn hands the LAY phase to `seat`: it draws the next tile and offers
@@ -446,8 +477,10 @@ func (g *crawlerGame) beginLayTurn(seat int) {
 	g.step = crStepLay
 	g.dice = nil
 	if g.deckPos >= len(g.deck) {
-		g.phase = crLost
-		g.log = append(g.log, "The tile stack is empty and the boss still lurks. The dungeon claims you.")
+		// Stack emptied mid-phase: no tile to lay, start the collapse countdown and
+		// pass on (the remaining heroes skip to the spend phase).
+		g.startGrace()
+		g.advanceLay(seat)
 		return
 	}
 	spec := g.deck[g.deckPos]
@@ -518,9 +551,10 @@ func (g *crawlerGame) allLayOptions(spec tileSpec) []crawlerLayOption {
 // laid, the move completes onto the new tile (see layTile).
 func (g *crawlerGame) beginLay(seat, dir, nx, ny int) bool {
 	if g.deckPos >= len(g.deck) {
-		g.phase = crLost
-		g.log = append(g.log, "The tile stack is empty and the boss still lurks. The dungeon claims you.")
-		return true
+		// No tiles left to lay: the map can't grow, so the move off the edge is
+		// blocked and the collapse countdown runs. Navigate what's already there.
+		g.startGrace()
+		return false
 	}
 	spec := g.deck[g.deckPos]
 	opts := g.layOptions(spec, dir, nx, ny)
@@ -689,6 +723,21 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 	}
 	g.dice[dieIdx].Spent = true
 	g.dice[dieIdx].UsedFor = action
+	g.maybeAutoEnd(seat)
+}
+
+// maybeAutoEnd ends the turn automatically once every die is spent (and the hero is
+// not paused mid-lay), so a player with no dice left does not have to click End turn.
+func (g *crawlerGame) maybeAutoEnd(seat int) {
+	if g.phase != crPlaying || g.step != crStepSpend || g.pending != nil || seat != g.turn {
+		return
+	}
+	for _, d := range g.dice {
+		if !d.Spent {
+			return
+		}
+	}
+	g.endTurn(seat)
 }
 
 // tryMove steps one square in direction dir; crossing an open edge enters an
@@ -880,6 +929,7 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 		g.log = append(g.log, h.name+" lays a "+spec.kind+" tile and steps through.")
 	}
 	g.step = crStepSpend
+	g.maybeAutoEnd(seat) // the move that triggered this lay may have been the last die
 }
 
 func (g *crawlerGame) placeTile(x, y int, edges [4]bool, band int, kind string, isBoss bool, mons []*crawlerMonster) *crawlerTile {
@@ -930,6 +980,15 @@ func (g *crawlerGame) endTurn(seat int) {
 		g.phase = crLost
 		g.log = append(g.log, "The party has fallen. The dungeon wins.")
 		return
+	}
+	// Once the stack has run out, each completed turn ticks the collapse countdown.
+	if g.grace > 0 {
+		g.grace--
+		if g.grace == 0 {
+			g.phase = crLost
+			g.log = append(g.log, "The dungeon collapses. You did not reach the boss in time.")
+			return
+		}
 	}
 	if next := g.nextInOrder(seat); next >= 0 {
 		g.turn = next
@@ -994,6 +1053,7 @@ func (g *crawlerGame) resetToLobby() {
 	g.log = nil
 	g.deck = nil
 	g.deckPos = 0
+	g.grace = -1
 	for _, h := range g.players {
 		h.health = h.sheet.maxHP
 		h.courage = 0
@@ -1064,6 +1124,7 @@ type crawlerView struct {
 	DeckLeft  int                   `json:"deckLeft"`
 	Bands     int                   `json:"bands"`
 	BossNear  bool                  `json:"bossNear"`
+	Grace     int                   `json:"grace"` // collapse countdown once the stack is empty; -1 while tiles remain
 	Log       []string              `json:"log"`
 }
 
@@ -1078,7 +1139,7 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 	v := crawlerView{
 		T: MsgState, Phase: g.phase, Step: g.step, Turn: g.turn, You: seat,
 		Dice: append([]crawlerDie{}, g.dice...), DeckLeft: len(g.deck) - g.deckPos,
-		Bands: g.bands, Log: lastLog(g.log, 12),
+		Bands: g.bands, Grace: g.grace, Log: lastLog(g.log, 12),
 		Heroes: []crawlerHeroView{}, Tiles: []crawlerTileView{}, Frontiers: []crawlerFrontierView{},
 	}
 	// Boss band reached once the final band is the only thing left in the stack.

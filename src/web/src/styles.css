@@ -332,6 +332,7 @@ header {
 .mind-controls { display: flex; gap: .6rem; align-items: center; justify-content: center; flex-wrap: wrap; padding: .7rem; }
 .mind-controls .game-btn.active { background: var(--gold); }
 .mind-over { flex-direction: column; }
+.mind-mistake { border-color: #ef4444; color: #ef4444; animation: cr-collapse-pulse 1s ease-in-out infinite; }
 
 /* --- The Game ----------------------------------------------------------- */
 .tg-piles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
@@ -598,12 +599,17 @@ header {
 .cr-info { position: relative; display: inline-flex; cursor: help; font-size: .72rem; color: var(--muted, #888); outline: none; }
 .cr-info-box {
   display: none; position: absolute; bottom: 135%; left: 50%; transform: translateX(-50%);
-  width: max-content; max-width: 15rem; white-space: normal; z-index: 20;
-  padding: .4rem .6rem; border-radius: 7px; background: #1b1712; color: #fdf6e8;
-  border: 1px solid #c9a227; font-size: .72rem; font-weight: 600; line-height: 1.35;
-  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  width: max-content; max-width: 16rem; white-space: normal; z-index: 200;
+  padding: .5rem .7rem; border-radius: 8px; background: #140f09; color: #fdf6e8;
+  border: 1px solid #c9a227; font-size: .74rem; font-weight: 600; line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0,0,0,.7);
 }
 .cr-info:hover .cr-info-box, .cr-info:focus .cr-info-box { display: block; }
+.cr-collapse { color: #ef4444; font-weight: 800; animation: cr-collapse-pulse 1s ease-in-out infinite; }
+@keyframes cr-collapse-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+/* While a tooltip is open, lift its whole panel above the neighbouring column so the
+   box is never painted under the dice/action panel's stacking context. */
+.cr-top-row > .panel:has(.cr-info:hover), .cr-top-row > .panel:has(.cr-info:focus) { position: relative; z-index: 50; }
 
 /* shared "you lost a life/fuse/health" flash (useLossPulse + LossFlash) */
 .loss-flash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 60; }

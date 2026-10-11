@@ -30,6 +30,7 @@ interface MindView {
   cleared: boolean;
   gainedStar: boolean;
   gainedLife: boolean;
+  mistake: boolean;
   roster: MindRoster[];
 }
 
@@ -229,6 +230,12 @@ function MindRoom({
             </span>
             <span className="mind-stars">{"⭐".repeat(Math.max(0, v.stars))}</span>
           </div>
+
+          {v.mistake && v.ph === "playing" && (
+            <div className="mind-controls panel mind-mistake">
+              <strong>Out of order! 💔 A life lost — the level restarts from the top.</strong>
+            </div>
+          )}
 
           <div className="mind-pile">
             <small>Pile</small>

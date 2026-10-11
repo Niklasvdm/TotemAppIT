@@ -80,8 +80,9 @@ func TestMindAscendingPlayIsSafe(t *testing.T) {
 	}
 }
 
-func TestMindMistakeLosesLifeAndBurnsLowerCards(t *testing.T) {
-	g, _ := startedMind(t, 3)
+func TestMindMistakeLosesLifeAndRestartsLevel(t *testing.T) {
+	g, fo := startedMind(t, 3)
+	g.level = 2 // a restart re-deals `level` cards each, so use 2 to tell it from a burn
 	// Seat 1 jumps the gun at 20 while seat 0 still holds 10 (and 15).
 	g.hands = map[int][]int{0: {10, 15}, 1: {20}, 2: {30}}
 	g.lives = 3
@@ -89,11 +90,20 @@ func TestMindMistakeLosesLifeAndBurnsLowerCards(t *testing.T) {
 	if g.lives != 2 {
 		t.Fatalf("mistake did not cost a life: lives=%d", g.lives)
 	}
-	if len(g.hands[0]) != 0 { // 10 and 15 are both < 20, burned
-		t.Fatalf("lower cards not burned: seat0 still holds %v", g.hands[0])
+	// House rule: a mistake restarts the whole level from a fresh deal, not a burn.
+	if g.pile != 0 || len(g.pileSeq) != 0 {
+		t.Fatalf("a mistake should reset the pile; pile=%d seq=%v", g.pile, g.pileSeq)
 	}
-	if g.pile != 20 {
-		t.Fatalf("pile=%d, want 20", g.pile)
+	for s, h := range g.hands {
+		if len(h) != g.level {
+			t.Fatalf("seat %d should be re-dealt %d cards, got %v", s, g.level, h)
+		}
+	}
+	if !g.mistake {
+		t.Fatal("the mistake flag should be set so the client can announce the restart")
+	}
+	if v := mindLast(t, fo, 0); !v.Mistake {
+		t.Fatal("the view should carry the mistake flag")
 	}
 }
 

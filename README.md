@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.11
+version: 0.4.12
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.4.11`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
+**Build `0.4.12`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -1199,6 +1199,13 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[BUG]` Prod emoji/images failing (CWD-relative defaults) → absolute asset env + startup warnings (0.3.0).
 
 ## Changelog
+
+### 0.4.12 — 2026-10-11
+- `[CHANGE]` **Crawler: running the tile stack out is no longer an instant loss.** When the deck empties it starts a **5-turn collapse countdown** (every drawn tile has been laid by then, so the boss lair is already on the map): reach and defeat the boss within those turns or the dungeon collapses. The lay phase is skipped while the stack is empty, and the HUD shows a pulsing "collapse in N turns" warning.
+- `[CHANGE]` **Crawler: no dice left auto-ends your turn.** Spending your last die ends the turn automatically, so you no longer have to click End turn with nothing to do.
+- `[CHANGE]` **The Mind: a mistake now restarts the level.** Playing out of order still costs a life, but instead of discarding the lower cards and limping on, the whole level **re-deals and restarts from the top** (house rule). The HUD flashes the breaking heart and a "the level restarts" banner.
+- `[FEATURE]` **Hanabi: host can restart at any time.** The "New game" button already showed on game over; the host now also has a confirmed **↻ Restart** in the HUD during play, to recover a stuck or spoiled table.
+- `[FIX]` **Crawler: ability info tooltips are readable.** The hover box (e.g. Bulwark's passive) is now fully opaque with a high stacking order, and its panel lifts above the dice column while open, so nothing bleeds through it.
 
 ### 0.4.11 — 2026-10-10
 - `[BUG]` **Crawler: the LAY phase could not place a tile (sometimes not at all).** 0.4.10 placed the proactive tile at a single server-chosen cell **next to your own tile** and let you only rotate, so a dead-end would not connect and a hero standing on a fully surrounded tile was **skipped entirely** ("unable to lay tiles at all"). The LAY phase now offers **every legal placement across the whole frontier**: you pick the cell **and** the rotation (drag onto any glowing cell) and lay the tile where the paths line up. A hero only skips when nothing fits anywhere on the board. The move-triggered lay in the spend phase stays rotation-only (its cell is fixed by where you stepped). (New tests: connected placements across the frontier, and a boxed-in hero still lays.)

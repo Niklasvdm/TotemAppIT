@@ -133,6 +133,7 @@ interface CrView {
   deckLeft: number;
   bands: number;
   bossNear: boolean;
+  grace: number; // collapse countdown once the stack is empty; -1 while tiles remain
   log: string[];
 }
 
@@ -449,7 +450,12 @@ function CrawlerRoom({
       {bar}
       <LossFlash show={hpLost} icon="💔" label="damage" />
       <div className="mind-hud panel">
-        <span>🂠 {v.deckLeft} tiles{v.bossNear ? " · boss near!" : ""}</span>
+        <span>
+          {v.grace >= 0
+            ? `🂠 stack empty`
+            : `🂠 ${v.deckLeft} tiles${v.bossNear ? " · boss near!" : ""}`}
+        </span>
+        {v.grace >= 0 && <span className="cr-collapse">⚠ collapse in {v.grace} turn{v.grace === 1 ? "" : "s"}</span>}
         <span>{status}</span>
       </div>
 
