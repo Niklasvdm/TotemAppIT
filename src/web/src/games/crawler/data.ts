@@ -3,21 +3,34 @@
 // functions the components share. No JSX and no React, so this is the common data layer.
 import type { CrDie, CrHero, CrMonster, CrView } from "./types";
 
-// A roster of totems to play as. meta = the slug sent on join. Every slug here has
-// sprites in the Bomberman atlas (see SPRITE_ROWS).
+// A roster of totems to play as. meta = the slug sent on join. Each belongs to an
+// archetype (the design note's archetype->animal table); animals in the same archetype
+// share its sheet (dice, HP, specials) and differ only in sprite. Most slugs have atlas
+// sprites (SPRITE_ROWS); any without one falls back to the emoji disc.
 export const TOTEMS = [
-  { slug: "bever", label: "Beaver 🦫 (Guardian · 4 Low dice, HP7)" },
-  { slug: "pijlinktvis", label: "Arrow squid 🦑 (Striker ranged · 3 High dice, HP4)" },
-  { slug: "wolf", label: "Wolf 🐺 (Striker melee · 4 High dice, HP5)" },
-  { slug: "boomkikker", label: "Treefrog 🐸 (Healer · 5 Low dice, HP6)" },
-  { slug: "wasbeer", label: "Raccoon 🦝 (Trickster · 5 Balanced dice, HP5)" },
-  { slug: "comorenwever", label: "Comoros weaver 🕷 (Carrier · 5 Low dice, HP5)" },
-  { slug: "eekhoorn", label: "Squirrel (generic)" },
-  { slug: "ezel", label: "Donkey (generic)" },
-  { slug: "hondshaai", label: "Houndshark (generic)" },
-  { slug: "spinaap", label: "Spider monkey (generic)" },
-  { slug: "goudvink", label: "Bullfinch (generic)" },
-  { slug: "wouw", label: "Kite (generic)" },
+  // Guardian (tank) · 4 Low dice, HP7
+  { slug: "bever", label: "Beaver 🦫 (Guardian · tank, HP7)" },
+  { slug: "ezel", label: "Donkey 🫏 (Guardian · tank, HP7)" },
+  // Striker, melee · 4 High dice, HP5
+  { slug: "wolf", label: "Wolf 🐺 (Striker melee · HP5)" },
+  { slug: "hondshaai", label: "Houndshark 🦈 (Striker melee · HP5)" },
+  { slug: "zwaardvis", label: "Swordfish 🗡 (Striker melee · HP5)" },
+  // Striker, ranged · 3 High dice, HP4
+  { slug: "pijlinktvis", label: "Arrow squid 🦑 (Striker ranged · HP4)" },
+  { slug: "wouw", label: "Kite 🪶 (Striker ranged · HP4)" },
+  { slug: "havik", label: "Hawk 🦅 (Striker ranged · HP4)" },
+  // Healer / support · 5 Low dice, HP6
+  { slug: "boomkikker", label: "Treefrog 🐸 (Healer · HP6)" },
+  { slug: "franjeschildpad", label: "Fringed turtle 🐢 (Healer · HP6)" },
+  // Trickster / loot · 5 Balanced dice, HP5
+  { slug: "wasbeer", label: "Raccoon 🦝 (Trickster · HP5)" },
+  { slug: "eekhoorn", label: "Squirrel 🐿 (Trickster · HP5)" },
+  { slug: "spinaap", label: "Spider monkey 🐒 (Trickster · HP5)" },
+  { slug: "chimpansee", label: "Chimpanzee 🐵 (Trickster · HP5)" },
+  { slug: "koala", label: "Koala 🐨 (Trickster · HP5)" },
+  // Carrier / mobility · 5 Low dice, HP5
+  { slug: "comorenwever", label: "Comoros weaver 🕷 (Carrier · HP5)" },
+  { slug: "goudvink", label: "Bullfinch 🐦 (Carrier · HP5)" },
 ];
 export const DIRS = ["N", "E", "S", "W"];
 export const DIR_ARROW = ["↑", "→", "↓", "←"];

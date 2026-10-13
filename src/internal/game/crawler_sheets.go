@@ -8,8 +8,22 @@ type crawlerMenuEntry struct {
 	Min    int // lowest die value that can pay for this action
 }
 
+// Archetype roles. A sheet's behaviour (its signature + Courage unlocks) is keyed on the
+// ROLE, not the animal, so several animals can share one archetype (see sheetFor). `totem`
+// stays the animal slug (it drives the sprite); `role` drives the mechanics.
+const (
+	roleGuardian  = "guardian"
+	roleMelee     = "melee"
+	roleRanged    = "ranged"
+	roleHealer    = "healer"
+	roleTrickster = "trickster"
+	roleCarrier   = "carrier"
+	roleGeneric   = "generic"
+)
+
 type crawlerSheet struct {
 	totem       string
+	role        string // archetype (see the role* constants); specials key on this, not totem
 	maxHP       int
 	diceN       int
 	faces       []int // the die's weighted faces (the three types below); roll picks one
@@ -38,60 +52,61 @@ func baseMenu(special string) []crawlerMenuEntry {
 	return []crawlerMenuEntry{{actMove, 1}, {special, 2}, {actAttack, 1}, {actCourage, 5}}
 }
 
-// Beaver (Guardian): tanky, Low dice whose weak numbers become Shields.
-func beaverSheet() crawlerSheet {
+// Guardian (tank): tanky, Low dice whose weak numbers become Shields. Brace + Thick Hide
+// + Bulwark. Animals: Beaver, Donkey.
+func guardianSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: "bever", maxHP: 7, diceN: 4, faces: diceLow, moveRange: 1, objectSlots: 2,
+		totem: totem, role: roleGuardian, maxHP: 7, diceN: 4, faces: diceLow, moveRange: 1, objectSlots: 2,
 		menu: baseMenu(actBrace), special: actBrace, unlock0: "Thick Hide", unlock1: "Bulwark",
 	}
 }
 
-// Arrow Squid (Striker): fragile, High dice that meet Armour often. Its signature is
-// RANGED damage: its Attack can reach a monster on an adjacent tile (ranged), so it has
-// no active special-action slot (its edge is reach, plus the Courage unlocks below). The
-// menu is the default map minus the Special entry.
-func squidSheet() crawlerSheet {
+// Striker, ranged: fragile, High dice that meet Armour often. Its signature is RANGED
+// damage (attack a monster on an adjacent tile), so no active special-action slot. Barbed
+// Shot + Deep Volley. Animals: Arrow Squid, Kite, Hawk.
+func rangedSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: "pijlinktvis", maxHP: 4, diceN: 3, faces: diceHigh, moveRange: 1, ranged: true, objectSlots: 2,
+		totem: totem, role: roleRanged, maxHP: 4, diceN: 3, faces: diceHigh, moveRange: 1, ranged: true, objectSlots: 2,
 		menu:    []crawlerMenuEntry{{actMove, 1}, {actAttack, 1}, {actCourage, 5}},
 		special: "", unlock0: "Barbed Shot", unlock1: "Deep Volley",
 	}
 }
 
-// Treefrog (Healer): staying power, Low dice that become frequent Mends.
-func treefrogSheet() crawlerSheet {
+// Healer / support: staying power, Low dice that become frequent Mends. Spores + Bloom.
+// Animals: Treefrog, Fringed turtle.
+func healerSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: "boomkikker", maxHP: 6, diceN: 5, faces: diceLow, moveRange: 1, objectSlots: 3,
+		totem: totem, role: roleHealer, maxHP: 6, diceN: 5, faces: diceLow, moveRange: 1, objectSlots: 3,
 		menu: baseMenu(actMend), special: actMend, unlock0: "Spores", unlock1: "Bloom",
 	}
 }
 
-// Raccoon (Trickster): 5 Balanced dice, Guard as its die-special. Lucky Paws (first
-// unlock) is a free reroll each turn; Big Score (second) adds a slot and an extra drop.
-func raccoonSheet() crawlerSheet {
+// Trickster / loot: 5 Balanced dice, Guard as its die-special. Lucky Paws (free reroll) +
+// Big Score (a 4th slot and an extra drop). Animals: Raccoon, Squirrel, Spider Monkey,
+// Chimpanzee, Koala.
+func tricksterSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: "wasbeer", maxHP: 5, diceN: 5, faces: diceBalanced, moveRange: 1, objectSlots: 3,
+		totem: totem, role: roleTrickster, maxHP: 5, diceN: 5, faces: diceBalanced, moveRange: 1, objectSlots: 3,
 		menu: baseMenu(actGuard), special: actGuard, unlock0: "Lucky Paws", unlock1: "Big Score",
 	}
 }
 
-// Comoros Weaver (Carrier): 5 Low dice, the fast mover (2 squares per Move die). Carry
-// gives an ally a free move; Ferry (first unlock) lets that carry cross a tile edge,
-// Flock (second) makes it a two-square carry.
-func comorosSheet() crawlerSheet {
+// Carrier / mobility: 5 Low dice, the fast mover (2 squares per Move die). Carry gives an
+// ally a free move; Ferry crosses a tile edge, Flock makes it two squares. Animals:
+// Comoros Weaver, Bullfinch.
+func carrierSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: "comorenwever", maxHP: 5, diceN: 5, faces: diceLow, moveRange: 2, objectSlots: 2,
+		totem: totem, role: roleCarrier, maxHP: 5, diceN: 5, faces: diceLow, moveRange: 2, objectSlots: 2,
 		menu: baseMenu(actCarry), special: actCarry, unlock0: "Ferry", unlock1: "Flock",
 	}
 }
 
-// Wolf (Striker, melee): 4 High dice like the Arrow Squid but it fights up close, so it
-// takes the hits the Squid's range avoids. Its signature is passive Group strength (a
-// +1 heal while an ally shares its tile); its unlocks reward fighting in a pack. No 2-3
-// die-special (like the Squid), so a low die just Moves.
-func wolfSheet() crawlerSheet {
+// Striker, melee: 4 High dice, fights up close (takes the hits the ranged striker avoids).
+// Passive Group strength (+1 heal with an ally on your tile); unlocks reward fighting in a
+// pack. No die-special. Animals: Wolf, Houndshark, Swordfish.
+func meleeSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: "wolf", maxHP: 5, diceN: 4, faces: diceHigh, moveRange: 1, objectSlots: 3,
+		totem: totem, role: roleMelee, maxHP: 5, diceN: 4, faces: diceHigh, moveRange: 1, objectSlots: 3,
 		menu:    []crawlerMenuEntry{{actMove, 1}, {actAttack, 1}, {actCourage, 5}},
 		special: "", unlock0: "Pack Tactics", unlock1: "Frenzy",
 	}
@@ -101,26 +116,28 @@ func wolfSheet() crawlerSheet {
 // Balanced dice, Guard special.
 func genericSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: totem, maxHP: 5, diceN: 4, faces: diceBalanced, moveRange: 1, objectSlots: 3,
+		totem: totem, role: roleGeneric, maxHP: 5, diceN: 4, faces: diceBalanced, moveRange: 1, objectSlots: 3,
 		menu: baseMenu(actGuard), special: actGuard, unlock0: "Resolve", unlock1: "Second Wind",
 	}
 }
 
-// sheetFor maps a totem slug to its design sheet, falling back to the generic one.
+// sheetFor maps a totem slug to its archetype sheet (the design note's archetype->animal
+// table), falling back to the generic one. Each archetype carries several animals; they
+// share the sheet's mechanics and differ only in sprite (the `totem` slug).
 func sheetFor(totem string) crawlerSheet {
 	switch totem {
-	case "bever":
-		return beaverSheet()
-	case "pijlinktvis":
-		return squidSheet()
-	case "boomkikker":
-		return treefrogSheet()
-	case "wasbeer":
-		return raccoonSheet()
-	case "comorenwever":
-		return comorosSheet()
-	case "wolf":
-		return wolfSheet()
+	case "bever", "ezel": // Guardian
+		return guardianSheet(totem)
+	case "wolf", "hondshaai", "zwaardvis": // Striker, melee
+		return meleeSheet(totem)
+	case "pijlinktvis", "wouw", "havik": // Striker, ranged
+		return rangedSheet(totem)
+	case "boomkikker", "franjeschildpad": // Healer
+		return healerSheet(totem)
+	case "wasbeer", "eekhoorn", "spinaap", "chimpansee", "koala": // Trickster
+		return tricksterSheet(totem)
+	case "comorenwever", "goudvink": // Carrier
+		return carrierSheet(totem)
 	case "":
 		return genericSheet("totem")
 	default:

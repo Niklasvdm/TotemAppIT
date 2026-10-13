@@ -815,7 +815,7 @@ func (g *crawlerGame) beginTurn(seat int) {
 	h.moveDiceUsed = 0
 	// Thick Hide (Beaver, first special): start the turn with 2 Shields while it is
 	// active, i.e. while Courage is at or above its threshold.
-	if h.sheet.totem == "bever" && h.specialActive(0) {
+	if h.sheet.role == roleGuardian && h.specialActive(0) {
 		h.shields += 2
 	}
 	// Resolve / Second Wind (generic totems' unlocks): a small self-buff at the start of
@@ -829,7 +829,7 @@ func (g *crawlerGame) beginTurn(seat int) {
 	}
 	// Group strength (Wolf, signature): heal 1 at the start of your turn while a living
 	// ally shares your tile (it wants the pack together, not scattered).
-	if h.sheet.totem == "wolf" && h.health < h.sheet.maxHP && g.allyOnTile(h) {
+	if h.sheet.role == roleMelee && h.health < h.sheet.maxHP && g.allyOnTile(h) {
 		h.health++
 	}
 	// Plating (object): top Shields up to 2 at the start of your turn.
@@ -918,7 +918,7 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 		// makes a Mend worthwhile on a full-health but afflicted ally, so the die counts
 		// even when there was no health to restore.
 		spored := false
-		if h.sheet.totem == "boomkikker" && h.specialActive(0) {
+		if h.sheet.role == roleHealer && h.specialActive(0) {
 			tgt := h
 			if ally != seat {
 				tgt = g.players[ally]
@@ -934,7 +934,7 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 		// Bloom (Treefrog, second special): once a round, a Mend also heals every other
 		// hero on your tile 1. Its own turn is the only time it can Mend, so once-a-turn
 		// is once-a-round here.
-		if h.sheet.totem == "boomkikker" && h.specialActive(1) && !h.bloomUsed {
+		if h.sheet.role == roleHealer && h.specialActive(1) && !h.bloomUsed {
 			h.bloomUsed = true
 			g.bloomHeal(h)
 		}
@@ -983,7 +983,7 @@ func (g *crawlerGame) tryCarry(seat, ally, dir int) bool {
 	// an already-placed neighbour, not only shuffle within the tile. Flock (second
 	// special): the carry is TWO squares (a free extra step). Base Carry (or via the
 	// Harness object on another totem) is one square within the tile.
-	isWeaver := src.sheet.totem == "comorenwever"
+	isWeaver := src.sheet.role == roleCarrier
 	crossTiles := isWeaver && (src.specialActive(0) || src.specialActive(1))
 	steps := 1
 	if isWeaver && src.specialActive(1) {
@@ -1265,7 +1265,7 @@ func (g *crawlerGame) reroll(seat, dieIdx int) {
 	switch {
 	case heroHas(h, "gamblers-glove") && !h.gloveUsed:
 		h.gloveUsed = true
-	case h.sheet.totem == "wasbeer" && h.specialActive(0) && !h.pawsUsed:
+	case h.sheet.role == roleTrickster && h.specialActive(0) && !h.pawsUsed:
 		h.pawsUsed = true
 	case h.courage >= 1:
 		h.courage--

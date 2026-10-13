@@ -229,7 +229,7 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 			switch {
 			case heroHas(h, "gamblers-glove") && !h.gloveUsed:
 				hv.FreeReroll, hv.FreeSrc = true, "🧤"
-			case h.sheet.totem == "wasbeer" && h.specialActive(0) && !h.pawsUsed:
+			case h.sheet.role == roleTrickster && h.specialActive(0) && !h.pawsUsed:
 				hv.FreeReroll, hv.FreeSrc = true, "🦝"
 			}
 			hv.LuckyReady = heroHas(h, "lucky-charm") && !h.luckyUsed

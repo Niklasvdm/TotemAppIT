@@ -10,6 +10,9 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.15.0 — 2026-10-13
+- `[FEATURE]` **Crawler: archetype→animal mapping (17 playable totems).** Each sheet now carries a `role` (Guardian / Striker-melee / Striker-ranged / Healer / Trickster / Carrier), and every special keys on the role instead of the animal slug, so multiple animals share one archetype with no duplicated logic: Guardian (Beaver, Donkey), Striker-melee (Wolf, Houndshark, Swordfish), Striker-ranged (Arrow Squid, Kite, Hawk), Healer (Treefrog, Fringed turtle), Trickster (Raccoon, Squirrel, Spider Monkey, Chimpanzee, Koala), Carrier (Comoros Weaver, Bullfinch). The lobby picker lists them grouped by archetype; unmapped totems still fall back to the generic sheet. No stat changes to the existing six leads.
+
 ### 0.14.1 — 2026-10-13
 - `[CHANGE]` **Crawler: the Ruins healing spring is a 4-way cross.** The healing tile is now biome-dependent: a 3-way T-junction in the Woodland (L1-2) as before, but a 4-way crossroads in the Ruins (L3-4), matching its fountain art (`heal()` in `buildDeck`). Machine/other levels keep the T-junction.
 

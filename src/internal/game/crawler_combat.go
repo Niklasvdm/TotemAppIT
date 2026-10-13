@@ -52,7 +52,7 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 	}
 	hits := 1
 	// Arrow Squid, Deep Volley (second special): once a turn a 6 lands two hits.
-	if h.sheet.totem == "pijlinktvis" && h.specialActive(1) && !h.volleyUsed && value >= 6 {
+	if h.sheet.role == roleRanged && h.specialActive(1) && !h.volleyUsed && value >= 6 {
 		hits = 2
 		h.volleyUsed = true
 		g.log = append(g.log, h.name+"'s Deep Volley strikes twice.")
@@ -62,7 +62,7 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 		hits++
 	}
 	// Pack Tactics (Wolf, first special): +1 hit while a living ally shares your tile.
-	if h.sheet.totem == "wolf" && h.specialActive(0) && g.allyOnTile(h) {
+	if h.sheet.role == roleMelee && h.specialActive(0) && g.allyOnTile(h) {
 		hits++
 	}
 	m.health -= hits
@@ -95,7 +95,7 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 		}
 		// Frenzy (Wolf, second special): each kill on your turn grants a free attack die
 		// (a fresh High die added unspent to the pool), so kills can chain.
-		if h.sheet.totem == "wolf" && h.specialActive(1) {
+		if h.sheet.role == roleMelee && h.specialActive(1) {
 			g.dice = append(g.dice, crawlerDie{Value: diceHigh[g.rng.IntN(len(diceHigh))], Bonus: true})
 			g.log = append(g.log, h.name+"'s Frenzy grants a free attack die.")
 		}
@@ -136,7 +136,7 @@ func (g *crawlerGame) awardKillCourage(t *crawlerTile, killer *crawlerHero, rewa
 // will accept.
 func (g *crawlerGame) effectiveArmour(h *crawlerHero, m *crawlerMonster) int {
 	a := m.armour + m.plating // Adaptive Plating's climbing Armour bonus
-	if h.sheet.totem == "pijlinktvis" && h.specialActive(0) {
+	if h.sheet.role == roleRanged && h.specialActive(0) {
 		a--
 	}
 	// Pylon's Jammer Field (boss special): while it lives, every OTHER monster is +1 Armour.
@@ -526,7 +526,7 @@ func (g *crawlerGame) bulwarkFor(h *crawlerHero) *crawlerHero {
 		if b == h || !b.alive || b.tileID != h.tileID {
 			continue
 		}
-		if b.sheet.totem == "bever" && b.specialActive(1) {
+		if b.sheet.role == roleGuardian && b.specialActive(1) {
 			return b
 		}
 	}

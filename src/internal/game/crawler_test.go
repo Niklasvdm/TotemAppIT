@@ -162,7 +162,7 @@ func TestCrawlerAttackTiedToArmourNotDieMin(t *testing.T) {
 
 func TestCrawlerMendHeals(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
-	g.players[0].sheet = treefrogSheet() // Mend special
+	g.players[0].sheet = healerSheet("boomkikker") // Mend special
 	g.players[0].health = 3
 	g.dice = []crawlerDie{{Value: 2}, {Value: 1}, {Value: 1}, {Value: 1}}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMend, "ally": 0})
@@ -360,7 +360,7 @@ func TestCrawlerCourageEconomy(t *testing.T) {
 func TestCrawlerSpecialsAutoActivateByCourage(t *testing.T) {
 	// No manual unlock: a special is active exactly while Courage is at/above its
 	// threshold (3, then 5), and switches off again when Courage drops.
-	h := &crawlerHero{sheet: beaverSheet()}
+	h := &crawlerHero{sheet: guardianSheet("bever")}
 	for _, tc := range []struct {
 		courage int
 		a0, a1  bool
@@ -719,8 +719,8 @@ func TestCrawlerBossHealthScalesWithPlayers(t *testing.T) {
 // two squares can turn a corner (east, then north) instead of going straight.
 func TestCrawlerFastMoveIsDirected(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
-	g.players[0].sheet = comorosSheet() // moveRange 2
-	g.players[0].square = 3             // W doorway of the start cross
+	g.players[0].sheet = carrierSheet("comorenwever") // moveRange 2
+	g.players[0].square = 3                           // W doorway of the start cross
 	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1}) // East -> centre
 	if g.players[0].square != 4 || g.bonusMoves != 1 {
@@ -735,7 +735,7 @@ func TestCrawlerFastMoveIsDirected(t *testing.T) {
 // The Arrow Squid has no dash: its signature is ranged attack, not movement, so there
 // is no Jet action on its sheet (only Move, Attack, Courage).
 func TestCrawlerSquidHasNoSpecialAction(t *testing.T) {
-	s := squidSheet()
+	s := rangedSheet("pijlinktvis")
 	if s.special != "" {
 		t.Fatalf("the Arrow Squid should have no active special action, got %q", s.special)
 	}
@@ -813,7 +813,7 @@ func TestCrawlerKillCourageSharedOnTile(t *testing.T) {
 // (Courage >= 5) makes an attacking 6 count as two hits, once a turn.
 func TestCrawlerSquidBarbedShotAndDeepVolley(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
-	g.players[0].sheet = squidSheet()
+	g.players[0].sheet = rangedSheet("pijlinktvis")
 	m := setupFight(g, 4, 6, 1) // Armour 4, Health 6
 	g.players[0].courage = 0
 	g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 1}, {Value: 1}}
@@ -1204,11 +1204,11 @@ func TestCrawlerObjectCapIsPerTotem(t *testing.T) {
 		t.Fatalf("pack should stay at the cap, got %d", len(h.objects))
 	}
 	// The Arrow Squid (Striker, ranged) carries 2; the Treefrog (Healer) carries 3.
-	g.players[0].sheet = squidSheet()
+	g.players[0].sheet = rangedSheet("pijlinktvis")
 	if heroSlots(g.players[0]) != 2 {
 		t.Fatalf("the Arrow Squid should have 2 object slots, got %d", heroSlots(g.players[0]))
 	}
-	g.players[0].sheet = treefrogSheet()
+	g.players[0].sheet = healerSheet("boomkikker")
 	if heroSlots(g.players[0]) != 3 {
 		t.Fatalf("the Treefrog should have 3 object slots, got %d", heroSlots(g.players[0]))
 	}
@@ -1364,7 +1364,7 @@ func TestCrawlerLootRollClearsAtTurnStart(t *testing.T) {
 func TestCrawlerRaccoonLuckyPawsFreeReroll(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	h := g.players[0]
-	h.sheet = raccoonSheet()
+	h.sheet = tricksterSheet("wasbeer")
 	h.courage = 3 // Lucky Paws (first unlock) active at 3
 	h.objects = nil
 	g.beginTurn(0)
@@ -1382,7 +1382,7 @@ func TestCrawlerRaccoonLuckyPawsFreeReroll(t *testing.T) {
 func TestCrawlerTreefrogBloomHealsParty(t *testing.T) {
 	g, _ := startedCrawler(t, 3)
 	heal := g.players[0]
-	heal.sheet = treefrogSheet()
+	heal.sheet = healerSheet("boomkikker")
 	heal.courage = 5
 	a, b := g.players[1], g.players[2]
 	a.health, b.health = 1, 1
@@ -1402,7 +1402,7 @@ func TestCrawlerTreefrogBloomHealsParty(t *testing.T) {
 func TestCrawlerWeaverFerryCarriesAcrossTileEdge(t *testing.T) {
 	g, _ := startedCrawler(t, 2)
 	w := g.players[0]
-	w.sheet = comorosSheet()
+	w.sheet = carrierSheet("comorenwever")
 	w.courage = 3 // Ferry (first unlock) active at 3
 	// Two adjacent cross tiles already placed; the ally sits at the east doorway.
 	a := g.tiles[w.tileID]                                                          // at (0,0)
@@ -1420,7 +1420,7 @@ func TestCrawlerWeaverFerryCarriesAcrossTileEdge(t *testing.T) {
 func TestCrawlerWeaverFlockCarriesTwoSquares(t *testing.T) {
 	g, _ := startedCrawler(t, 2)
 	w := g.players[0]
-	w.sheet = comorosSheet()
+	w.sheet = carrierSheet("comorenwever")
 	w.courage = 5 // Flock (second unlock) active at 5
 	ally := g.players[1]
 	ally.tileID = w.tileID
@@ -1435,7 +1435,7 @@ func TestCrawlerWeaverFlockCarriesTwoSquares(t *testing.T) {
 func TestCrawlerRaccoonBigScoreAddsSlot(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	h := g.players[0]
-	h.sheet = raccoonSheet() // 3 object slots
+	h.sheet = tricksterSheet("wasbeer") // 3 object slots
 	h.courage = 0
 	if heroSlots(h) != 3 {
 		t.Fatalf("Raccoon base slots should be 3, got %d", heroSlots(h))
@@ -1686,7 +1686,7 @@ func TestCrawlerSpringClearsStatuses(t *testing.T) {
 func TestCrawlerSporesClearsOnMend(t *testing.T) {
 	g, _ := startedCrawler(t, 2)
 	heal := g.players[0]
-	heal.sheet = treefrogSheet()
+	heal.sheet = healerSheet("boomkikker")
 	heal.courage = 3 // Spores (first unlock) active at 3
 	a := g.players[1]
 	a.electrocuted, a.snared = true, true
@@ -1781,7 +1781,7 @@ func TestCrawlerTorchClearsTileHazards(t *testing.T) {
 func TestCrawlerWolfGroupStrengthHealsWithAlly(t *testing.T) {
 	g, _ := startedCrawler(t, 2)
 	w := g.players[0]
-	w.sheet = wolfSheet()
+	w.sheet = meleeSheet("wolf")
 	w.health = 3
 	ally := g.players[1]
 	ally.tileID = w.tileID // share the tile
@@ -1801,7 +1801,7 @@ func TestCrawlerWolfGroupStrengthHealsWithAlly(t *testing.T) {
 func TestCrawlerWolfPackTacticsExtraHit(t *testing.T) {
 	g, _ := startedCrawler(t, 2)
 	w := g.players[0]
-	w.sheet = wolfSheet()
+	w.sheet = meleeSheet("wolf")
 	w.courage = 3                             // Pack Tactics active
 	m := setupFight(g, 3, 5, 1)               // Armour 3, Health 5; hero 0 is on its tile
 	g.players[1].tileID = g.players[0].tileID // ally shares the Wolf's tile
@@ -1815,7 +1815,7 @@ func TestCrawlerWolfPackTacticsExtraHit(t *testing.T) {
 func TestCrawlerWolfFrenzyFreeDieOnKill(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	w := g.players[0]
-	w.sheet = wolfSheet()
+	w.sheet = meleeSheet("wolf")
 	w.courage = 5 // Frenzy active
 	m := setupFight(g, 3, 1, 1)
 	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
@@ -2325,5 +2325,37 @@ func TestCrawlerRuinsHealingIsCross(t *testing.T) {
 		if !found {
 			t.Fatalf("L%d: no healing tile found in the deck", tc.level)
 		}
+	}
+}
+
+func TestCrawlerArchetypeAnimalMapping(t *testing.T) {
+	// The design note's archetype->animal table: each animal gets its archetype's sheet
+	// (role + stats), differing only in the totem slug (sprite).
+	cases := map[string][]string{
+		roleGuardian:  {"bever", "ezel"},
+		roleMelee:     {"wolf", "hondshaai", "zwaardvis"},
+		roleRanged:    {"pijlinktvis", "wouw", "havik"},
+		roleHealer:    {"boomkikker", "franjeschildpad"},
+		roleTrickster: {"wasbeer", "eekhoorn", "spinaap", "chimpansee", "koala"},
+		roleCarrier:   {"comorenwever", "goudvink"},
+	}
+	for role, animals := range cases {
+		lead := sheetFor(animals[0])
+		for _, slug := range animals {
+			s := sheetFor(slug)
+			if s.role != role {
+				t.Fatalf("%s should be role %q, got %q", slug, role, s.role)
+			}
+			if s.totem != slug {
+				t.Fatalf("%s sheet should keep its own totem slug, got %q", slug, s.totem)
+			}
+			if s.maxHP != lead.maxHP || s.diceN != lead.diceN || s.special != lead.special {
+				t.Fatalf("%s should share the %s stat line (HP%d/dice%d/special %q), got HP%d/dice%d/special %q",
+					slug, role, lead.maxHP, lead.diceN, lead.special, s.maxHP, s.diceN, s.special)
+			}
+		}
+	}
+	if sheetFor("some-unknown-slug").role != roleGeneric {
+		t.Fatal("an unmapped animal should fall back to the generic sheet")
 	}
 }

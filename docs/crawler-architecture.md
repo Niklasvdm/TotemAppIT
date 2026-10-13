@@ -45,7 +45,7 @@ A full vertical slice of the real game, built on the random tile generator chose
 **Deferred (later)**
 
 - Reaction dice (allies spending dice on another hero's turn, an interrupt mechanic) — distinct from the shipped end-of-round group fight.
-- The remaining friends' totems as distinct sheets and the scout ability.
+- The scout ability (the friends' totems are now mapped onto the six archetypes and playable).
 - Hidden enemy stats (the Wavelength-style reveal), richer story beats, a balancing pass, mobile polish, and the pending art (see the [changelog](../CHANGELOG.md) roadmap).
 
 ## Why it fits the engine as-is
@@ -468,7 +468,7 @@ A totem is defined entirely by its sheet: dice (count and **weighted face set**)
 
 **Weighted dice (not a plain d6).** Each sheet rolls one of three die types, the design's identity lever: **Low** `{1,2,2,3,3,6}` (favours Move/Special, rarely meets Armour), **Balanced** `{1,2,3,4,5,6}` (a plain d6), **High** `{2,4,5,5,6,6}` (meets Armour often, feeds Courage). The monster's Armour sets the hit number, so a High die hits far more than a Low one. `rollFace` picks a face; `diceLow/diceBalanced/diceHigh` are the sets.
 
-**Roles, not bespoke builds.** The note consolidates every totem into a handful of **archetypes (roles)**: an animal is an instance of a role, sharing its two Courage specials, and differs only in Health, dice and loot spots. Six totems have sheets today; any other totem falls back to the generic sheet (4 Balanced dice, HP 5, a Guard placeholder special). Menus are the default map with the sheet's own special in the 2+ slot; an Attack needs a die that meets the target's Armour, Courage >=5. **Loot spots** is the object-slot capacity (`objectSlots`, `heroSlots`).
+**Roles, not bespoke builds.** The note consolidates every totem into a handful of **archetypes (roles)**: an animal is an instance of a role, sharing its two Courage specials, and differs only in its sprite. Each sheet carries a `role` (`crawler_sheets.go`), and all the special logic keys on that role, not the animal slug, so several animals map to one archetype (the note's archetype->animal table) with no duplicated code. The six archetypes and their animals: **Guardian** (Beaver, Donkey), **Striker-melee** (Wolf, Houndshark, Swordfish), **Striker-ranged** (Arrow Squid, Kite, Hawk), **Healer** (Treefrog, Fringed turtle), **Trickster** (Raccoon, Squirrel, Spider Monkey, Chimpanzee, Koala), **Carrier** (Comoros Weaver, Bullfinch). Any unmapped totem falls back to the generic sheet (4 Balanced dice, HP 5, a Guard placeholder special). Menus are the default map with the sheet's own special in the 2+ slot; an Attack needs a die that meets the target's Armour, Courage >=5. **Loot spots** is the object-slot capacity (`objectSlots`, `heroSlots`).
 
 | Totem (slug) | Role | HP | Dice | Loot | Signature (2+) | Unlocks (3 / 5 Courage) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -526,7 +526,7 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 ## Roadmap
 
 - **Shipped**: the engine `Game` with random banded tile generation and the boss in the final band; the full turn (dice, menu, Move, Attack, Special, Courage, reroll) with Shields; the group fight; six designed totems with their Courage-tier specials; the boss pool and six-level progression across three biomes; the loot economy with a shop and floor drops; the hazard and status system with the Level-2 hazard rooms; ranged attack, carry and fast movement; win and lose; narrated beats; local (same-device) multiplayer; and the test suite.
-- **Next**: downed-not-dead revive, the scout ability, and the remaining friends' totems as bespoke sheets.
+- **Next**: downed-not-dead revive and the scout ability. (The friends' totems are now mapped onto the six archetypes, so they are playable; a per-animal bespoke twist is optional later.)
 - **Later**: hidden enemy stats, richer per-tile story beats, a balancing pass with real players, mobile layout, and the pending art (boss sheets, a dedicated Sentry, the Level-2+ feature tiles, ruins/machine tilesets).
 
 ## Open numbers to tune (not architecture)

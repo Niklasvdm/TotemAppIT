@@ -18,7 +18,7 @@ func heroSlots(h *crawlerHero) int {
 	if h.sheet.objectSlots > 0 {
 		n = h.sheet.objectSlots
 	}
-	if h.sheet.totem == "wasbeer" && h.specialActive(1) {
+	if h.sheet.role == roleTrickster && h.specialActive(1) {
 		n++
 	}
 	return n
@@ -235,7 +235,7 @@ func (g *crawlerGame) dropFrom(t *crawlerTile, m *crawlerMonster, killer *crawle
 			name = objName(slug)
 		}
 		// Big Score (Raccoon, second special): the killer's hits drop one extra consumable.
-		if hit && killer != nil && killer.sheet.totem == "wasbeer" && killer.specialActive(1) {
+		if hit && killer != nil && killer.sheet.role == roleTrickster && killer.specialActive(1) {
 			extra := g.rollConsumableDrop()
 			drops = append(drops, extra)
 			g.log = append(g.log, killer.name+"'s Big Score shakes loose a "+objName(extra)+".")
