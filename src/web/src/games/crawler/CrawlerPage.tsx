@@ -580,7 +580,7 @@ function CrawlerRoom({
           onPickup={(sq) => g.send({ t: "pickup", square: sq })}
           lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt } : null}
         />
-        {me && myTurn && myTile?.kind === "shop" && me.square === 4 && (
+        {me && myTurn && myTile?.kind === "shop" && (
           <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} />
         )}
         {v.lootRoll && <CrawlerLootRoll key={`lr-${v.lootRoll.roll}-${v.lootRoll.chance}-${v.lootRoll.killer ?? ""}`} roll={v.lootRoll} />}

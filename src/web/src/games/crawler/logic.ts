@@ -6,10 +6,14 @@ export type Edges = [boolean, boolean, boolean, boolean];
 const T = true,
   F = false;
 
-// Each tile kind maps to an art file plus the open edges [N,E,S,W] as the art is DRAWN;
-// the client rotates the art to match the orientation a tile was actually laid in. To
-// re-map a kind or fix an alignment, change its base (or file) here, nothing else.
-export const TILE_ART: Record<string, { file: string; base: Edges }> = {
+// Each tile kind maps to art file(s) plus the open edges [N,E,S,W] as the art is DRAWN; the
+// client rotates the art to match the orientation a tile was actually laid in. `file` may be
+// a single name or a LIST of interchangeable variants (same shape / open-edge count): the
+// client then picks one per tile deterministically by tile id (see tileArt), so a kind can
+// have several looks without any server change. Every variant must exist in each active
+// biome folder (same file name), or it falls back to the plain cell for the tiles that land
+// on the missing one. To re-map a kind or add a variant, edit its `file` here, nothing else.
+export const TILE_ART: Record<string, { file: string | string[]; base: Edges }> = {
   straight: { file: "tile-1", base: [T, F, T, F] }, //   vertical corridor
   bend: { file: "tile-2", base: [F, T, T, F] }, //        E+S corner
   tee: { file: "tile-3", base: [T, T, T, F] }, //         N+E+S junction
@@ -23,13 +27,14 @@ export const TILE_ART: Record<string, { file: string; base: Edges }> = {
   // Level-2+ feature tiles (open rooms, [T,T,T,T]). Art slots are reserved; until the art
   // sheets land these fall back to the styled cell (the backgroundImage 404s silently).
   shrine: { file: "tile-10", base: [F, F, T, T] }, //     a landmark (cosmetic, L2+)
-  gate: { file: "tile-11", base: [F, F, T, F] }, //       broken city gate: woodland -> ruins
+  gate: { file: "tile-11", base: [F, F, T, F] }, //       broken city gate: L2 boss lair + L3 start
   wiring: { file: "tile-12", base: [F, T, F, T] }, //     live-wiring hazard room (L2+)
   coolant: { file: "tile-13", base: [T, T, T, T] }, //    coolant-flood hazard room (L2+)
   fog: { file: "tile-14", base: [T, T, T, T] }, //        sensor-fog hazard room (L2+)
-  rust: { file: "tile-15", base: [T, T, T, T] }, //       rust hazard room (Ruins L3+)
-  trap: { file: "tile-16", base: [T, T, T, T] }, //       trap/mine hazard room (Ruins L3+)
+  rust: { file: "tile-15", base: [T, T, T, T] }, //       rust hazard room, open crossroads (Ruins L3+)
+  trap: { file: "tile-16", base: [T, F, T, F] }, //       trap/mine hazard room, a straight corridor (Ruins L3+)
   overheat: { file: "tile-17", base: [T, T, T, T] }, //   overheat/fire hazard room (Machine L5+)
+  descent: { file: "tile-18", base: [F, F, T, F] }, //    stairwell down to the machine rooms: L4 boss lair
 };
 
 export function rotateEdges(base: Edges, r: number): Edges {
@@ -40,7 +45,7 @@ export function rotateEdges(base: Edges, r: number): Edges {
 // the rotations whose edges line up with the tile's actual open edges it prefers the one
 // matching the tile's stored `rot` so a symmetric tile (the crossroads) still rotates
 // visibly. Returns null when the kind has no art.
-export function tileArt(kind: string, edges: Edges, rot = 0): { file: string; deg: number } | null {
+export function tileArt(kind: string, edges: Edges, rot = 0, id = 0): { file: string; deg: number } | null {
   const art = TILE_ART[kind];
   if (!art) return null;
   const valid: number[] = [];
@@ -49,7 +54,15 @@ export function tileArt(kind: string, edges: Edges, rot = 0): { file: string; de
   }
   const want = ((rot % 4) + 4) % 4;
   const pick = valid.includes(want) ? want : valid.length ? valid[0] : want;
-  return { file: art.file, deg: pick * 90 };
+  return { file: pickVariant(art.file, id), deg: pick * 90 };
+}
+
+// pickVariant chooses one art file for a tile from its kind's variant list, keyed by tile
+// id so the choice is stable across re-renders (no flicker). A single string is a one-item
+// list. Negative/large ids wrap safely.
+export function pickVariant(file: string | string[], id: number): string {
+  const files = Array.isArray(file) ? file : [file];
+  return files[((id % files.length) + files.length) % files.length];
 }
 
 // Walk poses in the shared totem atlas: each pose's first column and its cycle length.

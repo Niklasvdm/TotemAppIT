@@ -293,12 +293,14 @@ func (g *crawlerGame) maybeVault(seat int) {
 	}
 }
 
-// maybeShop clears a hero's statuses the moment they reach a shop tile's centre (the
-// kangaroo patches you up): the note lists "shop" as a status-repair. Free, repeatable.
+// maybeShop clears a hero's statuses the moment they STEP ONTO a shop tile (the kangaroo
+// merchant holds the centre, so a hero reaches the tile via its doorway; the shop opens on
+// arrival, no need to reach the middle). The note lists "shop" as a status-repair. Free,
+// repeatable.
 func (g *crawlerGame) maybeShop(seat int) {
 	h := g.players[seat]
 	t := g.tiles[h.tileID]
-	if t == nil || t.kind != crKindShop || h.square != 4 || !h.alive {
+	if t == nil || t.kind != crKindShop || !h.alive {
 		return
 	}
 	if heroClearStatuses(h) {

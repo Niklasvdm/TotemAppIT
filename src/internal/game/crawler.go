@@ -109,7 +109,8 @@ const (
 	// a hazard on their squares when laid (see crawler_hazards.go seedHazards); the shrine
 	// and gateway are cosmetic (no mechanical effect: level transitions are automatic).
 	crKindShrine   = "shrine"   // a landmark (cosmetic), from Level 2
-	crKindGate     = "gate"     // the broken city gate (woodland -> ruins), cosmetic
+	crKindGate     = "gate"     // the broken city gate: L2 boss lair + L3 start
+	crKindDescent  = "descent"  // the stairwell down to the machine rooms: L4 boss lair
 	crKindWiring   = "wiring"   // live-wiring hazard room (Woodland L2+)
 	crKindCoolant  = "coolant"  // coolant-flood hazard room (Woodland L2+)
 	crKindFog      = "fog"      // sensor-fog hazard room (Woodland L2+)
@@ -131,11 +132,12 @@ var crSpecialBase = map[string][4]bool{
 	// tile falls back to the plain cell. Keep the two tables in sync.
 	crKindShrine:   {true, true, false, false},  // bend (a landmark)
 	crKindGate:     {true, false, false, false}, // dead-end (the city gate)
+	crKindDescent:  {true, false, false, false}, // dead-end (the stairwell down)
 	crKindWiring:   {true, false, true, false},  // straight corridor of live floor
 	crKindCoolant:  {true, true, true, true},    // open flooded room
 	crKindFog:      {true, true, true, true},    // open fogged room
 	crKindRust:     {true, true, true, true},    // open room (Ruins)
-	crKindTrap:     {true, true, true, true},    // open room (Ruins)
+	crKindTrap:     {true, false, true, false},  // straight corridor (a street between tall buildings)
 	crKindOverheat: {true, true, true, true},    // open room (Machine)
 }
 
@@ -553,6 +555,18 @@ func (g *crawlerGame) startLevel(n int) {
 		startKind, startEdges = crKindGate, crSpecialBase[crKindGate]
 	}
 	start := g.placeTile(0, 0, startEdges, 0, startKind, false, nil)
+	// Heroes start on the tile's centre, EXCEPT the Level 3 gate: there they emerge on the
+	// city side (the single open-edge street square), facing into the ruins, not pinned
+	// against the arch in the middle.
+	startSq := 4
+	if startKind == crKindGate {
+		for d := 0; d < 4; d++ {
+			if startEdges[d] {
+				startSq = crawlerDoor[d]
+				break
+			}
+		}
+	}
 	for _, s := range g.order {
 		h := g.players[s]
 		h.health = h.sheet.maxHP
@@ -562,7 +576,7 @@ func (g *crawlerGame) startLevel(n int) {
 		h.volleyUsed = false
 		heroClearStatuses(h)
 		h.tileID = start.id
-		h.square = 4
+		h.square = startSq
 	}
 	g.phase = crPlaying
 	g.log = append(g.log, "Level "+strconv.Itoa(n)+": the "+biomeLabel(g.biome)+".")
@@ -836,12 +850,15 @@ func (g *crawlerGame) buildDeck() {
 		if b == g.bands-1 {
 			// The boss is drawn from the level's pool (rollBossMonsters); it holds the
 			// centre (heroes can't stand on it, see tryMove). The lair is normally a
-			// crossroads room (surround it from four sides), EXCEPT Level 2, where the
-			// boss guards the broken city gate: a one-doorway dead-end you fight from the
-			// one side, and the same gate you emerge from to start Level 3 (startLevel).
+			// crossroads room (surround it from four sides), EXCEPT at the biome seams:
+			// Level 2's boss guards the broken city gate (and that gate starts Level 3),
+			// and Level 4's boss guards the stairwell down into the machine rooms. Both are
+			// one-doorway dead-ends fought from the single side.
 			bossKind, bossBase := "boss", ttCross.base
 			if g.level == 2 {
 				bossKind, bossBase = crKindGate, crSpecialBase[crKindGate]
+			} else if g.level == 4 {
+				bossKind, bossBase = crKindDescent, crSpecialBase[crKindDescent]
 			}
 			boss := tileSpec{band: b, kind: bossKind, base: bossBase, isBoss: true,
 				monsters: g.rollBossMonsters()}
@@ -1185,7 +1202,7 @@ func (g *crawlerGame) carryStep(a *crawlerHero, dir int, crossTiles bool) bool {
 	ncol, nrow := col+crawlerDelta[dir][0], row+crawlerDelta[dir][1]
 	if ncol >= 0 && ncol < 3 && nrow >= 0 && nrow < 3 {
 		nsq := nrow*3 + ncol
-		if !crawlerWalkable(t.edges)[nsq] || bossOnSquare(t, nsq) {
+		if !crawlerWalkable(t.edges)[nsq] || centreBlocked(t, nsq) {
 			return false
 		}
 		a.square = nsq
@@ -1237,13 +1254,13 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 		if !crawlerWalkable(t.edges)[nsq] {
 			return false // off the tile's path: only the centre + open doorways are walkable
 		}
-		if bossOnSquare(t, nsq) {
-			return false // the boss holds the centre of its lair; you fight it from the sides
+		if centreBlocked(t, nsq) {
+			return false // the boss / merchant holds the centre; you work the tile from the sides
 		}
 		h.square = nsq
 		g.maybeSpring(seat) // landed: a spring centre heals, a Vault centre yields loot
 		g.maybeVault(seat)
-		g.maybeShop(seat) // a shop centre repairs statuses
+		g.maybeShop(seat) // stepping onto a shop tile opens it (and repairs statuses)
 		g.enterHazard(h)  // a hazard square bites on entry (wiring/mine)
 		return true
 	}
@@ -1279,6 +1296,13 @@ func bossOnSquare(t *crawlerTile, sq int) bool {
 		}
 	}
 	return false
+}
+
+// centreBlocked reports whether a hero may NOT stand on square sq of tile t: a living boss
+// holds its lair centre, and the kangaroo merchant holds the shop centre. In both cases the
+// party works the tile from the surrounding squares, so stepping onto the centre is refused.
+func centreBlocked(t *crawlerTile, sq int) bool {
+	return bossOnSquare(t, sq) || (t.kind == crKindShop && sq == 4)
 }
 
 // usePortal teleports a hero standing on a portal tile's centre to the centre of

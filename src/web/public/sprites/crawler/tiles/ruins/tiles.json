@@ -5,8 +5,8 @@
   "tiles": [
     {
       "i": 0,
-      "row": 0,
-      "col": 0,
+      "row": 1,
+      "col": 2,
       "file": "tile-0.png"
     },
     {
@@ -14,6 +14,60 @@
       "row": 0,
       "col": 1,
       "file": "tile-1.png"
+    },
+    {
+      "i": "11",
+      "row": 2,
+      "col": 1,
+      "file": "tile-11.png"
+    },
+    {
+      "i": 12,
+      "row": 1,
+      "col": 1,
+      "file": "tile-12.png"
+    },
+    {
+      "i": 13,
+      "row": 1,
+      "col": 2,
+      "file": "tile-13.png"
+    },
+    {
+      "i": 14,
+      "row": 2,
+      "col": 0,
+      "file": "tile-14.png"
+    },
+    {
+      "i": 15,
+      "row": 1,
+      "col": 1,
+      "file": "tile-15.png"
+    },
+    {
+      "i": "16",
+      "row": 0,
+      "col": 2,
+      "file": "tile-16.png"
+    },
+    {
+      "i": "16b",
+      "row": 0,
+      "col": 1,
+      "file": "tile-16b.png"
+    },
+    {
+      "i": "16c",
+      "row": 2,
+      "col": 2,
+      "file": "tile-16c.png"
+    },
+    {
+      "i": 18,
+      "row": 2,
+      "col": 1,
+      "file": "tile-18.png"
     },
     {
       "i": 2,
@@ -34,10 +88,40 @@
       "file": "tile-4.png"
     },
     {
+      "i": 5,
+      "row": 0,
+      "col": 0,
+      "file": "tile-5.png"
+    },
+    {
+      "i": 6,
+      "row": 0,
+      "col": 1,
+      "file": "tile-6.png"
+    },
+    {
+      "i": 7,
+      "row": 2,
+      "col": 0,
+      "file": "tile-7.png"
+    },
+    {
       "i": 8,
       "row": 2,
       "col": 2,
       "file": "tile-8.png"
+    },
+    {
+      "i": "9",
+      "row": 0,
+      "col": 1,
+      "file": "tile-9.png"
+    },
+    {
+      "i": "9b",
+      "row": 0,
+      "col": 2,
+      "file": "tile-9b.png"
     }
   ]
 }

@@ -13,7 +13,7 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: 
   // (no need to wait for your turn), so a boss's drops stay reachable after the turn moves on.
   const canGrab = !!onPickup && v.ph === "playing" && !!you?.alive && you?.tile === tile.id;
   const edgeClass = ["n", "e", "s", "w"].filter((_, d) => tile.edges[d]).map((s) => `open-${s}`).join(" ");
-  const art = tileArt(tile.kind, tile.edges, tile.rot);
+  const art = tileArt(tile.kind, tile.edges, tile.rot, tile.id); // id picks the art variant
   return (
     <div
       className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}${tile.used ? " used" : ""}`}

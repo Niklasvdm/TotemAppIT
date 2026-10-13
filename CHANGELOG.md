@@ -10,6 +10,18 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.13.0 — 2026-10-13
+- `[FEATURE]` **Crawler: tile kinds can have multiple art variants.** `TILE_ART[kind].file` may now be a list of interchangeable PNGs (same shape); the client picks one per tile deterministically by tile id (`pickVariant`, stable across re-renders), so a kind can have several looks with no server change. Single strings still work unchanged.
+- `[CHANGE]` **Crawler: the shop merchant holds the centre, and the shop opens on tile entry.** You can no longer step onto a shop tile's middle (the kangaroo stands there, like a boss `centreBlocked`); the shop now patches your statuses and lets you buy the moment you step onto the tile (from the doorway), instead of requiring the centre square. Applies to every shop, both biomes.
+- `[CHANGE]` **Crawler: Level 3 spawns the party on the city side of the gate.** Heroes now start on the gate's single open-edge street square (facing into the ruins) instead of the centre, so they emerge on the city side rather than pinned against the arch.
+- `[TEST]` New coverage: shop centre blocked + opens/sells from the doorway, L3 city-side spawn (other levels still centre), and `pickVariant`.
+- `[CHORE]` **`make_tiles.py --variant`** writes a variant file (`tile-16b.png` beside `tile-16`) so an alternate look for a kind can be sliced and listed in `TILE_ART`. Design note + architecture doc document the variant workflow and the one rule (a variant must share its kind's open-edge count and exist in every biome folder the kind is used in).
+
+### 0.12.0 — 2026-10-13
+- `[FEATURE]` **Crawler: the Level 4 boss guards a Descent tile.** Mirroring the Level 2 gate-boss, the ruins -> machine seam now has its own one-door dead-end boss lair: the stairwell down into the machine rooms (new tile kind `descent`, art slot `tile-18`). `buildDeck` lays the L4 boss on it instead of the crossroads lair.
+- `[CHANGE]` **Crawler: the trap room is now a straight corridor.** It was a 4-way crossroads like the other hazard rooms; it is now a straight (a street between tall buildings), while the rust room stays an open crossroads. Server (`crSpecialBase`) and client (`TILE_ART`) shapes updated together (the drift guard enforces the match).
+- `[DOCS]` Per-level tile table (base paths split, L4 boss = descent, rust/trap shapes), architecture doc, and the ruins tile-generation prompts in the design note updated to match.
+
 ### 0.11.1 — 2026-10-13
 - `[FIX]` **Crawler: Level 3 keeps a usable transporter pair.** Making the gate the Level 3 start tile (0.10.0) left L3 with a single portal, and a transporter can only teleport to another transporter, so teleport was dead on L3. `buildDeck` now adds a second deck portal on Level 3, so every level has two transporters (a working pair).
 - `[FIX]` **Crawler: the shrine landmark is Level 2 only again.** `buildDeck` was inserting the cosmetic shrine on every level from 2 up, contradicting the design (Woodland L2 only). It is now gated to Level 2.

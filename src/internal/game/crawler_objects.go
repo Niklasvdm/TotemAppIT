@@ -152,7 +152,7 @@ func (g *crawlerGame) buyObject(seat int, slug string) {
 	}
 	h := g.players[seat]
 	t := g.tiles[h.tileID]
-	if t == nil || t.kind != crKindShop || h.square != 4 {
+	if t == nil || t.kind != crKindShop { // the merchant holds the centre; buy from the doorway
 		return
 	}
 	idx := -1

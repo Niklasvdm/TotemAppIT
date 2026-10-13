@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { type Edges, rotateEdges, tileArt, poseFromDelta, effectiveArmour, TILE_ART } from "./logic";
+import { type Edges, rotateEdges, tileArt, poseFromDelta, effectiveArmour, TILE_ART, pickVariant } from "./logic";
+
+describe("pickVariant", () => {
+  it("returns the only file for a single-string kind, whatever the id", () => {
+    expect(pickVariant("tile-4", 0)).toBe("tile-4");
+    expect(pickVariant("tile-4", 7)).toBe("tile-4");
+  });
+  it("cycles a variant list by tile id, stably", () => {
+    const v = ["tile-2", "tile-19", "tile-20"];
+    expect(pickVariant(v, 0)).toBe("tile-2");
+    expect(pickVariant(v, 1)).toBe("tile-19");
+    expect(pickVariant(v, 2)).toBe("tile-20");
+    expect(pickVariant(v, 3)).toBe("tile-2"); // wraps
+    expect(pickVariant(v, 5)).toBe("tile-20");
+  });
+  it("handles negative ids without crashing", () => {
+    expect(pickVariant(["a", "b"], -1)).toBe("b");
+  });
+});
 
 describe("rotateEdges", () => {
   it("rotates N-only one quarter-turn to E", () => {

@@ -198,30 +198,31 @@ Game art is **not** in the database. The data model above is pure game state (an
 
 **Which number is which tile (the authoritative map is `TILE_ART` in `logic.ts`).** When you split a biome sheet with `make_tiles.py`, cell N (reading order) must be the kind below. The woodland sheet is laid out in exactly this order:
 
-| File | Kind | Shape |
-| --- | --- | --- |
-| `tile-0` | dead-end | one doorway |
-| `tile-1` | straight | corridor (two opposite edges) |
-| `tile-2` | bend | corner (two adjacent edges) |
-| `tile-3` | tee | T-junction (three edges) |
-| `tile-4` | cross | crossroads (all four) |
-| `tile-5` | healing | healing spring (drawn as a T-junction) |
-| `tile-6` | portal | transporter / start (drawn as a crossroads) |
-| `tile-7` | shop | kangaroo shop (a dead-end nook) |
-| `tile-8` | boss | boss lair (one doorway) |
-| `tile-9` | vault | loot cache, a dead-end nook (from Level 2) |
-| `tile-10` | shrine | a landmark (cosmetic, from Level 2) |
-| `tile-11` | gate | the broken city gate (woodland -> ruins) |
-| `tile-12` | wiring | live-wiring hazard room (Woodland L2+) |
-| `tile-13` | coolant | coolant-flood hazard room (Woodland L2+) |
-| `tile-14` | fog | sensor-fog hazard room (Woodland L2+) |
-| `tile-15` | rust | rust hazard room (Ruins L3+) |
-| `tile-16` | trap | trap/mine hazard room (Ruins L3+) |
-| `tile-17` | overheat | overheat/fire hazard room (Machine L5+) |
+| File      | Kind     | Shape                                                    |
+| --------- | -------- | -------------------------------------------------------- |
+| `tile-0`  | dead-end | one doorway                                              |
+| `tile-1`  | straight | corridor (two opposite edges)                            |
+| `tile-2`  | bend     | corner (two adjacent edges)                              |
+| `tile-3`  | tee      | T-junction (three edges)                                 |
+| `tile-4`  | cross    | crossroads (all four)                                    |
+| `tile-5`  | healing  | healing spring (drawn as a T-junction)                   |
+| `tile-6`  | portal   | transporter / start (drawn as a crossroads)              |
+| `tile-7`  | shop     | kangaroo shop (a dead-end nook)                          |
+| `tile-8`  | boss     | boss lair (a crossroads the boss holds)                  |
+| `tile-9`  | vault    | loot cache, a dead-end nook (from Level 2)               |
+| `tile-10` | shrine   | a landmark (cosmetic, Level 2 only)                      |
+| `tile-11` | gate     | the broken city gate: L2 boss lair + L3 start (dead-end) |
+| `tile-12` | wiring   | live-wiring hazard room (Woodland L2+)                   |
+| `tile-13` | coolant  | coolant-flood hazard room, a crossroads (Woodland L2+)   |
+| `tile-14` | fog      | sensor-fog hazard room, a crossroads (Woodland L2+)      |
+| `tile-15` | rust     | rust hazard room, a crossroads (Ruins L3+)               |
+| `tile-16` | trap     | trap/mine hazard room, a straight corridor (Ruins L3+)   |
+| `tile-17` | overheat | overheat/fire hazard room (Machine L5+)                  |
+| `tile-18` | descent  | the stairwell down: L4 boss lair (dead-end)              |
 
-Art for `tile-10` and up is not ingested yet, so those tiles fall back to the styled cell (the `backgroundImage` 404s silently) until their sheets land; the `TILE_ART` rows and `buildDeck` entries are already wired. To change which cell a kind uses, edit that kind's `file` (and `base`, the drawn open edges) in `TILE_ART`; nothing else changes. Because the server sends each tile's chosen `rot`, `tileArt` can rotate even a symmetric tile (the crossroads) for variety while still lining asymmetric tiles up with their real edges.
+Art for `tile-10` and up is not ingested yet, so those tiles fall back to the styled cell (the `backgroundImage` 404s silently) until their sheets land; the `TILE_ART` rows and `buildDeck` entries are already wired. To change which cell a kind uses, edit that kind's `file` (and `base`, the drawn open edges) in `TILE_ART`; nothing else changes. Because the server sends each tile's chosen `rot`, `tileArt` can rotate even a symmetric tile (the crossroads) for variety while still lining asymmetric tiles up with their real edges. A kind's `file` may also be a **list of interchangeable variants** (same shape / open-edge count): `tileArt` then picks one per tile by its id (`pickVariant`, deterministic so it never flickers on re-render), giving a kind several looks with no server change. Each variant must exist under the same file name in every active biome folder, or the tiles that land on a missing one fall back to the plain cell.
 
-**Per-level tile roster.** Special tiles appear by level (the note's tile table), gated in the `switch` in `buildDeck`: the base paths, two transporters, two healing springs (one per outer band), the shop and the boss chamber on every level; the **Vault** from Level 2; and, also from Level 2, the **hazard rooms**. The Woodland hazard rooms (**live-wiring**, **coolant-flood**, **sensor-fog**) come in at Level 2 and carry forward; the Ruins add **rust** and **trap** rooms at Level 3; the Machine rooms add the **overheat** room at Level 5. The **shrine** (cosmetic) appears at Level 2 only for now. The **city gate** is not a loose deck tile: it does double duty at the woodland -> ruins boundary as the **Level 2 boss lair** and the **Level 3 start tile**. At Level 2 `buildDeck` makes the boss tile a gate (a one-door dead-end) instead of the usual crossroads lair, so the boss is cornered and the party fights it from the single doorway; at the start of Level 3 `startLevel` opens the map on that same gate rather than the crossroads portal, the broken gate the party descends through. Because a transporter can only teleport to another transporter, every level keeps a usable pair of two: normally the pre-placed start portal plus one in the deck, but on Level 3 (where the gate is the start) `buildDeck` adds a second deck portal so the pair survives. A hazard room seeds its hazard onto its squares when laid (`seedHazards`); the shrine has no mechanical effect, and level transitions are automatic on a boss kill. See [Hazards and statuses](#hazards-and-statuses) for what each hazard does.
+**Per-level tile roster.** Special tiles appear by level (the note's tile table), gated in the `switch` in `buildDeck`: the base paths, two transporters, two healing springs (one per outer band), the shop and the boss chamber on every level; the **Vault** from Level 2; and, also from Level 2, the **hazard rooms**. The Woodland hazard rooms (**live-wiring**, **coolant-flood**, **sensor-fog**) come in at Level 2 and carry forward; the Ruins add **rust** and **trap** rooms at Level 3; the Machine rooms add the **overheat** room at Level 5. The **shrine** (cosmetic) appears at Level 2 only for now. The **city gate** is not a loose deck tile: it does double duty at the woodland -> ruins boundary as the **Level 2 boss lair** and the **Level 3 start tile**. At Level 2 `buildDeck` makes the boss tile a gate (a one-door dead-end) instead of the usual crossroads lair, so the boss is cornered and the party fights it from the single doorway; at the start of Level 3 `startLevel` opens the map on that same gate rather than the crossroads portal, the broken gate the party descends through. The **descent** mirrors this at the ruins -> machine boundary: at Level 4 `buildDeck` makes the boss tile a descent (another one-door dead-end, the stairwell down) instead of the crossroads lair. The two Ruins hazard rooms differ in shape: the **rust** room is an open crossroads like coolant/fog, while the **trap** room is a straight corridor. Because a transporter can only teleport to another transporter, every level keeps a usable pair of two: normally the pre-placed start portal plus one in the deck, but on Level 3 (where the gate is the start) `buildDeck` adds a second deck portal so the pair survives. A hazard room seeds its hazard onto its squares when laid (`seedHazards`); the shrine has no mechanical effect, and level transitions are automatic on a boss kill. See [Hazards and statuses](#hazards-and-statuses) for what each hazard does.
 
 The boss only ever appears in the **final band** of the stack (`buildDeck`, asserted over 40 seeds by `TestCrawlerBossInFinalBand`); a regular monster is never a boss.
 
@@ -389,7 +390,7 @@ Loot is wired from the design note's "Loot and objects" section (`crawler_object
 | Beacon | 4 | 8 | place a transporter tile next to you |
 | Sap Seed | 5 | 6 | place a healing tile next to you |
 
-The shop (`rollShop`) offers **five** random objects at once (any gear or consumable); each purchase spends live Courage (`buyObject`) and is immediately replaced by a new random object (`refillShop`), so the stall never thins out mid-level. On a kill, a robot rolls a **visible d100** against its per-kind drop chance (Scrapling 15%, Sentry/Jammer/Grappler 25%, Hulk 35%) and, on a hit, drops a consumable from the weighted table; the roll is sent to the client as `lootRoll` and shown as a die that pops over the board (roll vs the needed percent, hit/miss). The boss is guaranteed 2 consumables + 1 permanent. **Drops land on the floor** (`dropFrom` -> `dropGround`): an object sits on the monster's square (spilling to a free walkable square if taken). The hero who landed the kill picks up automatically **if standing on that tile** (`autoPickup`); otherwise the object stays put and any hero **on that tile** grabs it by clicking it (`pickup`, square-matched, never an adjacent tile). A hero can also **drop** an object from a sheet slot (`dropObject`), leaving it exactly where they stand. Icons live at `sprites/crawler/objects/<slug>.png` (split by [`scripts/make_objects.py`](../scripts/make_objects.py) from a 4x4 sheet), with an emoji fallback. **Grounding Boots** grant immunity to the electrical statuses and the **Torch** clears the hazards on your current tile (both wired now the hazard/status system exists).
+The shop (`rollShop`) offers **five** random objects at once (any gear or consumable); each purchase spends live Courage (`buyObject`) and is immediately replaced by a new random object (`refillShop`), so the stall never thins out mid-level. The **merchant holds the shop centre** (`centreBlocked`, the same rule as a boss), so a hero never stands in the middle: the shop **opens the moment you step onto the tile** (from its doorway) and buying works from there, not only the centre. On a kill, a robot rolls a **visible d100** against its per-kind drop chance (Scrapling 15%, Sentry/Jammer/Grappler 25%, Hulk 35%) and, on a hit, drops a consumable from the weighted table; the roll is sent to the client as `lootRoll` and shown as a die that pops over the board (roll vs the needed percent, hit/miss). The boss is guaranteed 2 consumables + 1 permanent. **Drops land on the floor** (`dropFrom` -> `dropGround`): an object sits on the monster's square (spilling to a free walkable square if taken). The hero who landed the kill picks up automatically **if standing on that tile** (`autoPickup`); otherwise the object stays put and any hero **on that tile** grabs it by clicking it (`pickup`, square-matched, never an adjacent tile). A hero can also **drop** an object from a sheet slot (`dropObject`), leaving it exactly where they stand. Icons live at `sprites/crawler/objects/<slug>.png` (split by [`scripts/make_objects.py`](../scripts/make_objects.py) from a 4x4 sheet), with an emoji fallback. **Grounding Boots** grant immunity to the electrical statuses and the **Torch** clears the hazards on your current tile (both wired now the hazard/status system exists).
 
 ## Hazards and statuses
 
@@ -415,7 +416,7 @@ The **status die**: when an ordinary robot lands a hit it rolls a visible d6 (`r
 | Drained | can't gain Courage (action, kills, Battery, Horn all blocked) | spring, shop, Spores |
 | Rusted | one fewer die next turn | spring, shop, Spores |
 
-Clearing: a **spring** (`maybeSpring`) and the **shop** centre (`maybeShop`) wash off every status on entry; the Treefrog's **Spores** (first unlock) clears the Mend target's statuses (and makes a Mend worthwhile even at full health); a **Medkit** clears only Electrified. Statuses reset on a new level and in the lobby.
+Clearing: a **spring** centre (`maybeSpring`) and **stepping onto the shop tile** (`maybeShop`, from the doorway, since the merchant holds the centre) wash off every status; the Treefrog's **Spores** (first unlock) clears the Mend target's statuses (and makes a Mend worthwhile even at full health); a **Medkit** clears only Electrified. Statuses reset on a new level and in the lobby.
 
 ## Tiles: random generation and placement
 
@@ -432,7 +433,7 @@ The base path tile types (named shapes, by their open edges; rotations cover eve
 | **dead-end** | one | caps a branch |
 | **portal** | all four (a crossroads) | the transporter: the start tile and one more in the deck; stand on the centre to teleport to another portal |
 | **healing** | three (a T-junction) | a healing spring: step onto the centre to restore FULL health, no die, repeatable (it does not deplete) |
-| **shop** | one (a nook) | the kangaroo's stall: stand on the centre to buy from its five rotating objects for Courage |
+| **shop** | one (a nook) | the kangaroo's stall: the merchant holds the centre, so step onto the tile to buy from its five rotating objects for Courage (from the doorway) |
 | **boss** | one (a lair) | the boss room, in the final band |
 
 The draw pool is weighted: corridors and bends common, junctions a little rarer, dead-ends rare. The start tile is a cross, so from the very first turn the party can explore (and the map can grow) in all four directions.
@@ -517,10 +518,11 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 - **Win and lose**: defeating the boss wins; all heroes down loses; draining the stack starts a 5-turn collapse countdown and loses only if the boss is not beaten before it runs out.
 - **Characters and archetypes**: each sheet's weighted dice, Health and loot spots match the note's archetype table (Beaver 4 Low/HP7/2, Arrow Squid 3 High/HP4/2, Wolf 4 High/HP5/3, Treefrog 5 Low/HP6/3, Raccoon 5 Balanced/HP5/3->4, Comoros 5 Low/HP5/2); the Wolf's Group strength, Pack Tactics and Frenzy, and every other totem's two unlocks, each have a focused test.
 - **Enemies**: the renamed archetypes keep the note's stats and drop chances (Scrapling 15% / Sentry, Jammer, Grappler 25% / Hulk 35%); a Jammer robot hardens the other robots on its tile by +1 Armour and the aura lifts on its death.
-- **Bosses and levels**: a drawn boss's Health equals `base + per-extra-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test. The **gate** double-duty is pinned too: at Level 2 the boss lair tile is the gate (a one-door dead-end) while other levels keep the crossroads lair, and Level 3 opens on that same gate rather than the portal.
-- **Objects and loot**: the shop stocks five and refills on a buy; a kill rolls the visible drop die and the object lands on the floor; pickup works only from the hero's own tile (no adjacent sniping); drop, auto-pickup and each consumable's effect are covered.
+- **Bosses and levels**: a drawn boss's Health equals `base + per-extra-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test. The biome-seam boss lairs are pinned too: Level 2's boss lair is the gate and Level 4's is the descent (both one-door dead-ends) while the other levels keep the crossroads lair, Level 3 opens on that same gate rather than the portal, and the rust/trap rooms have their distinct crossroads/corridor shapes.
+- **Objects and loot**: the shop stocks five and refills on a buy; the merchant holds the shop centre (a hero can't step onto it) and the shop opens / sells from the doorway on tile entry; a kill rolls the visible drop die and the object lands on the floor; pickup works only from the hero's own tile (no adjacent sniping); drop, auto-pickup and each consumable's effect are covered.
+- **Start tiles**: Level 3 opens on the gate and spawns the party on its city-side street square (not the centre); other levels start on the crossroads portal's centre.
 - **Hazards and statuses (Level 2+)**: each hazard bites as specified (wiring on entry + end, mine once, coolant Snare, fire end-of-turn, fog hides contents until a hero is near, and the fog room always lays either a loot cache or a boss-free ambush of 3-4 robots whose combined Health stays below the budget); each status applies its effect (Electrocuted dice, Rusted die count, Snared move-dice cap ≤2/turn, Drained Courage, Electrified tick); a spring, the shop, Spores and a Torch clear them; Grounding Boots grant shock immunity; hazard rooms appear only from Level 2.
-- **Client helpers (vitest)**: the shared `attackTargets` (melee plus a ranged totem's adjacent robots, boss excluded) and `useItemMsg` (a passive is unusable, the medkit gates on being hurt, the grenade auto-aims the lowest-Health eligible robot, the Lucky Charm needs a selected die) are unit-tested, since both the mouse action menu and the keyboard shortcuts resolve through them.
+- **Client helpers (vitest)**: the shared `attackTargets` (melee plus a ranged totem's adjacent robots, boss excluded) and `useItemMsg` (a passive is unusable, the medkit gates on being hurt, the grenade auto-aims the lowest-Health eligible robot, the Lucky Charm needs a selected die) are unit-tested, since both the mouse action menu and the keyboard shortcuts resolve through them. `pickVariant` (per-tile-id art-variant selection, stable and wrapping) is covered too.
 - **Determinism**: a fixed seed reproduces a whole run (same rolls, same tiles, same placements).
 
 ## Roadmap

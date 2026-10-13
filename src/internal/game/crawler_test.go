@@ -2005,10 +2005,12 @@ func TestCrawlerFogRoomAlwaysHasContent(t *testing.T) {
 	}
 }
 
-// At Level 2 the boss guards the broken city gate: its lair tile is the gate (a one-door
-// dead-end), not the usual four-way crossroads. Other levels keep the crossroads lair.
-func TestCrawlerLevel2BossIsTheGate(t *testing.T) {
-	for _, lvl := range []int{1, 2, 3} {
+// The boss lair is the generic crossroads EXCEPT at the biome seams: Level 2's boss guards
+// the city gate and Level 4's boss guards the stairwell down (the descent), both one-door
+// dead-ends. Every other level keeps the four-way crossroads lair.
+func TestCrawlerBossLairPerLevel(t *testing.T) {
+	seam := map[int]string{2: crKindGate, 4: crKindDescent}
+	for lvl := 1; lvl <= 6; lvl++ {
 		g := newCrawlerGame(newFakeOutbox(0), 5).(*crawlerGame)
 		g.AddPlayer("beaver", "bever")
 		g.bands = 3
@@ -2023,12 +2025,12 @@ func TestCrawlerLevel2BossIsTheGate(t *testing.T) {
 		if boss == nil {
 			t.Fatalf("level %d: no boss in the deck", lvl)
 		}
-		if lvl == 2 {
-			if boss.kind != crKindGate {
-				t.Fatalf("level 2 boss lair should be the gate, got kind %q", boss.kind)
+		if want, ok := seam[lvl]; ok {
+			if boss.kind != want {
+				t.Fatalf("level %d boss lair should be %q, got %q", lvl, want, boss.kind)
 			}
 			if openEdgeCount(boss.base) != 1 {
-				t.Fatalf("the gate boss lair must be a one-door dead-end, got %d open edges", openEdgeCount(boss.base))
+				t.Fatalf("the level %d seam boss lair must be a one-door dead-end, got %d open edges", lvl, openEdgeCount(boss.base))
 			}
 		} else if boss.kind != "boss" {
 			t.Fatalf("level %d boss lair should be the generic crossroads, got kind %q", lvl, boss.kind)
@@ -2076,6 +2078,78 @@ func TestCrawlerTransporterPairEachLevel(t *testing.T) {
 		if portals < 2 {
 			t.Fatalf("level %d needs a transporter pair (>=2 portals), got %d", lvl, portals)
 		}
+	}
+}
+
+// The kangaroo merchant holds the shop centre (non-walkable), and the shop opens the moment
+// a hero steps onto the tile (from the doorway), not only on the centre: statuses clear and
+// buying works from the doorway.
+func TestCrawlerShopBlocksCentreAndOpensOnEntry(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	shop := g.placeTile(5, 5, crSpecialBase[crKindShop], 0, crKindShop, false, nil)
+	h := g.players[0]
+	h.tileID = shop.id
+	if !centreBlocked(shop, 4) {
+		t.Fatal("the shop centre should be blocked (the merchant stands there)")
+	}
+	h.square = crawlerDoor[0] // the single open-edge doorway
+	if g.tryMove(0, 2) {       // step from the N doorway toward the centre (S)
+		t.Fatal("a hero must not be able to step onto the shop centre")
+	}
+	// Stepping onto the tile opens the shop: statuses clear from the doorway.
+	h.electrocuted = true
+	g.maybeShop(0)
+	if h.electrocuted {
+		t.Fatal("the shop should patch up statuses from the doorway, not require the centre")
+	}
+	// And buying works from the doorway.
+	g.shopStock = []string{"medkit"}
+	h.courage = 9
+	before := len(h.objects)
+	g.buyObject(0, "medkit")
+	if len(h.objects) != before+1 {
+		t.Fatalf("should buy from the shop doorway: objects %d -> %d", before, len(h.objects))
+	}
+}
+
+// On the Level 3 gate the party emerges on the city side: the single open-edge street
+// square, not the centre. Other levels still start on the centre.
+func TestCrawlerLevel3SpawnsOnCitySide(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.startLevel(3)
+	h := g.players[0]
+	start := g.tiles[h.tileID]
+	if start.kind != crKindGate {
+		t.Fatalf("L3 start should be the gate, got %q", start.kind)
+	}
+	open := -1
+	for d := 0; d < 4; d++ {
+		if start.edges[d] {
+			open = d
+			break
+		}
+	}
+	if h.square == 4 || h.square != crawlerDoor[open] {
+		t.Fatalf("L3 should spawn on the open-edge street square %d (city side), got %d", crawlerDoor[open], h.square)
+	}
+	g.startLevel(1)
+	if g.players[0].square != 4 {
+		t.Fatalf("non-gate levels still spawn on the centre, got square %d", g.players[0].square)
+	}
+}
+
+// Hazard-room shapes: the rust room is an open crossroads (like coolant/fog), the trap
+// room is a straight corridor (a street between tall buildings), so their open-edge counts
+// differ. The drift guard keeps these in sync with the client art.
+func TestCrawlerHazardRoomShapes(t *testing.T) {
+	if got := openEdgeCount(crSpecialBase[crKindRust]); got != 4 {
+		t.Fatalf("rust room should be a crossroads (4 open edges), got %d", got)
+	}
+	if got := openEdgeCount(crSpecialBase[crKindTrap]); got != 2 {
+		t.Fatalf("trap room should be a straight corridor (2 open edges), got %d", got)
+	}
+	if got := openEdgeCount(crSpecialBase[crKindDescent]); got != 1 {
+		t.Fatalf("the descent should be a one-door dead-end, got %d open edges", got)
 	}
 }
 

@@ -16,11 +16,14 @@ WHAT GETS WRITTEN
   engine tile kinds (straight, bend, tee, ...) map to these files in TILE_ART
   (src/web/src/games/crawler/logic.ts); re-running refreshes the art, no code change.
 
-THE THREE KNOBS THAT PICK TILES
+THE KNOBS THAT PICK TILES
   --rows / --cols  describe the sheet's grid (always required).
   --start N        number the first written tile tile-N instead of tile-0.
   --only K         write ONLY cell K (0-based, reading order) instead of them all.
-  So --start says what to CALL the output, and --only says which cell to TAKE.
+  --variant S      write tile-<start><S>.png (e.g. tile-16b): an alternate look for the
+                   same kind, listed beside the base in TILE_ART (variant rules there).
+  So --start says what to CALL the output, --only which cell to TAKE, and --variant
+  marks it an alternate of that number rather than a replacement.
 
 RECIPES
   # a whole 3x3 sheet -> tile-0 .. tile-8
@@ -33,11 +36,12 @@ RECIPES
   # one corrected tile over the existing tile-3 (sheet holds just that tile)
   scripts/make_tiles.py one-tile.png --rows 1 --cols 1 --start 3
 
-  # a 9x9 sheet, but you only want its FIRST cell, written as tile-9
-  scripts/make_tiles.py big.png --rows 9 --cols 9 --only 0 --start 9
-
   # the 4th cell of a 3x3 sheet (reading order: index 3), written as tile-9
   scripts/make_tiles.py sheet.png --rows 3 --cols 3 --only 3 --start 9
+
+  # cell 1 of a sheet as a SECOND trap look: tile-16b (a variant of tile-16)
+  scripts/make_tiles.py sheet.png --rows 3 --cols 3 --only 1 --start 16 --variant b \
+    --out src/web/public/sprites/crawler/tiles/ruins
 """
 import argparse
 import json
@@ -58,6 +62,7 @@ def main() -> None:
     ap.add_argument("--inset", type=int, default=0, help="px trimmed from each side of a cell (drop the frame)")
     ap.add_argument("--start", type=int, default=0, help="number the first written tile tile-<start> (default 0)")
     ap.add_argument("--only", type=int, default=-1, help="write ONLY this cell (0-based, reading order), named by --start")
+    ap.add_argument("--variant", default="", help="suffix for a variant look of the same kind, e.g. 'b' -> tile-<start>b.png (list it in TILE_ART)")
     args = ap.parse_args()
 
     img = Image.open(args.sheet).convert("RGBA")
@@ -65,13 +70,14 @@ def main() -> None:
     cw, ch = w / args.cols, h / args.rows
     os.makedirs(args.out, exist_ok=True)
 
-    # Merge into any existing manifest so a partial re-split keeps untouched tiles.
-    by_index = {}
+    # Merge into any existing manifest so a partial re-split keeps untouched tiles. Keys are
+    # the tile stem as a string ("16", "16b") so a variant lives beside its base tile.
+    by_stem = {}
     existing = os.path.join(args.out, "tiles.json")
     if os.path.exists(existing):
         with open(existing) as f:
             for t in json.load(f).get("tiles", []):
-                by_index[t["i"]] = t
+                by_stem[str(t["i"])] = t
 
     written = []
     i = args.start
@@ -88,13 +94,14 @@ def main() -> None:
             cell = img.crop((left, top, right, bottom))
             if args.size:
                 cell = cell.resize((args.size, args.size), Image.LANCZOS)
-            file = f"tile-{i}.png"
+            stem = f"{i}{args.variant}"  # e.g. "16" or, for a variant, "16b"
+            file = f"tile-{stem}.png"
             cell.save(os.path.join(args.out, file))
-            by_index[i] = {"i": i, "row": r, "col": c, "file": file}
-            written.append(i)
+            by_stem[stem] = {"i": stem, "row": r, "col": c, "file": file}
+            written.append(stem)
             i += 1
 
-    manifest = [by_index[k] for k in sorted(by_index)]
+    manifest = [by_stem[k] for k in sorted(by_stem, key=str)]
     with open(existing, "w") as f:
         json.dump({"size": args.size, "rows": args.rows, "cols": args.cols, "tiles": manifest}, f, indent=2)
     print(f"wrote tiles {written} ({args.size or 'source'}px) to {args.out}")
