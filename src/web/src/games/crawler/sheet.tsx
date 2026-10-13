@@ -2,7 +2,7 @@
 // (die thresholds), the two Courage specials, and the object slots (use / drop).
 import type { CrHero, CrView } from "./types";
 import {
-  menuMins, specialInfo, unlockInfo, COURAGE_UNLOCKS, COURAGE_CAP, OBJECT_CAP, objInfo,
+  menuMins, specialInfo, unlockInfo, COURAGE_UNLOCKS, COURAGE_CAP, OBJECT_CAP, objInfo, useItemMsg,
 } from "./data";
 import { TotemSprite, ObjIcon } from "./sprites";
 import { InfoDot } from "./widgets";
@@ -18,27 +18,13 @@ export function CharacterSheet({ me, lost, view, myTurn, selDie, onSend }: {
   const mins = menuMins(me);
   const spec = specialInfo(me.special);
   const unlocks = unlockInfo(me);
-  const myTile = view.tiles.find((t) => t.id === me.tile);
-  const grenadeTargets = (myTile?.monsters ?? []).filter((m) => m.alive && m.health <= 1 && !m.isBoss);
-  const hasPortal = view.tiles.some((t) => t.kind === "portal");
-  // Whether a held object can be used right now (from its slot), and what happens.
-  const usable = (slug: string): boolean => {
-    if (!myTurn || !me.alive) return false;
-    switch (slug) {
-      case "lucky-charm": return selDie != null;
-      case "grenade": return grenadeTargets.length > 0;
-      case "medkit": return me.health < me.maxHP || !!me.electrified;
-      case "battery": return me.courage < COURAGE_CAP;
-      case "recall-whistle": return hasPortal;
-      case "torch": return (myTile?.hazards?.length ?? 0) > 0; // clears this tile's hazards
-      case "courage-horn": case "beacon": case "sap-seed": return true;
-      default: return false; // other permanents are passive
-    }
-  };
+  // Whether a held object can be used right now (from its slot), and the message to send:
+  // both come from the shared useItemMsg so the sheet and the keyboard shortcuts agree.
+  const itemMsg = (slug: string) => useItemMsg(view, me, slug, selDie);
+  const usable = (slug: string): boolean => myTurn && me.alive && itemMsg(slug) != null;
   const useSlot = (slug: string) => {
-    if (slug === "lucky-charm" && selDie != null) onSend({ t: "lucky", die: selDie });
-    else if (slug === "grenade" && grenadeTargets.length > 0) onSend({ t: "use", obj: "grenade", monster: grenadeTargets[0].id });
-    else onSend({ t: "use", obj: slug });
+    const msg = itemMsg(slug);
+    if (msg) onSend(msg);
   };
   const hpPct = Math.max(0, Math.min(100, Math.round((me.health / me.maxHP) * 100)));
   const couPct = Math.max(0, Math.min(100, Math.round((me.courage / COURAGE_CAP) * 100)));

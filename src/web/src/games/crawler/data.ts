@@ -1,7 +1,7 @@
 // Lookup tables and pure helpers for the Totem Crawler client: the totem roster, the
 // sprite-atlas layout, object/status/hazard/tile metadata, and the small derived-value
 // functions the components share. No JSX and no React, so this is the common data layer.
-import type { CrDie, CrHero, CrView } from "./types";
+import type { CrDie, CrHero, CrMonster, CrView } from "./types";
 
 // A roster of totems to play as. meta = the slug sent on join. Every slug here has
 // sprites in the Bomberman atlas (see SPRITE_ROWS).
@@ -85,7 +85,7 @@ export function objInfo(slug: string) {
 export const STATUSES: Record<string, { icon: string; label: string; blurb: string }> = {
   electrified: { icon: "⚡", label: "Electrified", blurb: "Loses 1 health each round until cleared (a heal clears it)." },
   electrocuted: { icon: "🔌", label: "Electrocuted", blurb: "-1 to each die value until cleared." },
-  snared: { icon: "🕸️", label: "Snared", blurb: "Can't leave your tile until cleared." },
+  snared: { icon: "🕸️", label: "Snared", blurb: "You may spend at most 2 dice on Move this turn." },
   drained: { icon: "🪫", label: "Drained", blurb: "Can't gain Courage until cleared." },
   rusted: { icon: "🦠", label: "Rusted", blurb: "One fewer die until cleared." },
 };
@@ -203,4 +203,56 @@ export const CR_DELTA: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 // dieIdx recovers the selected die's index (the view's dice array is stable).
 export function dieIdx(view: CrView, die: CrDie): number {
   return view.dice.findIndex((d) => d === die);
+}
+
+// effArmour is the die value an attack needs against a monster. The server sends each
+// monster's EFFECTIVE Armour for the viewing hero (base + boss plating / jammer aura, minus
+// the Arrow Squid's Barbed Shot), so prefer it over the raw Armour.
+export function effArmour(m: CrMonster): number {
+  return m.effArmour ?? m.armour;
+}
+
+// attackTargets lists every living monster the hero could attack this turn, ignoring die
+// value: the robots on their own tile, plus (for a ranged totem through an open edge) the
+// ordinary robots one tile away (the boss can't be sniped). Shared by the per-die action
+// menu and the keyboard 'f' shortcut so the two never disagree on what is hittable.
+export function attackTargets(view: CrView, me: CrHero): { tileId: number; m: CrMonster; ranged: boolean }[] {
+  const myTile = view.tiles.find((x) => x.id === me.tile);
+  const out: { tileId: number; m: CrMonster; ranged: boolean }[] = [];
+  if (!myTile) return out;
+  myTile.monsters.filter((m) => m.alive).forEach((m) => out.push({ tileId: myTile.id, m, ranged: false }));
+  if (me.ranged) {
+    CR_DELTA.forEach(([dx, dy], d) => {
+      if (!myTile.edges[d]) return;
+      const nt = view.tiles.find((t) => t.x === myTile.x + dx && t.y === myTile.y + dy);
+      nt?.monsters.filter((m) => m.alive && !m.isBoss).forEach((m) => out.push({ tileId: nt.id, m, ranged: true }));
+    });
+  }
+  return out;
+}
+
+// useItemMsg returns the message to use the object `slug` from a hero's pack, or null when
+// it cannot be used right now (passive permanent, or its precondition is unmet). Shared by
+// the character sheet's Use buttons and the keyboard number-key shortcuts, so both resolve a
+// use the same way. A targeted consumable (Grenade) auto-aims at the lowest-Health eligible
+// robot; Lucky Charm needs a selected die. Callers still gate on it being the hero's turn.
+export function useItemMsg(view: CrView, me: CrHero, slug: string, selDie: number | null): object | null {
+  if (!me.alive) return null;
+  const myTile = view.tiles.find((t) => t.id === me.tile);
+  const grenadeTargets = (myTile?.monsters ?? [])
+    .filter((m) => m.alive && m.health <= 1 && !m.isBoss)
+    .sort((a, b) => a.health - b.health);
+  const hasPortal = view.tiles.some((t) => t.kind === "portal");
+  switch (slug) {
+    case "lucky-charm": return selDie != null ? { t: "lucky", die: selDie } : null;
+    case "grenade": return grenadeTargets.length ? { t: "use", obj: "grenade", monster: grenadeTargets[0].id } : null;
+    case "medkit": return me.health < me.maxHP || me.electrified ? { t: "use", obj: slug } : null;
+    case "battery": return me.courage < COURAGE_CAP ? { t: "use", obj: slug } : null;
+    case "recall-whistle": return hasPortal ? { t: "use", obj: slug } : null;
+    case "torch": return (myTile?.hazards?.length ?? 0) > 0 ? { t: "use", obj: slug } : null;
+    case "courage-horn":
+    case "beacon":
+    case "sap-seed": return { t: "use", obj: slug };
+    default: return null; // passive permanents have no use action
+  }
 }

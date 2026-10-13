@@ -1,8 +1,7 @@
 // The per-die action menu shown when a die is selected: reroll, Move, Attack (melee or
 // the Squid's ranged reach), the hero's special, and Courage.
-import { effectiveArmour } from "./logic";
-import type { CrDie, CrHero, CrMonster, CrView } from "./types";
-import { menuMins, specialInfo, dieIdx, CR_DELTA, COURAGE_CAP, DIRS, DIR_ARROW } from "./data";
+import type { CrDie, CrHero, CrView } from "./types";
+import { menuMins, specialInfo, dieIdx, COURAGE_CAP, DIRS, DIR_ARROW, attackTargets, effArmour } from "./data";
 
 export function CrawlerActions({
   die,
@@ -19,30 +18,15 @@ export function CrawlerActions({
 }) {
   const mins = menuMins(me);
   const can = (action: string) => die.value >= (mins[action] ?? 99);
-  const myTile = view.tiles.find((x) => x.id === me.tile);
   const allies = view.heroes.filter((h) => h.alive && h.tile === me.tile);
   const others = allies.filter((a) => a.s !== me.s);
   const specLabel = specialInfo(me.special).name;
   const di = dieIdx(view, die);
-  // Arrow Squid's Barbed Shot (first special, active by Courage) lowers a target's Armour
-  // by 1; a die lands only if it meets the effective Armour (mirrors the server).
-  const barbed = me.totem === "pijlinktvis" && me.unlocked[0];
-  const effArmour = (m: CrMonster) => effectiveArmour(m.armour, barbed);
-  // Attack targets: living monsters on your tile, plus (for a ranged totem) ones on a
-  // tile reachable through an open edge of yours. Only those the selected die can
-  // actually hit are offered: attacking with a die below the Armour is not allowed.
-  const targets: { tileId: number; m: CrMonster; ranged: boolean }[] = [];
-  (myTile?.monsters ?? []).filter((m) => m.alive).forEach((m) => targets.push({ tileId: myTile!.id, m, ranged: false }));
-  if (me.ranged && myTile) {
-    CR_DELTA.forEach(([dx, dy], d) => {
-      if (!myTile.edges[d]) return;
-      const nt = view.tiles.find((t) => t.x === myTile.x + dx && t.y === myTile.y + dy);
-      // The boss can't be sniped from an adjacent tile (the server rejects it), so don't
-      // offer it as a ranged target at all; only ordinary robots next door are hittable.
-      nt?.monsters.filter((m) => m.alive && !m.isBoss).forEach((m) => targets.push({ tileId: nt.id, m, ranged: true }));
-    });
-  }
-  const hittable = targets.filter(({ m }) => die.value >= effArmour(m));
+  // Attack targets (shared with the keyboard 'f' shortcut): living monsters on your tile,
+  // plus (for a ranged totem) ones a tile away. Only those the selected die can actually hit
+  // are offered, since attacking with a die below the Armour is not allowed. effArmour is the
+  // server's EFFECTIVE Armour for this hero, so the offer always matches what it will accept.
+  const hittable = attackTargets(view, me).filter(({ m }) => die.value >= effArmour(m));
 
   return (
     <div className="cr-actions">
@@ -68,7 +52,7 @@ export function CrawlerActions({
             <button
               key={`${tileId}-${m.id}`}
               className="game-btn"
-              title={`This ${die.value} meets Armour ${effArmour(m)}${barbed && effArmour(m) < m.armour ? " (Barbed Shot: -1)" : ""}: a hit.${ranged ? " Ranged, adjacent tile." : ""} Health ${m.health}/${m.maxHP}.`}
+              title={`This ${die.value} meets Armour ${effArmour(m)}${effArmour(m) < m.armour ? ` (reduced from ${m.armour})` : effArmour(m) > m.armour ? ` (raised from ${m.armour})` : ""}: a hit.${ranged ? " Ranged, adjacent tile." : ""} Health ${m.health}/${m.maxHP}.`}
               onClick={() => onAct({ t: "spend", die: di, action: "attack", monster: m.id, tile: tileId })}
             >
               {ranged ? "🎯" : m.isBoss ? "👑" : "👹"} A{effArmour(m)} · ❤{m.health}/{m.maxHP} ✓

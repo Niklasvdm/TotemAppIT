@@ -126,16 +126,17 @@ var crSpecialBase = map[string][4]bool{
 	crKindHealing: {true, true, true, false},   // T-junction (3 doorways)
 	crKindShop:    {true, false, false, false}, // dead-end nook
 	crKindVault:   {true, false, false, false}, // dead-end nook
-	// Hazard rooms are open rooms (reachable from every side so a hazard is a real
-	// routing choice); the shrine and gate are open landmarks too.
-	crKindShrine:   {true, true, true, true},
-	crKindGate:     {true, true, true, true},
-	crKindWiring:   {true, true, true, true},
-	crKindCoolant:  {true, true, true, true},
-	crKindFog:      {true, true, true, true},
-	crKindRust:     {true, true, true, true},
-	crKindTrap:     {true, true, true, true},
-	crKindOverheat: {true, true, true, true},
+	// Feature-tile shapes. IMPORTANT: each kind's open-edge COUNT must match its `base` in
+	// TILE_ART (src/web/src/games/crawler/logic.ts) or the art can't rotate to fit and the
+	// tile falls back to the plain cell. Keep the two tables in sync.
+	crKindShrine:   {true, true, false, false},  // bend (a landmark)
+	crKindGate:     {true, false, false, false}, // dead-end (the city gate)
+	crKindWiring:   {true, false, true, false},  // straight corridor of live floor
+	crKindCoolant:  {true, true, true, true},    // open flooded room
+	crKindFog:      {true, true, true, true},    // open fogged room
+	crKindRust:     {true, true, true, true},    // open room (Ruins)
+	crKindTrap:     {true, true, true, true},    // open room (Ruins)
+	crKindOverheat: {true, true, true, true},    // open room (Machine)
 }
 
 // Actions on the menu. Attack has no fixed die minimum: per the design, ANY die may
@@ -152,6 +153,7 @@ const (
 )
 
 const crCourageCap = 10
+const crSnareMoveDice = 2 // Snared: most dice a hero may spend on Move in a turn
 
 // crGraceTurns is how many turns the party gets to defeat the boss after the tile
 // stack runs out, before the dungeon collapses (a loss). The stack running out is no
@@ -181,9 +183,10 @@ type crawlerHero struct {
 	volleyUsed   bool // Arrow Squid: Deep Volley spent this turn (once-a-turn, reset in beginTurn)
 	electrified  bool // status: loses 1 health each round until cleared (boss Overload, fire)
 	electrocuted bool // status: -1 to each die value until cleared (Scrapling sting, live wiring)
-	snared       bool // status: can't leave your tile until cleared (Grappler, coolant)
+	snared       bool // status: may spend at most 2 dice on Move this turn (Grappler, coolant)
 	drained      bool // status: can't gain Courage until cleared (Jammer, boss)
 	rusted       bool // status: one fewer die until cleared (rust tiles, Scrapling L5-6)
+	moveDiceUsed int  // dice spent on Move this turn (for the Snared cap); reset in beginTurn
 
 	// Objects/loot (see crawler_objects.go): object slugs held, capped per totem by
 	// heroSlots (the Beaver carries 2), carried ACROSS levels. Per-turn flags reset in
@@ -324,6 +327,10 @@ type crawlerGame struct {
 	// the client. Cleared at the start of each turn, like lootRoll.
 	statusRoll *crawlerStatusRoll
 
+	// forcedBoss, when set from the debug start panel, pins the boss drawn each level to
+	// that slug instead of a random pick from the level's pool. "" = normal random draw.
+	forcedBoss string
+
 	// grace is the "dungeon collapse" countdown once the tile stack runs out: -1
 	// while tiles remain, then crGraceTurns, decremented at each end of turn. The
 	// party has that many turns to defeat the boss (which is on the map by then,
@@ -408,18 +415,21 @@ func (g *crawlerGame) Tick(time.Time)             {}
 
 func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 	c, ok := decodeCmd[struct {
-		T        string `json:"t"`
-		Die      int    `json:"die"`
-		Action   string `json:"action"`
-		Dir      int    `json:"dir"`
-		Monster  int    `json:"monster"`
-		Tile     int    `json:"tile"` // target tile for a ranged attack (own tile if 0/omitted)
-		Ally     int    `json:"ally"`
-		X        int    `json:"x"`
-		Y        int    `json:"y"`
-		Rotation int    `json:"rotation"`
-		Obj      string `json:"obj"`    // object slug for buy/use/drop
-		Square   int    `json:"square"` // ground-item square for pickup
+		T        string   `json:"t"`
+		Die      int      `json:"die"`
+		Action   string   `json:"action"`
+		Dir      int      `json:"dir"`
+		Monster  int      `json:"monster"`
+		Tile     int      `json:"tile"` // target tile for a ranged attack (own tile if 0/omitted)
+		Ally     int      `json:"ally"`
+		X        int      `json:"x"`
+		Y        int      `json:"y"`
+		Rotation int      `json:"rotation"`
+		Obj      string   `json:"obj"`    // object slug for buy/use/drop
+		Square   int      `json:"square"` // ground-item square for pickup
+		Level    int      `json:"level"`  // start: which level to begin at (1..crMaxLevel)
+		Boss     string   `json:"boss"`   // start (dev): force this boss slug, "" = random
+		Loot     []string `json:"loot"`   // start (dev): grant these object slugs to each hero
 	}](raw)
 	if !ok {
 		return
@@ -433,7 +443,12 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 		if !isHost || g.phase != crLobby || len(g.players) < crMinPlayers {
 			return
 		}
-		g.startRun()
+		level := c.Level
+		if level < 1 || level > crMaxLevel {
+			level = 1
+		}
+		g.forcedBoss = c.Boss // "" = a random boss from the level's pool
+		g.startRun(level, c.Loot)
 	case crMsgSpend:
 		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
 			return
@@ -490,13 +505,24 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 
 // --- setup ------------------------------------------------------------------
 
-func (g *crawlerGame) startRun() {
+// startRun begins a run at the given level (1 normally; the host may pick another to
+// jump straight to a biome). devLoot, when set from the debug start panel, grants those
+// objects to every hero so gear can be tested from the off.
+func (g *crawlerGame) startRun(level int, devLoot []string) {
 	g.log = nil
 	g.log = append(g.log, "You enter the dungeon.")
 	for _, s := range g.order {
 		g.players[s].objects = nil // a fresh run starts with an empty pack
 	}
-	g.startLevel(1)
+	g.startLevel(level)
+	for _, slug := range devLoot {
+		if objBySlug(slug) == nil {
+			continue
+		}
+		for _, s := range g.order {
+			g.giveObject(g.players[s], slug)
+		}
+	}
 }
 
 // startLevel builds a fresh map for level n (1..crMaxLevel) in its biome, with a boss
@@ -518,9 +544,15 @@ func (g *crawlerGame) startLevel(n int) {
 	g.rollShop() // the shop restocks each level
 	g.buildDeck()
 
-	// Start tile: the transporter (a crossroads portal) at (0,0); heroes start on its
-	// centre. Being a portal, it is one end of the teleport network.
-	start := g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, crKindPortal, false, nil)
+	// Start tile at (0,0); heroes start on its centre. Normally the transporter (a
+	// crossroads portal, one end of the teleport network). Level 3 instead opens on the
+	// broken gate the party descends through: a one-door dead-end (the same tile that caps
+	// the Level 2 boss lair), so the Ruins unfold from a single doorway.
+	startKind, startEdges := crKindPortal, [4]bool{true, true, true, true}
+	if n == 3 {
+		startKind, startEdges = crKindGate, crSpecialBase[crKindGate]
+	}
+	start := g.placeTile(0, 0, startEdges, 0, startKind, false, nil)
 	for _, s := range g.order {
 		h := g.players[s]
 		h.health = h.sheet.maxHP
@@ -763,12 +795,20 @@ func (g *crawlerGame) buildDeck() {
 			band = g.insertSpec(band, spec(crKindHealing))
 			// Statuses and hazards begin at Level 2: the first hazard room and a landmark
 			// shrine come in here (see the note's per-level tile table).
+			if g.level == 2 {
+				band = g.insertSpec(band, spec(crKindShrine)) // a landmark, Woodland L2 only for now
+			}
 			if g.level >= 2 {
-				band = g.insertSpec(band, spec(crKindShrine))
 				band = g.insertSpec(band, spec(crKindWiring))
 			}
 		case 1:
 			band = g.insertSpec(band, spec(crKindPortal))
+			// Level 3 opens on the broken gate, not a transporter, so the start tile is no
+			// longer half the teleport pair. Add a second deck portal there so the network
+			// still has a usable pair (every level keeps two transporters).
+			if g.level == 3 {
+				band = g.insertSpec(band, spec(crKindPortal))
+			}
 			band = g.insertSpec(band, spec(crKindShop))
 			// The Vault (a dead-end loot cache) appears from Level 2 on (see the note's
 			// per-level tile table). Future level-gated tiles slot in the same way.
@@ -784,9 +824,8 @@ func (g *crawlerGame) buildDeck() {
 			if g.level >= 2 {
 				band = g.insertSpec(band, spec(crKindFog))
 			}
-			if g.level == 2 { // the broken city gate: the woodland -> ruins gateway
-				band = g.insertSpec(band, spec(crKindGate))
-			}
+			// At Level 2 the broken city gate is the BOSS chamber (see below), not a
+			// standalone tile, so nothing extra is injected here for it.
 			if g.level >= 3 { // the Ruins add the trap room
 				band = g.insertSpec(band, spec(crKindTrap))
 			}
@@ -795,10 +834,16 @@ func (g *crawlerGame) buildDeck() {
 			}
 		}
 		if b == g.bands-1 {
-			// Boss (a dead-end lair) shuffled into the last few of the final band. The
-			// boss is drawn from the current biome's pool (rollBoss); its stat line and
-			// signature special live in crawler_bosses.go.
-			boss := tileSpec{band: b, kind: "boss", base: ttDeadEnd.base, isBoss: true,
+			// The boss is drawn from the level's pool (rollBossMonsters); it holds the
+			// centre (heroes can't stand on it, see tryMove). The lair is normally a
+			// crossroads room (surround it from four sides), EXCEPT Level 2, where the
+			// boss guards the broken city gate: a one-doorway dead-end you fight from the
+			// one side, and the same gate you emerge from to start Level 3 (startLevel).
+			bossKind, bossBase := "boss", ttCross.base
+			if g.level == 2 {
+				bossKind, bossBase = crKindGate, crSpecialBase[crKindGate]
+			}
+			boss := tileSpec{band: b, kind: bossKind, base: bossBase, isBoss: true,
 				monsters: g.rollBossMonsters()}
 			pos := len(band)
 			if len(band) > 0 {
@@ -828,18 +873,35 @@ func (g *crawlerGame) insertSpec(band []tileSpec, spec tileSpec) []tileSpec {
 	return out
 }
 
-func (g *crawlerGame) rollMonster(band int) []*crawlerMonster {
-	roll := g.rng.IntN(100)
-	mk := func(a, h, d, reward int, kind string) *crawlerMonster {
+// newRobot builds one ordinary robot by archetype slug, the single source of their stat
+// lines (the note's "Enemies" table: A / H / D / Courage). Used by rollMonster, boss
+// summons (makeAdd) and the fog room. An unknown slug returns a Scrapling.
+func newRobot(kind string) *crawlerMonster {
+	mk := func(a, h, d, reward int) *crawlerMonster {
 		return &crawlerMonster{armour: a, health: h, maxHealth: h, damage: d, square: 4, kind: kind, alive: true, reward: reward}
 	}
-	// Robot archetypes, the note's "Enemies" stat table (A / H / D / Courage):
-	scrapling := func() *crawlerMonster { return mk(3, 1, 1, 1, "scrapling") } // cheap swarm filler
-	sentry := func() *crawlerMonster { return mk(5, 1, 3, 1, "sentry") }       // hard to hit, folds once you connect
-	hulk := func() *crawlerMonster { return mk(3, 4, 3, 2, "hulk") }           // heavy, soak it, team it
-	jammer := func() *crawlerMonster { return mk(3, 2, 1, 2, "jammer") }       // +1 Armour to other robots on its tile
-	grappler := func() *crawlerMonster { return mk(4, 2, 1, 2, "grappler") }   // clamp can Snare
-	deep := g.level >= 2                                                       // Jammers and Grapplers are parked for deeper levels
+	switch kind {
+	case "sentry":
+		return mk(5, 1, 3, 1) // hard to hit, folds once you connect
+	case "hulk":
+		return mk(3, 4, 3, 2) // heavy, soak it, team it
+	case "jammer":
+		return mk(3, 2, 1, 2) // +1 Armour to other robots on its tile
+	case "grappler":
+		return mk(4, 2, 1, 2) // clamp can Snare
+	default: // scrapling: cheap swarm filler
+		return &crawlerMonster{armour: 3, health: 1, maxHealth: 1, damage: 1, square: 4, kind: "scrapling", alive: true, reward: 1}
+	}
+}
+
+func (g *crawlerGame) rollMonster(band int) []*crawlerMonster {
+	roll := g.rng.IntN(100)
+	scrapling := func() *crawlerMonster { return newRobot("scrapling") }
+	sentry := func() *crawlerMonster { return newRobot("sentry") }
+	hulk := func() *crawlerMonster { return newRobot("hulk") }
+	jammer := func() *crawlerMonster { return newRobot("jammer") }
+	grappler := func() *crawlerMonster { return newRobot("grappler") }
+	deep := g.level >= 2 // Jammers and Grapplers are parked for deeper levels
 	switch band {
 	case 0: // early tiles: empty or a lone Scrapling
 		switch {
@@ -920,6 +982,7 @@ func (g *crawlerGame) beginTurn(seat int) {
 	h.gloveUsed = false
 	h.pawsUsed = false
 	h.bloomUsed = false
+	h.moveDiceUsed = 0
 	// Thick Hide (Beaver, first special): start the turn with 2 Shields while it is
 	// active, i.e. while Courage is at or above its threshold.
 	if h.sheet.totem == "bever" && h.specialActive(0) {
@@ -957,20 +1020,23 @@ func (g *crawlerGame) beginTurn(seat int) {
 	}
 	g.dice = make([]crawlerDie, n)
 	for i := range g.dice {
+		// Electrocuted (status): -1 to every die value (floored at 1), applied via electro
+		// so rerolls get the same penalty (see reroll).
 		if i < h.sheet.diceN {
-			g.dice[i] = crawlerDie{Value: g.rollFace(h.sheet)}
+			g.dice[i] = crawlerDie{Value: electro(h, g.rollFace(h.sheet))}
 		} else {
-			g.dice[i] = crawlerDie{Value: diceHigh[g.rng.IntN(len(diceHigh))]}
+			g.dice[i] = crawlerDie{Value: electro(h, diceHigh[g.rng.IntN(len(diceHigh))])}
 		}
 	}
-	// Electrocuted (status): -1 to each die value (floored at 1) until cleared.
-	if h.electrocuted {
-		for i := range g.dice {
-			if g.dice[i].Value > 1 {
-				g.dice[i].Value--
-			}
-		}
+}
+
+// electro applies the Electrocuted penalty (-1, floored at 1) to a freshly rolled die
+// value, so the opening roll, the Spare Die, and rerolls are all reduced alike.
+func electro(h *crawlerHero, v int) int {
+	if h.electrocuted && v > 1 {
+		return v - 1
 	}
+	return v
 }
 
 func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx, tile, ally int) {
@@ -988,12 +1054,18 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 	}
 	switch action {
 	case actMove:
+		// Snared (status): at most 2 dice may be spent on Move this turn (a softer leash
+		// than the old "can't leave your tile").
+		if h.snared && h.moveDiceUsed >= crSnareMoveDice {
+			return
+		}
 		// First step now, in the chosen direction; a fast mover (moveRange > 1) then
 		// gets the rest of its movement as directed bonus steps (crMsgStep), so one die
 		// can turn a corner (e.g. left then up) instead of only going straight.
 		if !g.tryMove(seat, dir) {
 			return
 		}
+		h.moveDiceUsed++
 		if h.sheet.moveRange > 1 && g.pending == nil {
 			g.bonusMoves = h.sheet.moveRange - 1
 		}
@@ -1113,7 +1185,7 @@ func (g *crawlerGame) carryStep(a *crawlerHero, dir int, crossTiles bool) bool {
 	ncol, nrow := col+crawlerDelta[dir][0], row+crawlerDelta[dir][1]
 	if ncol >= 0 && ncol < 3 && nrow >= 0 && nrow < 3 {
 		nsq := nrow*3 + ncol
-		if !crawlerWalkable(t.edges)[nsq] {
+		if !crawlerWalkable(t.edges)[nsq] || bossOnSquare(t, nsq) {
 			return false
 		}
 		a.square = nsq
@@ -1165,6 +1237,9 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 		if !crawlerWalkable(t.edges)[nsq] {
 			return false // off the tile's path: only the centre + open doorways are walkable
 		}
+		if bossOnSquare(t, nsq) {
+			return false // the boss holds the centre of its lair; you fight it from the sides
+		}
 		h.square = nsq
 		g.maybeSpring(seat) // landed: a spring centre heals, a Vault centre yields loot
 		g.maybeVault(seat)
@@ -1172,9 +1247,8 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 		g.enterHazard(h)  // a hazard square bites on entry (wiring/mine)
 		return true
 	}
-	// Crossing the tile edge: must be at that side's doorway and the edge open. Snared
-	// (status) pins a hero to their tile, so an edge crossing is refused until cleared.
-	if h.snared || h.square != crawlerDoor[dir] || !t.edges[dir] {
+	// Crossing the tile edge: must be at that side's doorway and the edge open.
+	if h.square != crawlerDoor[dir] || !t.edges[dir] {
 		return false
 	}
 	nx, ny := t.x+crawlerDelta[dir][0], t.y+crawlerDelta[dir][1]
@@ -1194,6 +1268,18 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 }
 
 func (g *crawlerGame) enterTile(seat, id int) {} // reserved: per-tile entry hooks
+
+// bossOnSquare reports whether a living boss occupies square sq of tile t. Heroes may
+// not stand there: the boss owns the centre of its lair, so the party fights it from the
+// surrounding side squares.
+func bossOnSquare(t *crawlerTile, sq int) bool {
+	for _, m := range t.monsters {
+		if m.alive && m.isBoss && m.square == sq {
+			return true
+		}
+	}
+	return false
+}
 
 // usePortal teleports a hero standing on a portal tile's centre to the centre of
 // another portal tile the player chose. Free (no die); it is a repositioning tool. The
@@ -1291,6 +1377,9 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 	t := g.placeTile(chosen.X, chosen.Y, chosen.Edges, spec.band, spec.kind, spec.isBoss, mons)
 	t.rot = chosen.Rotation
 	g.seedHazards(t) // a hazard-room tile seeds its hazard on its squares (no-op otherwise)
+	if t.kind == crKindFog {
+		g.populateFogRoom(t) // a fog room hides either a loot cache or an ambush
+	}
 	h := g.players[seat]
 	g.pending = nil
 	if phaseLay {
@@ -1342,7 +1431,7 @@ func (g *crawlerGame) reroll(seat, dieIdx int) {
 	default:
 		return
 	}
-	g.dice[dieIdx].Value = g.rollFace(h.sheet)
+	g.dice[dieIdx].Value = electro(h, g.rollFace(h.sheet)) // the penalty follows a reroll too
 }
 
 // nudgeDie is the Lucky Charm (object): once a turn, raise one unspent die by 1 (to a
@@ -1409,6 +1498,7 @@ func (g *crawlerGame) resetToLobby() {
 	g.deckPos = 0
 	g.grace = -1
 	g.bonusMoves = 0
+	g.forcedBoss = ""
 	g.level = 0
 	g.biome = ""
 	g.levelCleared = false

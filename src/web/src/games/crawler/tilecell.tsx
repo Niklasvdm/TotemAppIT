@@ -68,8 +68,8 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: 
                   )}
                   <MonsterSprite m={monster} />
                   {monster.alive && (
-                    <span className="cr-mon-badge" title={`Armour ${monster.armour}, Health ${monster.health}/${monster.maxHP}, Damage ${monster.damage}, grants ${monster.reward} Courage on defeat${(monster.specials?.length ?? 0) > 0 ? ". Specials: " + (monster.specials ?? []).map(specialLabel).join(", ") : ""}`}>
-                      🛡{monster.armour} ❤{monster.health} 💥{monster.damage} ✊{monster.reward}
+                    <span className="cr-mon-badge" title={`Armour ${monster.effArmour ?? monster.armour}${(monster.effArmour ?? monster.armour) !== monster.armour ? ` (base ${monster.armour})` : ""} — your die must meet it to hit. Health ${monster.health}/${monster.maxHP}, Damage ${monster.damage}, grants ${monster.reward} Courage on defeat${(monster.specials?.length ?? 0) > 0 ? ". Specials: " + (monster.specials ?? []).map(specialLabel).join(", ") : ""}`}>
+                      🛡{monster.effArmour ?? monster.armour} ❤{monster.health} 💥{monster.damage} ✊{monster.reward}
                     </span>
                   )}
                 </span>

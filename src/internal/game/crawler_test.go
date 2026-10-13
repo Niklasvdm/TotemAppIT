@@ -1506,19 +1506,31 @@ func TestCrawlerRustedDropsADie(t *testing.T) {
 	}
 }
 
-func TestCrawlerSnaredBlocksLeavingTile(t *testing.T) {
-	g, _ := startedCrawler(t, 1)
+func TestCrawlerSnaredCapsMoveDice(t *testing.T) {
+	g, _ := startedCrawler(t, 1) // hero at the start cross centre; E/W shuffles stay in-tile
 	h := g.players[0]
-	g.placeTile(1, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // east neighbour
-	h.square = crawlerDoor[1]                                                  // east doorway of the start cross
-	h.snared = true
-	if g.tryMove(0, 1) {
-		t.Fatal("a Snared hero must not cross a tile edge")
+	dirs := []int{1, 3, 1, 3} // E, W, E, W — never crosses a tile edge, so each is a plain move
+	countMoves := func() int {
+		h.square = 4
+		h.moveDiceUsed = 0
+		g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}}
+		moves := 0
+		for i, dir := range dirs {
+			before := h.square
+			crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": i, "action": actMove, "dir": dir})
+			if h.square != before {
+				moves++
+			}
+		}
+		return moves
 	}
-	// Within-tile movement is still allowed.
-	h.square = 4
-	if !g.tryMove(0, 1) {
-		t.Fatal("a Snared hero can still move within its own tile")
+	h.snared = true
+	if got := countMoves(); got != crSnareMoveDice {
+		t.Fatalf("Snared should allow exactly %d Move dice, got %d", crSnareMoveDice, got)
+	}
+	h.snared = false
+	if got := countMoves(); got != 4 {
+		t.Fatalf("without Snared all four dice may Move, got %d", got)
 	}
 }
 
@@ -1843,4 +1855,269 @@ func TestCrawlerPickupAllowedOffTurn(t *testing.T) {
 	if !heroHas(h, "medkit") || len(t0.loot) != 0 {
 		t.Fatalf("a hero on the tile should pick up loot even off-turn: objs=%v floor=%d", h.objects, len(t0.loot))
 	}
+}
+
+func TestCrawlerBossHoldsTheCentre(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	// A crossroads boss lair with the boss on the centre square.
+	boss := &crawlerMonster{armour: 5, health: 9, maxHealth: 9, damage: 4, square: 4, kind: "boss", alive: true, isBoss: true, bossName: "Mossback"}
+	lair := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{boss})
+	h := g.players[0]
+	h.tileID = lair.id
+	h.square = crawlerDoor[0] // the north doorway (a side square)
+	// Moving inward toward the centre is refused: the boss holds it.
+	if g.tryMove(0, 2) || h.square != crawlerDoor[0] {
+		t.Fatalf("a hero must not step onto the boss's centre square (square=%d)", h.square)
+	}
+	// With the boss dead the centre frees up.
+	boss.alive = false
+	if !g.tryMove(0, 2) || h.square != 4 {
+		t.Fatalf("with the boss gone the centre is walkable again (square=%d)", h.square)
+	}
+}
+
+// --- start options: level, forced boss, starting loot ------------------------
+
+func newLobbyCrawler(t *testing.T, n int) *crawlerGame {
+	t.Helper()
+	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+	g.AddPlayer("a", "bever")
+	for i := 1; i < n; i++ {
+		g.AddPlayer("ally", "")
+	}
+	return g
+}
+
+func TestCrawlerStartAtChosenLevel(t *testing.T) {
+	g := newLobbyCrawler(t, 1)
+	crCmd(t, g, 0, true, map[string]any{"t": crMsgStart, "level": 3})
+	if g.level != 3 || g.biome != crRuins {
+		t.Fatalf("start at level 3 should begin in the Ruins: level=%d biome=%q", g.level, g.biome)
+	}
+}
+
+func TestCrawlerStartForcedBoss(t *testing.T) {
+	g := newLobbyCrawler(t, 1)
+	crCmd(t, g, 0, true, map[string]any{"t": crMsgStart, "level": 1, "boss": "pylon"})
+	found := ""
+	for _, s := range g.deck {
+		if s.isBoss && len(s.monsters) > 0 {
+			found = s.monsters[0].bossName
+		}
+	}
+	if found != "Pylon" {
+		t.Fatalf("forcing boss \"pylon\" should put Pylon in the deck, got %q", found)
+	}
+}
+
+func TestCrawlerStartDevLoot(t *testing.T) {
+	g := newLobbyCrawler(t, 2)
+	crCmd(t, g, 0, true, map[string]any{"t": crMsgStart, "level": 1, "loot": []any{"medkit", "scope"}})
+	for _, s := range g.order {
+		h := g.players[s]
+		if !heroHas(h, "medkit") || !heroHas(h, "scope") {
+			t.Fatalf("every hero should start with the dev loot, %s has %v", h.name, h.objects)
+		}
+	}
+}
+
+func TestCrawlerElectrocutedReducesRollsAndRerolls(t *testing.T) {
+	// electro() is the single reducer used by the opening roll, Spare Die and rerolls.
+	h := &crawlerHero{electrocuted: true}
+	if electro(h, 6) != 5 || electro(h, 2) != 1 || electro(h, 1) != 1 {
+		t.Fatal("electrocuted should drop a value by 1, floored at 1")
+	}
+	h.electrocuted = false
+	if electro(h, 6) != 6 {
+		t.Fatal("no penalty without the status")
+	}
+	// Integration: every die is reduced on the opening roll AND after a reroll, so no die
+	// ever shows the max face (6) while electrocuted.
+	g, _ := startedCrawler(t, 1)
+	hero := g.players[0]
+	hero.electrocuted = true
+	hero.courage = 9 // pay for rerolls
+	g.beginTurn(0)
+	hero.electrocuted = true // beginTurn does not clear statuses
+	for i := range g.dice {
+		if g.dice[i].Value > 5 {
+			t.Fatalf("opening roll die %d = %d should be <= 5 while electrocuted", i, g.dice[i].Value)
+		}
+	}
+	for i := range g.dice {
+		g.reroll(0, i)
+		if g.dice[i].Value > 5 {
+			t.Fatalf("rerolled die %d = %d should still be reduced while electrocuted", i, g.dice[i].Value)
+		}
+	}
+}
+
+// --- fog room content & the gate ---------------------------------------------
+
+// A sensor-fog room is never empty: over many seeds it lays either a loot cache (the Sap
+// Seed + Beacon plus random consumables on the floor) or an ambush (a Hulk and one or two
+// random robots, never a boss). Both outcomes must occur, and neither leaves the tile bare.
+func TestCrawlerFogRoomAlwaysHasContent(t *testing.T) {
+	sawLoot, sawAmbush := false, false
+	for seed := uint64(1); seed <= 60; seed++ {
+		g := newCrawlerGame(newFakeOutbox(0), seed).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		g.level = 2
+		tile := g.placeTile(3, 3, crSpecialBase[crKindFog], 0, crKindFog, false, nil)
+		g.populateFogRoom(tile)
+		hasLoot := len(tile.loot) > 0
+		hasMons := len(tile.monsters) > 0
+		if hasLoot == hasMons {
+			t.Fatalf("seed %d: a fog room is exactly one of loot/ambush, got loot=%v mons=%v", seed, hasLoot, hasMons)
+		}
+		if hasLoot {
+			sawLoot = true
+			var slugs []string
+			for _, gr := range tile.loot {
+				slugs = append(slugs, gr.slug)
+			}
+			if !containsStr(slugs, "sap-seed") || !containsStr(slugs, "beacon") {
+				t.Fatalf("seed %d: a loot cache must include the Sap Seed and Beacon, got %v", seed, slugs)
+			}
+		}
+		if hasMons {
+			sawAmbush = true
+			if tile.monsters[0].kind != "hulk" {
+				t.Fatalf("seed %d: a fog ambush leads with a Hulk, got %q", seed, tile.monsters[0].kind)
+			}
+			if n := len(tile.monsters); n < 3 || n > 4 {
+				t.Fatalf("seed %d: a fog ambush is 3-4 enemies, got %d", seed, n)
+			}
+			total := 0
+			for _, m := range tile.monsters {
+				if m.isBoss {
+					t.Fatalf("seed %d: a fog ambush never spawns a boss", seed)
+				}
+				total += m.health
+			}
+			if total >= crFogAmbushBudget {
+				t.Fatalf("seed %d: a fog ambush's combined Health %d must stay below the budget %d", seed, total, crFogAmbushBudget)
+			}
+		}
+	}
+	if !sawLoot || !sawAmbush {
+		t.Fatalf("over 60 seeds a fog room should show both a loot cache and an ambush (loot=%v ambush=%v)", sawLoot, sawAmbush)
+	}
+}
+
+// At Level 2 the boss guards the broken city gate: its lair tile is the gate (a one-door
+// dead-end), not the usual four-way crossroads. Other levels keep the crossroads lair.
+func TestCrawlerLevel2BossIsTheGate(t *testing.T) {
+	for _, lvl := range []int{1, 2, 3} {
+		g := newCrawlerGame(newFakeOutbox(0), 5).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		g.bands = 3
+		g.level = lvl
+		g.buildDeck()
+		var boss *tileSpec
+		for i := range g.deck {
+			if g.deck[i].isBoss {
+				boss = &g.deck[i]
+			}
+		}
+		if boss == nil {
+			t.Fatalf("level %d: no boss in the deck", lvl)
+		}
+		if lvl == 2 {
+			if boss.kind != crKindGate {
+				t.Fatalf("level 2 boss lair should be the gate, got kind %q", boss.kind)
+			}
+			if openEdgeCount(boss.base) != 1 {
+				t.Fatalf("the gate boss lair must be a one-door dead-end, got %d open edges", openEdgeCount(boss.base))
+			}
+		} else if boss.kind != "boss" {
+			t.Fatalf("level %d boss lair should be the generic crossroads, got kind %q", lvl, boss.kind)
+		}
+	}
+}
+
+// Level 3 descends through that same broken gate: its start tile is the gate dead-end, not
+// the crossroads portal every other level opens on.
+func TestCrawlerLevel3StartsOnTheGate(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.startLevel(3)
+	start := g.tiles[g.players[0].tileID]
+	if start.kind != crKindGate {
+		t.Fatalf("level 3 should start on the gate, got kind %q", start.kind)
+	}
+	if openEdgeCount(start.edges) != 1 {
+		t.Fatalf("the level 3 gate start must be a one-door dead-end, got %d open edges", openEdgeCount(start.edges))
+	}
+	g.startLevel(1)
+	if s := g.tiles[g.players[0].tileID]; s.kind != crKindPortal {
+		t.Fatalf("other levels still open on the portal, got kind %q", s.kind)
+	}
+}
+
+// Every level keeps a usable transporter pair: a portal can only teleport to another
+// portal, so there must be at least two on the map. Level 3 starts on the gate (not a
+// portal), so it carries a second deck portal to make up the pair.
+func TestCrawlerTransporterPairEachLevel(t *testing.T) {
+	for lvl := 1; lvl <= 6; lvl++ {
+		g := newCrawlerGame(newFakeOutbox(0), 3).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		g.bands = 3
+		g.level = lvl
+		g.buildDeck()
+		portals := 0
+		for _, s := range g.deck {
+			if s.kind == crKindPortal {
+				portals++
+			}
+		}
+		if lvl != 3 {
+			portals++ // the start tile is a portal on every level but 3 (the gate)
+		}
+		if portals < 2 {
+			t.Fatalf("level %d needs a transporter pair (>=2 portals), got %d", lvl, portals)
+		}
+	}
+}
+
+// The shrine landmark is Woodland Level 2 only for now; no other level draws it.
+func TestCrawlerShrineOnlyLevel2(t *testing.T) {
+	for lvl := 1; lvl <= 6; lvl++ {
+		g := newCrawlerGame(newFakeOutbox(0), 3).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		g.bands = 3
+		g.level = lvl
+		g.buildDeck()
+		shrines := 0
+		for _, s := range g.deck {
+			if s.kind == crKindShrine {
+				shrines++
+			}
+		}
+		want := 0
+		if lvl == 2 {
+			want = 1
+		}
+		if shrines != want {
+			t.Fatalf("level %d shrine count = %d, want %d (shrine is L2-only for now)", lvl, shrines, want)
+		}
+	}
+}
+
+func openEdgeCount(e [4]bool) int {
+	n := 0
+	for _, o := range e {
+		if o {
+			n++
+		}
+	}
+	return n
+}
+
+func containsStr(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }

@@ -319,6 +319,52 @@ func (g *crawlerGame) seedHazards(t *crawlerTile) {
 	}
 }
 
+// crFogAmbushBudget caps the ambush's total monster Health. Three Hulks would be 12, which
+// is too much for one fog room, so the combined Health of the pack must stay strictly below
+// it (the user's "below 3 brutes"). A Hulk is Health 4, the others 1-2.
+const crFogAmbushBudget = 12
+
+// populateFogRoom fills a freshly-laid sensor-fog room, whose contents the fog hides until a
+// hero is on or next to it. Half the time it is a loot cache (the Sap Seed and Beacon, which
+// place a healing tile and a transporter, plus a couple of random consumables on the floor);
+// half the time an ambush: 3-4 robots led by at least one Hulk (the brute), filled out with
+// random lighter robots, never a boss, and with their combined Health kept below the budget
+// (crFogAmbushBudget) so the room is a scare, not a wipe.
+func (g *crawlerGame) populateFogRoom(t *crawlerTile) {
+	if g.rng.IntN(2) == 0 {
+		loot := []string{"sap-seed", "beacon"}
+		for i := 0; i < 1+g.rng.IntN(2); i++ {
+			loot = append(loot, g.rollConsumableDrop())
+		}
+		for _, slug := range loot {
+			g.dropGround(t, 4, slug) // spills to free walkable squares if the centre is taken
+		}
+		return
+	}
+	target := 3 + g.rng.IntN(2) // 3 or 4 enemies
+	hulk := newRobot("hulk")    // at least one brute leads the pack
+	mons := []*crawlerMonster{hulk}
+	total := hulk.health
+	others := []string{"scrapling", "sentry", "grappler"} // Health 1, 1, 2
+	for len(mons) < target {
+		// Only the robots that still fit under the budget are eligible.
+		var fits []string
+		for _, kind := range others {
+			if total+newRobot(kind).health < crFogAmbushBudget {
+				fits = append(fits, kind)
+			}
+		}
+		if len(fits) == 0 {
+			break
+		}
+		r := newRobot(fits[g.rng.IntN(len(fits))])
+		mons = append(mons, r)
+		total += r.health
+	}
+	assignMonsterSquares(t.edges, mons)
+	t.monsters = append(t.monsters, mons...)
+}
+
 // hazardForRoom maps a hazard-room tile kind to the hazard it seeds, or "" if the kind
 // is not a hazard room.
 func hazardForRoom(kind string) string {

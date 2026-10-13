@@ -751,6 +751,18 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-loot.grab { cursor: pointer; animation: cr-loot-pulse 1.2s ease-in-out infinite; }
 .cr-loot.grab:hover { filter: brightness(1.2); box-shadow: 0 0 0 2px var(--gold, #c9a227); }
 @keyframes cr-loot-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,39,.6); } 50% { box-shadow: 0 0 0 3px rgba(201,162,39,0); } }
+/* Keyboard-shortcut hint, shown above the board in a player's first turns on Level 1. */
+.cr-kbd-hint {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .9rem;
+  margin-bottom: .6rem; padding: .5rem .7rem; font-size: .85rem; line-height: 1.6;
+}
+.cr-kbd-hint-title { font-weight: 700; color: var(--gold, #c9a227); }
+.cr-kbd-hint kbd {
+  display: inline-block; min-width: 1.4em; padding: .05em .4em; margin: 0 .05em; text-align: center;
+  font-family: inherit; font-size: .8em; font-weight: 700; line-height: 1.5;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.25);
+  border-bottom-width: 2px; border-radius: 4px;
+}
 /* The drop-roll die that pops over the board after a kill. */
 .cr-lootroll {
   position: absolute; left: 50%; top: .6rem; transform: translateX(-50%); z-index: 32;
@@ -788,6 +800,15 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-pack-use { display: flex; flex-wrap: wrap; gap: .35rem; }
 .cr-pack-use .game-btn { display: inline-flex; align-items: center; gap: .25rem; }
 /* Shop as a callout overlaying the board: solid panel, its own scroll, readable info. */
+/* Crawler lobby: the start-level picker and the F3 dev panel (boss + starting loot). */
+.cr-lobby-row { display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+.cr-field-label { font-weight: 700; color: var(--gold, #c9a227); font-size: .9rem; }
+.cr-level-select { max-width: 14rem; text-align: center; }
+.cr-dev { display: flex; flex-direction: column; gap: .6rem; align-items: stretch; text-align: left; border: 1px dashed rgba(201,162,39,.6); width: min(26rem, 90%); }
+.cr-dev .cr-lobby-row { align-items: stretch; }
+.cr-dev-loot { display: flex; flex-direction: column; gap: .3rem; }
+.cr-dev-loot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .25rem .6rem; max-height: 10rem; overflow-y: auto; }
+.cr-dev-loot-item { display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; cursor: pointer; }
 .cr-board-wrap { position: relative; }
 .cr-shop-callout {
   position: absolute; top: .6rem; right: .6rem; z-index: 30;

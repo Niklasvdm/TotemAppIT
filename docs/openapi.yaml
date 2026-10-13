@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Totem Finder API
-  version: "1.1.0"
+  version: "1.2.0"
   description: >
     Read API for the totem catalogue (animals, traits, similarity, images, emoji),
     two hardened public write endpoints for community feedback (new-animal
@@ -23,6 +23,16 @@ tags:
   - name: catalogue
   - name: feedback
   - name: games
+    description: >
+      Create a room over HTTP, then play over the WebSocket. The post-handshake
+      message bodies are game-specific and deliberately NOT modelled here (OpenAPI
+      does not describe WebSocket payloads well); the socket and its frames are
+      described in `docs/asyncapi.yaml`, and their authoritative shapes live in
+      `src/internal/game/protocol.go` (per game) and `src/web/src/games/types.ts`.
+      Known non-gaps: "local multiplayer" is a pure client behaviour (one device
+      opens several WebSockets, one per local player) and needs no API surface; the
+      `welcome` frame's game-specific `extra` payload is likewise documented in the
+      protocol sources.
 
 paths:
   /healthz:
@@ -250,11 +260,16 @@ paths:
       parameters:
         - name: game
           in: query
-          description: Which game to host.
+          description: >
+            Which game to host: a registered game slug. Currently bomberman,
+            codenames, the-mind, the-game, wavelength, just-one, love-letter,
+            decrypto, hanabi, skyjo, crawler. Validated against the registry; an
+            unknown slug is refused with 400. (Listed here as examples, not an
+            enum, so the contract does not drift each time a game is added.)
           schema:
             type: string
-            enum: [bomberman, codenames]
             default: bomberman
+            example: crawler
       responses:
         "201":
           description: Room created
@@ -273,6 +288,34 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /api/v1/games/reports:
+    post:
+      tags: [games]
+      summary: Report a problem with a game
+      description: >
+        Files a report about a game (a bug, a rules question, something unclear,
+        or other). The `game` must be a registered slug (validated against the
+        registry; an unknown game is refused with 400, NOT 404). Deduplicated per
+        (game, reason) with a running count, like the animal reports. Rate limited
+        to 10 requests/minute per IP. Admin review is out of band via the
+        `totem-admin game-reports` CLI.
+      operationId: createGameReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GameReportRequest" }
+      responses:
+        "202":
+          $ref: "#/components/responses/Received"
+        "400":
+          description: Malformed body, unknown game, invalid reason, or a bad note
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
   /api/v1/games/ws:
     get:
       tags: [games]
@@ -284,13 +327,19 @@ paths:
         server's `Host` (same-origin); extra origins are allowlisted server-side
         only for the dev proxy (`TOTEM_ALLOWED_ORIGINS`), empty in production.
 
-        After the upgrade the server sends a `welcome` frame (your slot, the
-        arena, the tick rate, and a `token` to reclaim this seat after a drop),
-        then `state` snapshots ~30x/second and `roster` frames on membership
-        changes. The client sends `input` frames (a direction + a bomb flag) plus
-        `start`/`restart`/`bye`. Each connection has a per-second frame budget and
-        a 512-byte frame cap; the full message shapes live in
-        `src/internal/game/protocol.go` and `src/web/src/games/types.ts`.
+        After the upgrade the server sends a `welcome` frame (your slot, the room's
+        `game` slug, the tick rate, any game-specific `extra`, and a `token` to
+        reclaim this seat after a drop), then `state` frames and `roster` frames on
+        membership changes. How often `state` arrives depends on the game: the only
+        realtime game (Bomberman) streams ~60x/second, while the turn-based games
+        (Codenames, Hanabi, the Totem Crawler, …) are event-driven and push a
+        `state` only when something changes. The client sends `start`/`restart`/`bye`
+        plus that game's own command frames (Bomberman: a direction + a bomb flag;
+        the turn games: play/guess/clue/lay/… as the game defines). Incoming frames
+        are capped at 512 bytes by the socket read limit (`maxGameFrame`), with a
+        further 8 KiB guard in the engine. The per-game command and view shapes are
+        the authoritative contract and live in `src/internal/game/protocol.go` and
+        `src/web/src/games/types.ts` (not modelled here; see the `games` tag note).
       operationId: gameWebSocket
       parameters:
         - name: code
@@ -305,7 +354,10 @@ paths:
           schema: { type: string, minLength: 1, maxLength: 16, example: Niklas }
         - name: animal
           in: query
-          description: Totem slug for the player's sprite; an unknown value is dropped, not refused.
+          description: >
+            The per-game "meta" channel (named `animal` for historical reasons): the
+            player's totem slug for Bomberman and the Crawler, empty for games that
+            need no per-player choice. An unrecognised value is dropped, not refused.
           schema: { type: string, pattern: "^[a-z0-9-]+$", example: bever }
         - name: resume
           in: query
@@ -446,6 +498,21 @@ components:
         reason:
           type: string
           enum: [incorrect, unknown, poor_description, other]
+        note:
+          type: string
+          maxLength: 280
+    GameReportRequest:
+      type: object
+      required: [game, reason]
+      additionalProperties: false
+      properties:
+        game:
+          type: string
+          description: A registered game slug (validated against the registry).
+          example: codenames
+        reason:
+          type: string
+          enum: [bug, rules, unclear, other]
         note:
           type: string
           maxLength: 280

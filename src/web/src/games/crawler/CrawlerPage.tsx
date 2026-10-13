@@ -11,7 +11,7 @@ import { LossFlash, useLossPulse } from "../LossFlash";
 import { useStatsFlag } from "../bomberman/NetHud";
 import { biomeTileDir } from "./logic";
 import type { CrView } from "./types";
-import { TOTEMS, DIRS, DIR_ARROW, tileKind, heroStatuses, objInfo, OBJECT_CAP, STATUSES } from "./data";
+import { TOTEMS, DIRS, DIR_ARROW, tileKind, heroStatuses, objInfo, OBJECT_CAP, OBJECTS, STATUSES, menuMins, COURAGE_CAP, attackTargets, effArmour, useItemMsg } from "./data";
 import { useHeroSprites, ObjIcon } from "./sprites";
 import { Die } from "./Die";
 import { TilePreview } from "./TilePreview";
@@ -191,17 +191,90 @@ function CrawlerRoom({
   const spriteFor = useHeroSprites(g.view); // walk/facing animation for the board pawns
   const [sel, setSel] = useState<number | null>(null); // selected die index
   const [layRot, setLayRot] = useState(0); // chosen orientation (0..3) while laying a tile
+  const [startLevel, setStartLevel] = useState(1); // lobby: which level to begin at
+  const [devBoss, setDevBoss] = useState(""); // F3 dev: forced boss slug ("" = random)
+  const [devLoot, setDevLoot] = useState<string[]>([]); // F3 dev: starting loot slugs
   const v = g.view;
   // Reset the orientation to the first legal one whenever a fresh tile is drawn.
   useEffect(() => {
     setLayRot(g.view?.pending?.options[0]?.rotation ?? 0);
   }, [v?.step, v?.pending?.kind, v?.pending?.options.length]);
   // Tell the page when the turn lands on THIS seat so local multiplayer auto-switches to
-  // the player whose turn it is.
+  // the player whose turn it is. We also count this seat's turns so the keyboard hint can
+  // show only during a player's first few turns on Level 1.
   const myTurnNow = v?.ph === "playing" && v?.turn === v?.you;
+  const [myTurns, setMyTurns] = useState(0);
   useEffect(() => {
-    if (myTurnNow) onMyTurn?.();
+    if (myTurnNow) { onMyTurn?.(); setMyTurns((n) => n + 1); }
   }, [myTurnNow, onMyTurn]);
+  // Keyboard controls, a fast twin of the mouse (which still works: select a die for the
+  // action menu, use items from your sheet). Each key auto-spends your LOWEST usable die, so
+  // you skip the die-select step. Arrows/WASD move (a fast mover's extra steps go through
+  // `step`); `c` gains Courage; `f` attacks; number keys use that slot's object. Dice are
+  // shown sorted low to high, so the keys eat them lowest-first. Ignored while typing.
+  useEffect(() => {
+    if (!v) return;
+    const DIR: Record<string, number> = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3 };
+    // The lowest unspent die whose value meets `min` (and an optional predicate), or -1.
+    const lowestDie = (min: number, ok?: (val: number) => boolean) => {
+      let lo = -1, loVal = 99;
+      v.dice.forEach((die, i) => {
+        if (!die.spent && die.value >= min && die.value < loVal && (!ok || ok(die.value))) { loVal = die.value; lo = i; }
+      });
+      return lo;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName ?? "").toLowerCase();
+      if (tag === "input" || tag === "select" || tag === "textarea") return;
+      if (v.ph !== "playing" || v.step !== "spend" || v.turn !== v.you) return;
+      const me = v.heroes.find((h) => h.s === v.you);
+      if (!me?.alive) return;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      const mins = menuMins(me);
+      // Move: arrows / WASD.
+      const dir = DIR[key];
+      if (dir !== undefined) {
+        e.preventDefault();
+        if (v.bonusMoves > 0) { g.send({ t: "step", dir }); return; }
+        const lo = lowestDie(mins.move);
+        if (lo >= 0) { g.send({ t: "spend", die: lo, action: "move", dir }); setSel(null); }
+        return;
+      }
+      // Courage: c (lowest die meeting the Courage minimum, if not already maxed).
+      if (key === "c") {
+        e.preventDefault();
+        if (me.courage >= COURAGE_CAP) return;
+        const lo = lowestDie(mins.courage);
+        if (lo >= 0) { g.send({ t: "spend", die: lo, action: "courage" }); setSel(null); }
+        return;
+      }
+      // Fight: f. The lowest die that can beat some enemy's Armour attacks the lowest-Health
+      // enemy that die can hit (finish wounded robots first).
+      if (key === "f") {
+        e.preventDefault();
+        const targets = attackTargets(v, me);
+        const lo = lowestDie(1, (val) => targets.some((t) => val >= effArmour(t.m)));
+        if (lo < 0) return;
+        const val = v.dice[lo].value;
+        const hit = targets.filter((t) => val >= effArmour(t.m));
+        if (!hit.length) return;
+        const tgt = hit.reduce((best, t) => (t.m.health < best.m.health ? t : best));
+        g.send({ t: "spend", die: lo, action: "attack", monster: tgt.m.id, tile: tgt.tileId });
+        setSel(null);
+        return;
+      }
+      // Items: 1-9 use that pack slot's object (auto-targeted, same as the sheet buttons).
+      if (key >= "1" && key <= "9") {
+        const slug = me.objects[Number(key) - 1];
+        if (!slug) return;
+        const msg = useItemMsg(v, me, slug, sel);
+        if (msg) { e.preventDefault(); g.send(msg); setSel(null); }
+        return;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [v, g, sel]);
   // Flash when your health drops (your totem takes damage).
   const myHp = g.view ? g.view.heroes.find((h) => h.s === g.view!.you)?.health : undefined;
   const hpLost = useLossPulse(myHp);
@@ -281,7 +354,54 @@ function CrawlerRoom({
             ))}
           </ul>
           {isHost ? (
-            <button className="game-btn" onClick={() => g.send({ t: "start" })}>Start run</button>
+            <>
+              <div className="cr-lobby-row">
+                <label className="cr-field-label" htmlFor="cr-start-level">Start at level</label>
+                <select
+                  id="cr-start-level"
+                  className="trait-search cr-level-select"
+                  value={startLevel}
+                  onChange={(e) => setStartLevel(Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>Level {n}</option>)}
+                </select>
+              </div>
+              {debug && (
+                <div className="panel cr-dev">
+                  <strong>🛠 Dev (F3)</strong>
+                  <div className="cr-lobby-row">
+                    <label className="cr-field-label" htmlFor="cr-dev-boss">Boss</label>
+                    <select id="cr-dev-boss" className="trait-search" value={devBoss} onChange={(e) => setDevBoss(e.target.value)}>
+                      <option value="">(random for the level)</option>
+                      {v.bossPool.map((b) => (
+                        <option key={b.slug} value={b.slug}>{b.name} (L{b.minLvl}{b.maxLvl !== b.minLvl ? `–${b.maxLvl}` : ""})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="cr-dev-loot">
+                    <span className="muted-note">Starting loot (given to every hero):</span>
+                    <div className="cr-dev-loot-grid">
+                      {Object.keys(OBJECTS).map((slug) => (
+                        <label key={slug} className="cr-dev-loot-item" title={objInfo(slug).effect}>
+                          <input
+                            type="checkbox"
+                            checked={devLoot.includes(slug)}
+                            onChange={(e) => setDevLoot((xs) => e.target.checked ? [...xs, slug] : xs.filter((s) => s !== slug))}
+                          />
+                          <ObjIcon slug={slug} size={16} /> {objInfo(slug).name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button
+                className="game-btn"
+                onClick={() => g.send({ t: "start", level: startLevel, boss: debug ? devBoss : "", loot: debug ? devLoot : [] })}
+              >
+                Start run{startLevel !== 1 ? ` (Level ${startLevel})` : ""}
+              </button>
+            </>
           ) : (
             <p className="muted-note">Waiting for the host to start…</p>
           )}
@@ -351,7 +471,8 @@ function CrawlerRoom({
           ) : myTurn && me ? (
             <>
               <div className="cr-dice">
-                {v.dice.map((d, i) => (
+                {/* shown sorted low -> high; the real index is kept for selecting/spending */}
+                {v.dice.map((d, i) => ({ d, i })).sort((a, b) => a.d.value - b.d.value).map(({ d, i }) => (
                   <Die
                     key={i}
                     value={d.value}
@@ -432,6 +553,20 @@ function CrawlerRoom({
         <div className="mind-controls panel mind-over">
           <strong>{v.ph === "won" ? "The boss falls. You win! 🎉" : "The dungeon claims you. 💀"}</strong>
           {isHost && <button className="game-btn" onClick={() => g.send({ t: "restart" })}>New run</button>}
+        </div>
+      )}
+
+      {/* keyboard hint: only while learning (a player's first 3 turns, Level 1), above the
+          board. The mouse still works (select a die for the action menu, use items from your
+          sheet); these keys are the quick auto-lowest-die twin. */}
+      {myTurn && v.level === 1 && myTurns <= 3 && (
+        <div className="cr-kbd-hint panel" role="note">
+          <span className="cr-kbd-hint-title">⌨ Shortcuts</span>
+          <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span>
+          <span><kbd>C</kbd> Courage</span>
+          <span><kbd>F</kbd> Fight</span>
+          <span><kbd>1</kbd>–<kbd>9</kbd> use item</span>
+          <span className="muted-note">each spends your lowest usable die — or click a die / your items as usual</span>
         </div>
       )}
 

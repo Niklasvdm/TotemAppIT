@@ -43,7 +43,8 @@ export interface CrHero {
 export interface CrMonster {
   id: number;
   kind: string;
-  armour: number;
+  armour: number; // base Armour
+  effArmour: number; // Armour your die must meet to hit (base + boss plating / jammer, minus Barbed Shot)
   health: number;
   maxHP: number;
   damage: number;
@@ -97,6 +98,7 @@ export interface CrView {
   level: number; // 1..6
   biome: string; // Woodland / Ruins / Machine
   shopStock: { slug: string; name: string; cost: number }[];
+  bossPool: { slug: string; name: string; minLvl: number; maxLvl: number }[]; // for the F3 dev start picker
   lootRoll?: { roll: number; chance: number; hit: boolean; name?: string; killer?: string } | null;
   statusRoll?: { roll: number; need: number; status: string; hit: boolean; target?: string } | null;
   log: string[];

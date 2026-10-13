@@ -91,6 +91,19 @@ func biomeLabel(biome string) string {
 // rollBossMonsters builds the boss (and, for Hardened Core, its weak-point) for the
 // current level, drawn at random from the bosses eligible at that level. Health scales
 // with the party size so the fight runs a few rounds at any count.
+// bossBySlug returns the roster entry with that sprite slug, or nil (slug "" -> nil).
+func bossBySlug(slug string) *bossDef {
+	if slug == "" {
+		return nil
+	}
+	for i := range bossRoster {
+		if bossRoster[i].slug == slug {
+			return &bossRoster[i]
+		}
+	}
+	return nil
+}
+
 func (g *crawlerGame) rollBossMonsters() []*crawlerMonster {
 	var pool []bossDef
 	for _, d := range bossRoster {
@@ -101,7 +114,12 @@ func (g *crawlerGame) rollBossMonsters() []*crawlerMonster {
 	if len(pool) == 0 {
 		pool = bossRoster[:3] // defensive: the Woodland openers
 	}
-	d := pool[g.rng.IntN(len(pool))]
+	var d bossDef
+	if forced := bossBySlug(g.forcedBoss); forced != nil {
+		d = *forced // debug: the host pinned a specific boss, any level
+	} else {
+		d = pool[g.rng.IntN(len(pool))]
+	}
 	players := len(g.order)
 	if players < 1 {
 		players = 1
@@ -148,12 +166,11 @@ func summonAdds(m *crawlerMonster) []*crawlerMonster {
 	return nil
 }
 
-// makeAdd builds a summoned/spawned robot by kind (Scrapling or Sentry turret).
+// makeAdd builds a summoned/spawned robot by kind (Scrapling or Sentry turret), reusing
+// the shared stat lines in newRobot.
 func makeAdd(kind string) *crawlerMonster {
-	switch kind {
-	case "sentry":
-		return &crawlerMonster{armour: 5, health: 1, maxHealth: 1, damage: 3, kind: "sentry", alive: true, reward: 1}
-	default: // Scrapling
-		return &crawlerMonster{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "scrapling", alive: true, reward: 1}
+	if kind != "sentry" {
+		kind = "scrapling"
 	}
+	return newRobot(kind)
 }

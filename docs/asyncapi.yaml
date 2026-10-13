@@ -1,0 +1,229 @@
+asyncapi: 3.0.0
+
+# The message-driven half of the API: the game WebSocket. OpenAPI (docs/openapi.yaml)
+# covers the REST surface, including creating a room and the HTTP upgrade handshake, but
+# OpenAPI cannot describe WebSocket message frames — that is what AsyncAPI is for.
+# (AsyncAPI is not only for message queues: it models any event/message-driven API, over
+# WebSocket, Kafka, AMQP, MQTT, etc.)
+#
+# Perspective: this document describes the SERVER application, so `send` = the server sends
+# to the client, `receive` = the server receives from the client.
+#
+# The per-game command and `state` bodies are game-specific. Their authoritative shapes
+# live in src/internal/game/protocol.go (per game) and src/web/src/games/types.ts; here
+# they are modelled permissively (a discriminating `t` plus open properties) rather than
+# enumerated, so this contract does not drift each time a game changes.
+
+info:
+  title: Totem Games WebSocket API
+  version: "1.0.0"
+  description: >
+    One WebSocket per player per room. Create a room over HTTP
+    (POST /api/v1/games/rooms, see openapi.yaml), then connect here with the join code.
+    After the upgrade the server sends a `welcome`, then `state` frames (on every change
+    for the turn-based games; ~60x/second for realtime Bomberman) and `roster` frames on
+    membership changes; the client sends `start`/`restart`/`bye` and that game's own
+    command frames.
+
+servers:
+  prod:
+    host: totem.nvdm.eu
+    protocol: wss
+    description: Production
+  dev:
+    host: dev.totem.nvdm.eu
+    protocol: wss
+    description: Dev
+  local:
+    host: 127.0.0.1:8683
+    protocol: ws
+    description: Local
+
+channels:
+  gameSocket:
+    address: /api/v1/games/ws
+    title: Game room socket
+    description: >
+      One connection = one seat in one room. The join parameters are query-string on the
+      upgrade request. Incoming frames are capped at 512 bytes (the socket read limit).
+      The Origin must be same-origin (extra origins allowlisted server-side for the dev
+      proxy only); a bad Origin is refused at the handshake with HTTP 403.
+    bindings:
+      ws:
+        method: GET
+        query:
+          type: object
+          required: [code, name]
+          properties:
+            code:
+              type: string
+              pattern: "^[A-Za-z0-9]+$"
+              description: Room code (case-insensitive; normalised to upper case).
+              examples: [K7QM]
+            name:
+              type: string
+              minLength: 1
+              maxLength: 16
+              description: Player nickname.
+              examples: [Niklas]
+            animal:
+              type: string
+              pattern: "^[a-z0-9-]+$"
+              description: >
+                Per-game "meta" channel (named `animal` for historical reasons): the
+                player's totem slug for Bomberman and the Crawler, empty otherwise. An
+                unrecognised value is dropped, not refused.
+              examples: [bever]
+            resume:
+              type: string
+              description: Seat-resume token from a previous `welcome`, to reclaim a dropped seat.
+    messages:
+      welcome:
+        $ref: "#/components/messages/Welcome"
+      roster:
+        $ref: "#/components/messages/Roster"
+      state:
+        $ref: "#/components/messages/State"
+      error:
+        $ref: "#/components/messages/Error"
+      command:
+        $ref: "#/components/messages/Command"
+
+operations:
+  sendWelcome:
+    action: send
+    channel:
+      $ref: "#/channels/gameSocket"
+    summary: First frame after the upgrade — your seat, the room's game, and a resume token.
+    messages:
+      - $ref: "#/channels/gameSocket/messages/welcome"
+  sendState:
+    action: send
+    channel:
+      $ref: "#/channels/gameSocket"
+    summary: A game-state snapshot (per change for turn games; ~60x/s for Bomberman).
+    messages:
+      - $ref: "#/channels/gameSocket/messages/state"
+  sendRoster:
+    action: send
+    channel:
+      $ref: "#/channels/gameSocket"
+    summary: Sent when room membership changes (joins, drops, host handover).
+    messages:
+      - $ref: "#/channels/gameSocket/messages/roster"
+  sendError:
+    action: send
+    channel:
+      $ref: "#/channels/gameSocket"
+    summary: A post-handshake error (e.g. the room filled or closed); usually followed by a close.
+    messages:
+      - $ref: "#/channels/gameSocket/messages/error"
+  receiveCommand:
+    action: receive
+    channel:
+      $ref: "#/channels/gameSocket"
+    summary: >
+      A client frame: start/restart/bye, or that game's own move (Bomberman input;
+      Codenames clue/guess; the Crawler spend/move/lay/pickup/…).
+    messages:
+      - $ref: "#/channels/gameSocket/messages/command"
+
+components:
+  messages:
+    Welcome:
+      name: welcome
+      title: Welcome
+      payload:
+        $ref: "#/components/schemas/WelcomePayload"
+    Roster:
+      name: roster
+      title: Roster
+      payload:
+        $ref: "#/components/schemas/RosterPayload"
+    State:
+      name: state
+      title: Game state
+      payload:
+        $ref: "#/components/schemas/StatePayload"
+    Error:
+      name: error
+      title: Error
+      payload:
+        $ref: "#/components/schemas/ErrorPayload"
+    Command:
+      name: command
+      title: Client command
+      payload:
+        $ref: "#/components/schemas/CommandPayload"
+
+  schemas:
+    RosterEntry:
+      type: object
+      properties:
+        s: { type: integer, description: Seat index }
+        n: { type: string, description: Nickname }
+        m: { type: string, description: Per-game meta (totem slug, …) }
+        w: { type: integer, description: Wins (Bomberman) }
+        gone: { type: boolean, description: True while the seat is held for a dropped player }
+
+    WelcomePayload:
+      type: object
+      required: [t, you, code, game, host, token]
+      properties:
+        t: { type: string, const: welcome }
+        you: { type: integer, description: Your seat }
+        code: { type: string }
+        game: { type: string, description: The room's game slug (reject a mismatched page) }
+        host: { type: integer, description: The host seat }
+        hz: { type: integer, description: Tick rate (0 for event-driven turn games) }
+        fuse: { type: integer, description: Bomb fuse in ticks (Bomberman) }
+        build: { type: string, description: Server build stamp }
+        token: { type: string, description: Secret to reclaim this seat after a drop }
+        arena:
+          type: object
+          description: Bomberman arena (w/h/solid layer); empty for other games.
+          additionalProperties: true
+        roster:
+          type: array
+          items: { $ref: "#/components/schemas/RosterEntry" }
+
+    RosterPayload:
+      type: object
+      required: [t, host, roster]
+      properties:
+        t: { type: string, const: roster }
+        host: { type: integer }
+        roster:
+          type: array
+          items: { $ref: "#/components/schemas/RosterEntry" }
+
+    StatePayload:
+      type: object
+      description: >
+        A game-state snapshot. Always carries `t: "state"`; every other field is
+        game-specific (Bomberman: k/ph/win/p/b/f/u/c; the turn games and the Crawler each
+        send their own view). The authoritative shapes are in protocol.go / types.ts.
+      required: [t]
+      additionalProperties: true
+      properties:
+        t: { type: string, const: state }
+
+    ErrorPayload:
+      type: object
+      required: [t, err]
+      properties:
+        t: { type: string, const: error }
+        err: { type: string }
+
+    CommandPayload:
+      type: object
+      description: >
+        A client-to-server frame. `t` names the command; the rest is game-specific. Shared
+        across games: `start`, `restart`, `bye`. Examples: Bomberman `{t:"input",dx,dy,bomb}`;
+        Codenames `{t:"clue",word,count}` / `{t:"guess",tile}`; the Crawler
+        `{t:"spend",die,action,…}` / `{t:"layTile",…}` / `{t:"pickup",square}`. Capped at
+        512 bytes. Full command sets live in protocol.go / types.ts.
+      required: [t]
+      additionalProperties: true
+      properties:
+        t: { type: string, examples: [start, restart, bye, input, clue, guess, spend, layTile, pickup] }

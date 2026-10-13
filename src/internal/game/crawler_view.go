@@ -30,7 +30,7 @@ type crawlerHeroView struct {
 	Slots        int               `json:"slots"`                  // object capacity (per totem, 2-3)
 	Electrified  bool              `json:"electrified,omitempty"`  // status: loses 1 health each round
 	Electrocuted bool              `json:"electrocuted,omitempty"` // status: -1 to each die value
-	Snared       bool              `json:"snared,omitempty"`       // status: can't leave your tile
+	Snared       bool              `json:"snared,omitempty"`       // status: at most 2 Move dice this turn
 	Drained      bool              `json:"drained,omitempty"`      // status: can't gain Courage
 	Rusted       bool              `json:"rusted,omitempty"`       // status: one fewer die
 	FreeReroll   bool              `json:"freeReroll,omitempty"`   // a free reroll (Glove or Lucky Paws) is available (own hero)
@@ -40,19 +40,20 @@ type crawlerHeroView struct {
 }
 
 type crawlerMonsterView struct {
-	ID       int      `json:"id"`
-	Kind     string   `json:"kind"`
-	Armour   int      `json:"armour"`
-	Health   int      `json:"health"` // current, persists across turns
-	MaxHP    int      `json:"maxHP"`
-	Damage   int      `json:"damage"`
-	Reward   int      `json:"reward"` // Courage granted on defeat (scales with toughness)
-	Square   int      `json:"square"`
-	Engaged  bool     `json:"engaged"`
-	Alive    bool     `json:"alive"`
-	IsBoss   bool     `json:"isBoss"`
-	Name     string   `json:"name,omitempty"`     // boss display name
-	Specials []string `json:"specials,omitempty"` // boss signature specials
+	ID        int      `json:"id"`
+	Kind      string   `json:"kind"`
+	Armour    int      `json:"armour"`    // base Armour
+	EffArmour int      `json:"effArmour"` // Armour the viewing hero must meet to hit (base + boss plating / jammer, minus Barbed Shot)
+	Health    int      `json:"health"`    // current, persists across turns
+	MaxHP     int      `json:"maxHP"`
+	Damage    int      `json:"damage"`
+	Reward    int      `json:"reward"` // Courage granted on defeat (scales with toughness)
+	Square    int      `json:"square"`
+	Engaged   bool     `json:"engaged"`
+	Alive     bool     `json:"alive"`
+	IsBoss    bool     `json:"isBoss"`
+	Name      string   `json:"name,omitempty"`     // boss display name
+	Specials  []string `json:"specials,omitempty"` // boss signature specials
 }
 
 type crawlerTileView struct {
@@ -120,9 +121,17 @@ type crawlerView struct {
 	Level      int                    `json:"level"`      // 1..crMaxLevel
 	Biome      string                 `json:"biome"`      // Woodland / Ruins / Machine (display label)
 	ShopStock  []crawlerShopView      `json:"shopStock"`  // the shop's offer this level (buy when on a shop tile)
+	BossPool   []crawlerBossView      `json:"bossPool"`   // the full boss roster, for the debug start picker
 	LootRoll   *crawlerLootRollView   `json:"lootRoll"`   // the most recent kill's drop roll (a visible die)
 	StatusRoll *crawlerStatusRollView `json:"statusRoll"` // the most recent robot sting's status die
 	Log        []string               `json:"log"`
+}
+
+type crawlerBossView struct {
+	Slug   string `json:"slug"`
+	Name   string `json:"name"`
+	MinLvl int    `json:"minLvl"`
+	MaxLvl int    `json:"maxLvl"`
 }
 
 type crawlerShopView struct {
@@ -151,6 +160,9 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 		if d := objBySlug(slug); d != nil {
 			v.ShopStock = append(v.ShopStock, crawlerShopView{Slug: d.slug, Name: d.name, Cost: d.cost})
 		}
+	}
+	for _, d := range bossRoster {
+		v.BossPool = append(v.BossPool, crawlerBossView{Slug: d.slug, Name: d.name, MinLvl: d.minLvl, MaxLvl: d.maxLvl})
 	}
 	if lr := g.lootRoll; lr != nil {
 		v.LootRoll = &crawlerLootRollView{Roll: lr.roll, Chance: lr.chance, Hit: lr.hit, Name: lr.name, Killer: lr.killer}
@@ -210,8 +222,12 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 				tv.Loot = append(tv.Loot, crawlerGroundView{Square: l.square, Slug: l.slug})
 			}
 			for i, m := range t.monsters {
+				eff := m.armour
+				if vh := g.players[seat]; vh != nil {
+					eff = g.effectiveArmour(vh, m) // what THIS hero's die must meet (plating/jammer/barbed)
+				}
 				tv.Monsters = append(tv.Monsters, crawlerMonsterView{
-					ID: i, Kind: m.kind, Armour: m.armour, Health: m.health, MaxHP: m.maxHealth, Damage: m.damage,
+					ID: i, Kind: m.kind, Armour: m.armour, EffArmour: eff, Health: m.health, MaxHP: m.maxHealth, Damage: m.damage,
 					Reward: m.reward, Square: m.square, Engaged: m.engaged, Alive: m.alive, IsBoss: m.isBoss,
 					Name: m.bossName, Specials: append([]string{}, m.specials...),
 				})

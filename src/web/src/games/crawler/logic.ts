@@ -22,9 +22,9 @@ export const TILE_ART: Record<string, { file: string; base: Edges }> = {
   vault: { file: "tile-9", base: [F, F, T, F] }, //       loot cache, a dead-end nook (L2+)
   // Level-2+ feature tiles (open rooms, [T,T,T,T]). Art slots are reserved; until the art
   // sheets land these fall back to the styled cell (the backgroundImage 404s silently).
-  shrine: { file: "tile-10", base: [T, T, T, T] }, //     a landmark (cosmetic, L2+)
-  gate: { file: "tile-11", base: [T, T, T, T] }, //       broken city gate: woodland -> ruins
-  wiring: { file: "tile-12", base: [T, T, T, T] }, //     live-wiring hazard room (L2+)
+  shrine: { file: "tile-10", base: [F, F, T, T] }, //     a landmark (cosmetic, L2+)
+  gate: { file: "tile-11", base: [F, F, T, F] }, //       broken city gate: woodland -> ruins
+  wiring: { file: "tile-12", base: [F, T, F, T] }, //     live-wiring hazard room (L2+)
   coolant: { file: "tile-13", base: [T, T, T, T] }, //    coolant-flood hazard room (L2+)
   fog: { file: "tile-14", base: [T, T, T, T] }, //        sensor-fog hazard room (L2+)
   rust: { file: "tile-15", base: [T, T, T, T] }, //       rust hazard room (Ruins L3+)
