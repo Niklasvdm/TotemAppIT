@@ -10,6 +10,35 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.14.1 — 2026-10-13
+- `[CHANGE]` **Crawler: the Ruins healing spring is a 4-way cross.** The healing tile is now biome-dependent: a 3-way T-junction in the Woodland (L1-2) as before, but a 4-way crossroads in the Ruins (L3-4), matching its fountain art (`heal()` in `buildDeck`). Machine/other levels keep the T-junction.
+
+### 0.14.0 — 2026-10-13
+- `[FEATURE]` **Crawler: L3/L4 now use the ruins tileset.** The ruins tile folder was fully populated but `HAVE_TILES` still fell back to woodland; the Ruins biome is now enabled, so Levels 3-4 draw their own art.
+- `[FEATURE]` **Crawler: pick your animal in the lobby.** The totem is no longer chosen on the name screen; every player picks (and can change) their animal from a selector in the lobby, via a new `totem` command, locked once the run starts.
+- `[FEATURE]` **Crawler: F3 debug overlay.** Starting a run with F3 active enables a debug payload: the RNG seed and run state, a deck peek (the exact upcoming tiles and the robots/boss they carry), the per-band spawn odds, and connection stats. Gated to debug runs, so normal players never see it.
+- `[CHANGE]` **Crawler: the collapse countdown starts when the boss lair is laid.** Previously it only began when the tile stack ran out; now the moment the boss tile is placed, no further tiles are laid and the party has `crGraceTurns` to reach and defeat the boss.
+- `[CHANGE]` **Crawler: a forced boss applies to one level only, and beaten bosses don't return.** The debug boss pin used to re-force the same boss every level; it is now consumed after its one level. A boss defeated this run is excluded from every later level's pool (he's gone).
+- `[CHANGE]` **Crawler: sensor fog lifts only from the tile centre.** It revealed a fog room's contents from an adjacent tile; now a hero must stand on the room's centre square to see its robots and loot.
+- `[CHANGE]` **Crawler: the Vault drops visible loot.** Instead of silently granting a consumable when you reached its centre, a Vault now spills its consumable onto the floor when the tile is laid, picked up like any drop. (The one-time `used` flag is gone.)
+- `[CHANGE]` **Crawler: acquired attack dice are blue.** A Spare Die and the Wolf's Frenzy die are flagged and drawn in blue to stand apart from the rolled pool.
+- `[CHORE]` New tests: boss-laid collapse, forced-boss single-level + no-refight, lobby totem lock, Spare-Die bonus flag, Vault floor drop, fog centre-only reveal.
+
+### 0.13.3 — 2026-10-13
+- `[FEATURE]` **Crawler: Widowframe (L5-6) has a sprite.** The regenerated caption-free PNG sheet was ingested (`make_enemies.py`, 2x4 = 8 frames) and wired into `ENEMY_ART`, so the Split boss now draws its own art. Supersedes the deferral in 0.13.2.
+
+### 0.13.2 — 2026-10-13
+- `[FEATURE]` **Crawler: the three Ruins bosses have sprites.** Hauler (Hardened Core), Vultrix (Summoner II) and Teslacrane (Overload) sheets ingested (`make_enemies.py`, 2x4 = 8 frames) into `sprites/crawler/enemies/<slug>/` and wired into `ENEMY_ART`, so Level 3-4 bosses now draw their own art instead of the generic boss sprite. Their stats/specials were already correct (verified against the boss roster). Widowframe (L5-6) deferred: its V1 sheet baked per-frame caption text in inconsistent positions, so it keeps the generic boss art until a caption-free sheet is regenerated.
+
+### 0.13.1 — 2026-10-13
+- `[SECURITY]` **Rate limiter can no longer be defeated by a spoofed `X-Forwarded-For`.** The per-IP limiter keyed on chi's `middleware.RealIP`, which trusts the forwarding header from any peer. It is replaced by a trusted-proxy-gated version: `X-Forwarded-For` / `X-Real-IP` are believed only when the direct TCP peer is in `TOTEM_TRUSTED_PROXIES` (CIDRs/IPs of the WAF); otherwise the real peer is used. Unset means forwarding headers are ignored, so a direct caller cannot spoof its IP. The systemd unit documents the setting.
+- `[SECURITY]` **The Adiantum DB key can no longer leak into logs.** The key is inlined into the SQLite DSN as `textkey`; `store.Open` now scrubs the key (raw and URL-escaped) from any driver open/ping error before it is wrapped and logged.
+- `[SECURITY]` **`totemd.service` sandbox tightened** (`ProtectKernelTunables/Modules/Logs`, `ProtectControlGroups`, `ProtectProc=invisible`, `RestrictNamespaces`, `SystemCallFilter=@system-service`, `LockPersonality`, `UMask=0077`, and more). `MemoryDenyWriteExecute` is deliberately left off: the pure-Go SQLite driver JITs WASM via wazero and needs executable memory at runtime.
+- `[FIX]` **Games: a dropped per-seat frame no longer suppresses the next identical state.** `Room.sendTo` recorded a frame as "last sent" even when the client's send buffer was full and the frame was dropped, so the next identical turn-based view was skipped as a duplicate and the client could sit on stale state. `lastView` now advances only on a successful enqueue.
+- `[FIX]` **Crawler: the rust hazard room now actually inflicts Rusted.** It was reskinning the live-wiring hazard, so it applied Electrocuted (and chipped 1 damage) despite its name. It is now its own `hzRust` hazard: no entry damage, Rusted (one fewer die next turn) when you end your turn on it.
+- `[CHORE]` **Crawler: extracted the deck/enemy generation subsystem** (tile templates, `buildDeck`, `insertSpec`, `newRobot`, `rollMonster`, `assignMonsterSquares`) out of the 1500-line `crawler.go` into `crawler_deck.go`. No behaviour change.
+- `[DOCS]` Fixed architecture-doc drift: the stale `3 x players` boss-HP line, the renamed `mk(...)` → `newRobot`, the class-diagram members that never existed (`tile.grid`/`square`/`monster.hits`/`monster.loot`), and the generation-code pointer (now `crawler_deck.go`). Corrected two stale Go package comments (`store`, `totemd`).
+
 ### 0.13.0 — 2026-10-13
 - `[FEATURE]` **Crawler: tile kinds can have multiple art variants.** `TILE_ART[kind].file` may now be a list of interchangeable PNGs (same shape); the client picks one per tile deterministically by tile id (`pickVariant`, stable across re-renders), so a kind can have several looks with no server change. Single strings still work unchanged.
 - `[CHANGE]` **Crawler: the shop merchant holds the centre, and the shop opens on tile entry.** You can no longer step onto a shop tile's middle (the kangaroo stands there, like a boss `centreBlocked`); the shop now patches your statuses and lets you buy the moment you step onto the tile (from the doorway), instead of requiring the centre square. Applies to every shop, both biomes.

@@ -37,7 +37,7 @@ export const WALK_STEP_MS = 560; // how long a single server move plays its walk
 
 // Enemies with art (scripts/make_enemies.py). A boss kind without its own art falls back
 // to the generic boss sprite; other unknowns to an emoji.
-export const ENEMY_ART = new Set(["scrapling", "sentry", "hulk", "jammer", "grappler", "boss", "vespex", "pylon"]);
+export const ENEMY_ART = new Set(["scrapling", "sentry", "hulk", "jammer", "grappler", "boss", "vespex", "pylon", "hauler", "vultrix", "teslacrane", "widowframe"]);
 
 // Human labels for a boss's signature specials (keys match the server's bs* consts).
 export const BOSS_SPECIALS: Record<string, string> = {

@@ -37,6 +37,12 @@ Environment=TOTEM_DB_PATH=/var/lib/totemd/totem.db
 Environment=TOTEM_EMOJI_FILE=/var/lib/totemd/data/emoji.json
 Environment=TOTEM_IMAGE_DIR=/var/lib/totemd/data/images
 
+# Trust X-Forwarded-For / X-Real-IP only from the WAF host, so the per-IP rate
+# limiter keys on the real client and a direct caller can't spoof its IP. Set it
+# to the reverse-proxy's address/CIDR; leave unset if the WAF runs on this host
+# (localhost forwarding is then the only source and the TCP peer is used).
+#Environment=TOTEM_TRUSTED_PROXIES=192.168.10.0/24
+
 # DB key — env-file (default; written by Terraform's db_key var). Optional (-),
 # so a missing file yields totemd's own clear error rather than a unit failure.
 EnvironmentFile=-/etc/totemd/totemd.env
@@ -45,7 +51,8 @@ EnvironmentFile=-/etc/totemd/totemd.env
 #LoadCredentialEncrypted=totem_db_key:/etc/totemd/db_key.cred
 #Environment=TOTEM_DB_KEY_FILE=%d/totem_db_key
 
-# Hardening — the app only needs its data dir and a localhost socket.
+# Hardening — the app only needs its data dir and a TCP socket. It holds an
+# encrypted DB and a key in memory, so the sandbox is tightened accordingly.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -54,7 +61,26 @@ PrivateDevices=true
 ReadWritePaths=/var/lib/totemd
 StateDirectory=totemd
 CapabilityBoundingSet=
+AmbientCapabilities=
 RestrictAddressFamilies=AF_INET AF_INET6
+# Lock down the rest of the kernel/process surface a web service never needs.
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# NB: no MemoryDenyWriteExecute — the pure-Go SQLite driver runs SQLite as WASM
+# via wazero, whose compiler maps executable memory at runtime (W^X would break DB open).
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

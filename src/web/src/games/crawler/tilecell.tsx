@@ -16,7 +16,7 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: 
   const art = tileArt(tile.kind, tile.edges, tile.rot, tile.id); // id picks the art variant
   return (
     <div
-      className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}${tile.used ? " used" : ""}`}
+      className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}`}
       data-focus={focus ? "1" : undefined}
     >
       {art && (

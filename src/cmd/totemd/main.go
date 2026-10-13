@@ -1,4 +1,4 @@
-// Command totemd serves the Totem Finder API (and, later, the embedded SPA).
+// Command totemd serves the Totem Finder API and the embedded SPA.
 package main
 
 import (
@@ -44,7 +44,10 @@ func main() {
 		log.Println("no embedded SPA (API-only build); the UI is served by the Vite dev server in dev")
 	}
 
-	apiSrv := api.New(st, cfg.Images, cfg.Emoji, api.WithSPA(spa), api.WithGameOrigins(cfg.GameOrigins))
+	apiSrv := api.New(st, cfg.Images, cfg.Emoji,
+		api.WithSPA(spa),
+		api.WithGameOrigins(cfg.GameOrigins),
+		api.WithTrustedProxies(cfg.TrustedProxies))
 	defer apiSrv.Close()
 
 	// The read/write timeouts suit the JSON API. The WebSocket game route

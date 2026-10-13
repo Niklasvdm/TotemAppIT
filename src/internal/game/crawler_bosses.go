@@ -107,8 +107,8 @@ func bossBySlug(slug string) *bossDef {
 func (g *crawlerGame) rollBossMonsters() []*crawlerMonster {
 	var pool []bossDef
 	for _, d := range bossRoster {
-		if g.level >= d.minLvl && g.level <= d.maxLvl {
-			pool = append(pool, d)
+		if g.level >= d.minLvl && g.level <= d.maxLvl && !g.defeatedBosses[d.slug] {
+			pool = append(pool, d) // eligible at this level and not already beaten this run
 		}
 	}
 	if len(pool) == 0 {
@@ -116,7 +116,8 @@ func (g *crawlerGame) rollBossMonsters() []*crawlerMonster {
 	}
 	var d bossDef
 	if forced := bossBySlug(g.forcedBoss); forced != nil {
-		d = *forced // debug: the host pinned a specific boss, any level
+		d = *forced       // debug: the host pinned a boss for THIS level only
+		g.forcedBoss = "" // consumed: later levels draw at random again
 	} else {
 		d = pool[g.rng.IntN(len(pool))]
 	}

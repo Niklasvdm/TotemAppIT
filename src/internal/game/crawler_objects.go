@@ -258,6 +258,13 @@ func (g *crawlerGame) dropFrom(t *crawlerTile, m *crawlerMonster, killer *crawle
 	}
 }
 
+// populateVault drops a Vault's guaranteed consumable onto its centre floor the moment the
+// tile is laid, so the loot is visible and picked up like any floor drop (a hero grabs it
+// by standing on its square), rather than silently landing in a pack on reaching the centre.
+func (g *crawlerGame) populateVault(t *crawlerTile) {
+	g.dropGround(t, 4, g.rollConsumableDrop())
+}
+
 // dropGround lays an object on tile t, preferring the given square, else the next free
 // walkable square (so a stack of boss drops spreads out). Loot can share a square with
 // a corpse but not with another loot item.

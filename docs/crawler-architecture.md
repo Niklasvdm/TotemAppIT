@@ -17,7 +17,7 @@ The technical spec for the original co-op dungeon crawler. The product brief (th
 The crawler is one more `Game` on the existing multiplayer engine (see [[TotemApp-IT-Games]] for the engine). It is turn-based and co-op, so it reuses rooms, reconnection, the totem sprite atlas for hero avatars, and the `useRoom` client transport unchanged. Nothing about the netcode is new; what is new is a much larger game state and a richer turn.
 
 > [!note] Status: built and verified on DEV
-> The backend is split across `internal/game/crawler.go` (state + turn flow + command dispatch + tile generation), `crawler_sheets.go` (character sheets + dice), `crawler_combat.go` (attacks, the end-of-round group fight, shields, healing, rewards, drops), `crawler_view.go` (the per-seat DTOs + `viewFor`), `crawler_bosses.go` (the boss pool + multi-level progression), `crawler_objects.go` (the loot economy and shop) and `crawler_hazards.go` (hazards + statuses). The client is `src/web/src/games/crawler/CrawlerPage.tsx` with the pure, unit-tested helpers (tile-art rotation, walk-sprite direction, effective Armour) in `logic.ts`. Combat is a **group fight** resolved at the end of the round, several robots share a tile, and movement is **path-constrained** (a hero stands only on the centre and the doorway of each open edge, corners off-path), so a straight is a corridor and a bend turns without a full inner-wall model. The one simplification still standing is no fine inner tile walls. This document is the architecture of record; the [changelog](../CHANGELOG.md) records each step.
+> The backend is split across `internal/game/crawler.go` (state + turn flow + command dispatch), `crawler_deck.go` (tile templates + banded deck + enemy generation), `crawler_sheets.go` (character sheets + dice), `crawler_combat.go` (attacks, the end-of-round group fight, shields, healing, rewards, drops), `crawler_view.go` (the per-seat DTOs + `viewFor`), `crawler_bosses.go` (the boss pool + multi-level progression), `crawler_objects.go` (the loot economy and shop) and `crawler_hazards.go` (hazards + statuses). The client is `src/web/src/games/crawler/CrawlerPage.tsx` with the pure, unit-tested helpers (tile-art rotation, walk-sprite direction, effective Armour) in `logic.ts`. Combat is a **group fight** resolved at the end of the round, several robots share a tile, and movement is **path-constrained** (a hero stands only on the centre and the doorway of each open edge, corners off-path), so a straight is a corridor and a bend turns without a full inner-wall model. The one simplification still standing is no fine inner tile walls. This document is the architecture of record; the [changelog](../CHANGELOG.md) records each step.
 
 ## UML notation
 
@@ -37,7 +37,7 @@ A full vertical slice of the real game, built on the random tile generator chose
 - Combat against static enemies (Armour / Health / Damage): hits land live and a monster's lost Health **persists across turns**, so allies on a tile pool their blows (the **group fight**). Retaliation is at the **end of the round**, after every hero has acted: each monster still alive strikes **every living hero on its tile** for its Damage (minus that hero's Shields). The Beaver's Bulwark can soak an ally's hit.
 - Courage economy (earn on high dice and on kills, spend on rerolls) and Shields. **Shields are a per-round resource** (cleared after end-of-round combat; Thick Hide re-grants its 2 next round). **Specials auto-activate** at their Courage threshold (3, then 5) and switch off again if Courage drops below it: there is no manual unlock. Courage is capped at 10, and the Courage action is unavailable at the cap.
 - Six designed totems (Beaver, Arrow Squid, Wolf, Treefrog, Raccoon, Comoros Weaver) with their own health, dice count, **weighted die type** (Low/Balanced/High) and menu; other totems fall back to a generic sheet. Both the inherent specials (Brace, Mend, Carry, Guard) and the Courage-tier unlocks are wired to effects (see [Characters and sheets](#characters-and-sheets)), including Spores (the Treefrog's Mend clears statuses) now the hazard/status system exists.
-- Win (boss defeated) and lose (party wiped, or the dungeon collapses). Running the tile stack out is **not** an instant loss: it starts a collapse countdown (5 turns) during which the party must reach and defeat the boss (which is already on the map, since every drawn tile was laid) before the run is lost. Plus a per-tile narrated beat.
+- Win (boss defeated) and lose (party wiped, or the dungeon collapses). The collapse countdown (5 turns) begins the moment the **boss lair is laid** (or, as a fallback, when the tile stack runs out): no further tiles are laid and the party must reach and defeat the boss before the countdown is up. Plus a per-tile narrated beat.
 - **No dice left auto-ends the turn** (you do not have to click End turn once every die is spent).
 - Client: heroes are drawn from the **Bomberman totem sprite atlas** (not emoji), the player's **character sheet** sits at the top (sprite, health bar, resources, the action menu and the two specials), and hovering a monster shows its stats.
 - A seeded RNG so a whole run reproduces, and a first-class test suite.
@@ -133,21 +133,17 @@ class tile {
   -id : int
   -band : int
   -coord : coord
-  -grid : [9]square
   -edges : [4]bool   (N,E,S,W open)
   -isBoss : bool
 }
-class square {
-  -open : bool
-  -walls : [4]bool
-}
+note right of tile : no per-square grid/walls:\nmovement is path-constrained\n(centre + doorways), no inner walls
 class monster {
   -armour : int
   -health / maxHealth : int
   -damage : int
   -square : int
-  -hits : int
-  -loot : []item
+  -kind : string
+  -reward : int
 }
 class pendingLay {
   -tile : tile
@@ -169,7 +165,6 @@ crawlerGame *-- tileDeck
 hero *-- sheet
 sheet *-- menuEntry
 gameMap *-- tile
-tile *-- square
 tile *-- monster
 crawlerGame o-- pendingLay
 pendingLay *-- layOption
@@ -177,7 +172,7 @@ pendingLay o-- tile
 @enduml
 ```
 
-A `pos` is a tile id plus a square index 0..8 (row-major over the 3x3). An `edge` direction is 0..3 for N,E,S,W; `walls` on a square are the four inner sides blocked within its tile. A `coord` is the tile's integer `(x,y)` on the abstract map grid.
+A `pos` is a tile id plus a square index 0..8 (row-major over the 3x3). An `edge` direction is 0..3 for N,E,S,W. A `coord` is the tile's integer `(x,y)` on the abstract map grid. Movement is constrained to the tile's path (centre plus each open doorway); there is no per-square inner-wall model.
 
 ## Assets and sprites (where art lives)
 
@@ -186,7 +181,7 @@ Game art is **not** in the database. The data model above is pure game state (an
 | Asset | Where it lives | Served at | Notes |
 | --- | --- | --- | --- |
 | **Hero totems** (in use) | `src/web/public/sprites/totems.{png,json}` | `/sprites/totems.png` | The shared atlas, one row per animal (see the main README's [Totem sprites](../README.md#totem-sprites)). The crawler draws each hero's **front frame** (column 0 of its row) via a CSS background, reusing the Bomberman art with no extra fetch. `SPRITE_ROWS` in `CrawlerPage.tsx` holds the row order. |
-| **Map tiles** (in use, 0.4.4) | `src/web/public/sprites/crawler/tiles/<biome>/tile-<i>.png` | `/sprites/crawler/tiles/*` | Split from a grid sheet by [`scripts/make_tiles.py`](../scripts/make_tiles.py). Tiles are foldered **per biome** (`woodland/`, and later `ruins/`, `machine/`); the client picks the folder from the level's biome (`biomeTileDir` in `logic.ts`), falling back to `woodland` until a biome's sheet lands. `TILE_ART` maps each engine `kind` to a file and the client rotates it to the laid orientation. |
+| **Map tiles** (in use, 0.4.4) | `src/web/public/sprites/crawler/tiles/<biome>/tile-<i>.png` | `/sprites/crawler/tiles/*` | Split from a grid sheet by [`scripts/make_tiles.py`](../scripts/make_tiles.py). Tiles are foldered **per biome** (`woodland/` and `ruins/`, with `machine/` still to come); the client picks the folder from the level's biome (`biomeTileDir` + `HAVE_TILES` in `logic.ts`), falling back to `woodland` for a biome whose sheet has not landed. `TILE_ART` maps each engine `kind` to a file and the client rotates it to the laid orientation. |
 | **Object icons** (in use) | `src/web/public/sprites/crawler/objects/<slug>.png` | `/sprites/crawler/objects/*` | Split from a 4x4 sheet by [`scripts/make_objects.py`](../scripts/make_objects.py). The client (`ObjIcon`) shows the icon with an emoji fallback. |
 | **Enemies** (in use, 0.4.7+) | `src/web/public/sprites/crawler/enemies/<slug>/<pose>.png` | `/sprites/crawler/enemies/*` | Split from a sheet by [`scripts/make_enemies.py`](../scripts/make_enemies.py) (flat background stripped). Each monster carries a `kind` on the wire (the note's robot archetypes); the client maps it to a sprite (`MonsterSprite`): **scrapling** (A3 H1 D1, reward 1, swarm), **sentry** (A5 H1 D3, reward 1, hard to hit), **hulk** (A3 H4 D3, reward 2, soak it), **jammer** (A3 H2 D1, reward 2, +1 Armour to other robots on its tile), **grappler** (A4 H2 D1, reward 2, its clamp can Snare), and a **boss** drawn from the level's biome pool (see [Bosses and multi-level progression](#bosses-and-multi-level-progression)). Scrapling, Hulk, Jammer and Grappler have art, Sentry reuses the former bruiser sheet as a stand-in, and bosses without their own sheet fall back to the generic boss sprite. Each draws its `idle` frame, its `attack` frame plus a lunge while **engaged**, or its `destroyed` frame once defeated (dimmed, no stat badge). The board badge is `🛡armour ❤health 💥damage ✊reward`. Loot art is not wired yet. |
 
@@ -205,11 +200,11 @@ Game art is **not** in the database. The data model above is pure game state (an
 | `tile-2`  | bend     | corner (two adjacent edges)                              |
 | `tile-3`  | tee      | T-junction (three edges)                                 |
 | `tile-4`  | cross    | crossroads (all four)                                    |
-| `tile-5`  | healing  | healing spring (drawn as a T-junction)                   |
+| `tile-5`  | healing  | healing spring (Woodland: T-junction; Ruins: 4-way cross) |
 | `tile-6`  | portal   | transporter / start (drawn as a crossroads)              |
 | `tile-7`  | shop     | kangaroo shop (a dead-end nook)                          |
 | `tile-8`  | boss     | boss lair (a crossroads the boss holds)                  |
-| `tile-9`  | vault    | loot cache, a dead-end nook (from Level 2)               |
+| `tile-9`  | vault    | loot cache, a dead-end nook (L2+); drops its consumable on the floor when laid |
 | `tile-10` | shrine   | a landmark (cosmetic, Level 2 only)                      |
 | `tile-11` | gate     | the broken city gate: L2 boss lair + L3 start (dead-end) |
 | `tile-12` | wiring   | live-wiring hazard room (Woodland L2+)                   |
@@ -222,18 +217,18 @@ Game art is **not** in the database. The data model above is pure game state (an
 
 Art for `tile-10` and up is not ingested yet, so those tiles fall back to the styled cell (the `backgroundImage` 404s silently) until their sheets land; the `TILE_ART` rows and `buildDeck` entries are already wired. To change which cell a kind uses, edit that kind's `file` (and `base`, the drawn open edges) in `TILE_ART`; nothing else changes. Because the server sends each tile's chosen `rot`, `tileArt` can rotate even a symmetric tile (the crossroads) for variety while still lining asymmetric tiles up with their real edges. A kind's `file` may also be a **list of interchangeable variants** (same shape / open-edge count): `tileArt` then picks one per tile by its id (`pickVariant`, deterministic so it never flickers on re-render), giving a kind several looks with no server change. Each variant must exist under the same file name in every active biome folder, or the tiles that land on a missing one fall back to the plain cell.
 
-**Per-level tile roster.** Special tiles appear by level (the note's tile table), gated in the `switch` in `buildDeck`: the base paths, two transporters, two healing springs (one per outer band), the shop and the boss chamber on every level; the **Vault** from Level 2; and, also from Level 2, the **hazard rooms**. The Woodland hazard rooms (**live-wiring**, **coolant-flood**, **sensor-fog**) come in at Level 2 and carry forward; the Ruins add **rust** and **trap** rooms at Level 3; the Machine rooms add the **overheat** room at Level 5. The **shrine** (cosmetic) appears at Level 2 only for now. The **city gate** is not a loose deck tile: it does double duty at the woodland -> ruins boundary as the **Level 2 boss lair** and the **Level 3 start tile**. At Level 2 `buildDeck` makes the boss tile a gate (a one-door dead-end) instead of the usual crossroads lair, so the boss is cornered and the party fights it from the single doorway; at the start of Level 3 `startLevel` opens the map on that same gate rather than the crossroads portal, the broken gate the party descends through. The **descent** mirrors this at the ruins -> machine boundary: at Level 4 `buildDeck` makes the boss tile a descent (another one-door dead-end, the stairwell down) instead of the crossroads lair. The two Ruins hazard rooms differ in shape: the **rust** room is an open crossroads like coolant/fog, while the **trap** room is a straight corridor. Because a transporter can only teleport to another transporter, every level keeps a usable pair of two: normally the pre-placed start portal plus one in the deck, but on Level 3 (where the gate is the start) `buildDeck` adds a second deck portal so the pair survives. A hazard room seeds its hazard onto its squares when laid (`seedHazards`); the shrine has no mechanical effect, and level transitions are automatic on a boss kill. See [Hazards and statuses](#hazards-and-statuses) for what each hazard does.
+**Per-level tile roster.** Special tiles appear by level (the note's tile table), gated in the `switch` in `buildDeck`: the base paths, two transporters, two healing springs (one per outer band; a 3-way T-junction in the Woodland, a 4-way cross in the Ruins, per `heal()` in `buildDeck`), the shop and the boss chamber on every level; the **Vault** from Level 2; and, also from Level 2, the **hazard rooms**. The Woodland hazard rooms (**live-wiring**, **coolant-flood**, **sensor-fog**) come in at Level 2 and carry forward; the Ruins add **rust** and **trap** rooms at Level 3; the Machine rooms add the **overheat** room at Level 5. The **shrine** (cosmetic) appears at Level 2 only for now. The **city gate** is not a loose deck tile: it does double duty at the woodland -> ruins boundary as the **Level 2 boss lair** and the **Level 3 start tile**. At Level 2 `buildDeck` makes the boss tile a gate (a one-door dead-end) instead of the usual crossroads lair, so the boss is cornered and the party fights it from the single doorway; at the start of Level 3 `startLevel` opens the map on that same gate rather than the crossroads portal, the broken gate the party descends through. The **descent** mirrors this at the ruins -> machine boundary: at Level 4 `buildDeck` makes the boss tile a descent (another one-door dead-end, the stairwell down) instead of the crossroads lair. The two Ruins hazard rooms differ in shape: the **rust** room is an open crossroads like coolant/fog, while the **trap** room is a straight corridor. Because a transporter can only teleport to another transporter, every level keeps a usable pair of two: normally the pre-placed start portal plus one in the deck, but on Level 3 (where the gate is the start) `buildDeck` adds a second deck portal so the pair survives. A hazard room seeds its hazard onto its squares when laid (`seedHazards`); the shrine has no mechanical effect, and level transitions are automatic on a boss kill. See [Hazards and statuses](#hazards-and-statuses) for what each hazard does.
 
 The boss only ever appears in the **final band** of the stack (`buildDeck`, asserted over 40 seeds by `TestCrawlerBossInFinalBand`); a regular monster is never a boss.
 
-**Where tile and enemy generation lives (to tune it).** The art mapping above is client-side; the actual *generation* (which tiles and which robots a run contains) is server-side in [`src/internal/game/crawler.go`](../src/internal/game/crawler.go), in three spots that each carry a one-line "this is the place to tweak" comment:
+**Where tile and enemy generation lives (to tune it).** The art mapping above is client-side; the actual *generation* (which tiles and which robots a run contains) is server-side in [`src/internal/game/crawler_deck.go`](../src/internal/game/crawler_deck.go), in three spots that each carry a one-line "this is the place to tweak" comment:
 
 | Want to change | Edit | Notes |
 | --- | --- | --- |
-| Run length, number of bands, boss stats | `buildDeck` | `perBand` (tiles per band) and `g.bands` (set in `startRun`) size the stack and the boss clock. The boss stat line is built here; its Armour is a high 5-6 (only strong dice land) and its Health is `3 x players` (minimum 3) so the fight lasts about the same few rounds at any party size. |
+| Run length, number of bands, boss stats | `buildDeck` | `perBand` (tiles per band) and `g.bands` (set in `startRun`) size the stack and the boss clock. The boss stat line is built here; its Armour is a high 5-6 (only strong dice land) and its Health is `baseHP + hpPerHero * (players - 1)` (the roster entry's one-player value plus a per-extra-player bump, see `crawler_bosses.go`) so the fight lasts about the same few rounds at any party size. |
 | Special tiles (portal / healing / shop) and where they land | `buildDeck` + `insertSpec` | Each band gets its specials shuffled in: a healing spring in the two outer bands, a portal and the shop in the middle. The start tile is a portal, so that deck portal forms the teleport pair; on Level 3 (where the start is the gate) a second deck portal is added so the pair still exists. |
 | Which tile shapes are drawn, and how often | `crawlerTilePool` | A weighted slice of tile types; add or duplicate entries to reweight (corridors common, dead-ends rare). |
-| Which robots spawn, and swarms | `rollMonster(band)` | Returns the robots for one tile as a slice: a lone robot, a pair, or a late scrap swarm of three, weighted per band. `mk(armour, health, damage, reward, kind)` builds one. A tile holds up to three; `assignMonsterSquares` spreads them over the walkable squares (centre first, then the doorways) when the tile is laid. |
+| Which robots spawn, and swarms | `rollMonster(band)` | Returns the robots for one tile as a slice: a lone robot, a pair, or a late scrap swarm of three, weighted per band. `newRobot(kind)` builds one (its stat line baked in). A tile holds up to three; `assignMonsterSquares` spreads them over the walkable squares (centre first, then the doorways) when the tile is laid. |
 
 Several robots can share a tile (a swarm): `rollMonster` returns a group, and each robot is laid on its own walkable square, so a 3x3 tile fits up to three. They are static (no movement), so a swarm is a cluster to clear, not a chase.
 
@@ -277,7 +272,7 @@ state LayPhase {
   LayDraw --> LayDraw : next hero lays
 }
 LayPhase --> SpendPhase : every hero has laid
-LayPhase --> SpendPhase : stack empty (skip lay; collapse countdown begins)
+LayPhase --> SpendPhase : boss lair laid or stack empty (skip lay; collapse countdown begins)
 
 state SpendPhase {
   [*] --> Roll
@@ -306,7 +301,7 @@ A round always lays before it plays. In the **LAY phase** every living hero draw
 
 Mandatory laying makes the stack drain faster (every hero spends one tile per round before any move-triggered draws), which shortens a run and brings the boss band sooner; `perBand` and `bands` in `buildDeck` are the knobs to retune the run length against the party size if playtests want it longer.
 
-Two quality-of-life rules round out the turn. **Spending your last die auto-ends the turn** (`maybeAutoEnd`): there is nothing left to do, so the player does not have to click End turn. And **running the stack out is not an instant loss**: the first time the deck empties, `startGrace` begins a `crGraceTurns` (5) collapse countdown, the lay phase is skipped (there is nothing to draw), and each end of turn ticks it down; the run is lost only if the countdown reaches zero with the boss still alive. By then every drawn tile has been laid, so the boss lair is on the map and the party's job is to fight their way to it in time. The view carries `grace` (-1 while tiles remain, else the turns left) so the HUD can show the countdown.
+Two quality-of-life rules round out the turn. **Spending your last die auto-ends the turn** (`maybeAutoEnd`): there is nothing left to do, so the player does not have to click End turn. And **the collapse countdown is a race to the boss, not an instant loss**: the moment the **boss lair is laid** (`layTile` calls `startGrace` on an `isBoss` tile; the emptying deck is a fallback trigger), a `crGraceTurns` (5) countdown begins, no further tiles are laid (`beginLayPhase`/`beginLayTurn` skip once `grace >= 0`), and each end of turn ticks it down; the run is lost only if the countdown reaches zero with the boss still alive. The boss lair is on the map, so the party's job is to fight their way to it in time. The view carries `grace` (-1 while tiles remain, else the turns left) so the HUD can show the countdown.
 
 ## Combat
 
@@ -362,7 +357,7 @@ All bosses are Armour 5-6, Damage 4, reward 3 (the note's Enemies table). Health
 | **Ramhead** | 5-6 | 6 | 6 + 3 | **Enrage**: +1 Damage each round it survives |
 | **The Core** | 6 | 6 | 6 + 2 | **Summoner III** (a Sentry + a Scrapling) **+ Overload** (final boss) |
 
-Specials hook the flow: Adaptive Plating's climbing bonus and Jammer Field's aura adjust `effectiveArmour` (a landed 6 resets plating in `tryAttack`); Hardened Core rejects attacks in `tryAttack` while its **weak-point** (a separate monster laid with the boss) still stands; Enrage feeds `monsterDamage`; Split breaks off a fragment in `tryAttack`; and Summon/Shockwave/Overload/the per-round climbs run in `resolveRound`. The boss's own Overload-driven **Electrified** and the grunts' full status die (Electrocuted/Snared/Drained/Rusted) are all wired now (see [Hazards and statuses](#hazards-and-statuses)). Sprites: Mossback reuses the bear, Vespex and Pylon are ingested; the rest fall back to the generic boss sprite.
+Specials hook the flow: Adaptive Plating's climbing bonus and Jammer Field's aura adjust `effectiveArmour` (a landed 6 resets plating in `tryAttack`); Hardened Core rejects attacks in `tryAttack` while its **weak-point** (a separate monster laid with the boss) still stands; Enrage feeds `monsterDamage`; Split breaks off a fragment in `tryAttack`; and Summon/Shockwave/Overload/the per-round climbs run in `resolveRound`. The boss's own Overload-driven **Electrified** and the grunts' full status die (Electrocuted/Snared/Drained/Rusted) are all wired now (see [Hazards and statuses](#hazards-and-statuses)). Sprites: Mossback reuses the bear, Vespex, Pylon, the three Ruins bosses (Hauler, Vultrix, Teslacrane) and Widowframe are ingested; the rest fall back to the generic boss sprite.
 
 ## Objects and the shop
 
@@ -402,7 +397,7 @@ Hazard rooms seed their hazard when laid (`seedHazards`): fog covers the whole t
 | --- | --- | --- |
 | Live wiring | `wiring` | 1 damage each time you ENTER the square; Electrocuted if you END your turn on it |
 | Coolant flood | `coolant` | no damage; Snares you when you step in |
-| Sensor fog | `fog` | no damage; hides the tile's robots and loot in the view until a hero is on or orthogonally adjacent |
+| Sensor fog | `fog` | no damage; hides the tile's robots and loot in the view until a hero stands on the room's CENTRE square |
 | Mine / trap | `trap` | 3 damage one-off when a hero ENTERS, then spent |
 | Overheat / fire | `overheat` | 2 damage if you END your turn on it, and can Electrify |
 
@@ -501,9 +496,12 @@ The wire frames are the engine's usual four (`welcome`, `roster`, `state`, `erro
 | `layTile` | `coord`, `rotation` | your turn, lay step; must be one of the offered orientations at the frontier. The move then completes onto the new tile |
 | `reroll` | `die` | costs 1 Courage |
 | `endTurn` | | applies monster damage on your tile, clears your (per-turn) Shields, then advances to the next hero |
+| `totem` | `totem` | lobby only: pick/change your animal (rebuilds your sheet); locked once the run starts |
 | `restart` | | host only, from won or lost |
 
-**View (`state`) fields**: `phase`, `turn`, `step`, the active hero's `dice` (value, spent, usedFor), any `pending` tile lay (the drawn tile plus the list of legal `(coord, rotation)` options for the client to render as choices), every `hero` (totem, health, pos, courage, shields, loot, unlocked, alive), the `map` (placed tiles with their 3x3 grids, edges, enemies with A/H/D and remaining Health, loot and hazard squares), the `frontiers`, the `deck` count with the current band and a `bossNear` flag once the final band is reached, the recent `log` beats, and `won` / `lost`. Every slice is built with `append([]T{}, ...)` so none serialises as `null` (the engine's standing rule).
+**View (`state`) fields**: `phase`, `turn`, `step`, the active hero's `dice` (value, spent, usedFor), any `pending` tile lay (the drawn tile plus the list of legal `(coord, rotation)` options for the client to render as choices), every `hero` (totem, health, pos, courage, shields, loot, unlocked, alive), the `map` (placed tiles with their 3x3 grids, edges, enemies with A/H/D and remaining Health, loot and hazard squares), the `frontiers`, the `deck` count with the current band and a `bossNear` flag once the final band is reached, the recent `log` beats, `won` / `lost`, and (only on a run started in debug) a `debug` block with the seed, run state, the deck peek (upcoming tiles and their robots) and per-band spawn odds that the client's F3 overlay reads. Every slice is built with `append([]T{}, ...)` so none serialises as `null` (the engine's standing rule).
+
+The **F3 debug overlay** (`CrawlerDebug`, gated on a run started with F3 active) surfaces that `debug` block plus connection stats; the **animal is chosen in the lobby** (the `totem` command) rather than at the name screen, and an **acquired attack die** (Spare Die, Frenzy) is flagged `bonus` and drawn blue.
 
 ## Testing strategy
 
@@ -515,13 +513,13 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 - **Shields**: block one Damage each; Brace grants two to the chosen target. They are a **per-turn** resource, cleared at the end of your turn so they do not stack across turns (Thick Hide simply re-grants its 2 at the start of your next turn).
 - **Movement**: one square per Move die (two for a fast totem), inner walls and closed edges block it, and a Move that leaves the tile draws exactly one tile and sets a pending lay.
 - **Tile laying**: the server offers at least one legal option whenever a legal placement exists; every offered `(coord, rotation)` has an opening on the entry side and matches its neighbours; `layTile` accepts only an offered option and rejects anything else; the deck drains in band order; the boss always lands in the final band.
-- **Win and lose**: defeating the boss wins; all heroes down loses; draining the stack starts a 5-turn collapse countdown and loses only if the boss is not beaten before it runs out.
+- **Win and lose**: defeating the boss wins; all heroes down loses; laying the boss lair (or draining the stack) starts a 5-turn collapse countdown and loses only if the boss is not beaten before it runs out.
 - **Characters and archetypes**: each sheet's weighted dice, Health and loot spots match the note's archetype table (Beaver 4 Low/HP7/2, Arrow Squid 3 High/HP4/2, Wolf 4 High/HP5/3, Treefrog 5 Low/HP6/3, Raccoon 5 Balanced/HP5/3->4, Comoros 5 Low/HP5/2); the Wolf's Group strength, Pack Tactics and Frenzy, and every other totem's two unlocks, each have a focused test.
 - **Enemies**: the renamed archetypes keep the note's stats and drop chances (Scrapling 15% / Sentry, Jammer, Grappler 25% / Hulk 35%); a Jammer robot hardens the other robots on its tile by +1 Armour and the aura lifts on its death.
-- **Bosses and levels**: a drawn boss's Health equals `base + per-extra-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test. The biome-seam boss lairs are pinned too: Level 2's boss lair is the gate and Level 4's is the descent (both one-door dead-ends) while the other levels keep the crossroads lair, Level 3 opens on that same gate rather than the portal, and the rust/trap rooms have their distinct crossroads/corridor shapes.
-- **Objects and loot**: the shop stocks five and refills on a buy; the merchant holds the shop centre (a hero can't step onto it) and the shop opens / sells from the doorway on tile entry; a kill rolls the visible drop die and the object lands on the floor; pickup works only from the hero's own tile (no adjacent sniping); drop, auto-pickup and each consumable's effect are covered.
+- **Bosses and levels**: a drawn boss's Health equals `base + per-extra-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test. A **forced boss** (debug) applies to one level then is consumed, and a **beaten boss is never redrawn** (excluded from later pools). Laying the boss lair starts the collapse countdown and stops further laying. The biome-seam boss lairs are pinned too: Level 2's boss lair is the gate and Level 4's is the descent (both one-door dead-ends) while the other levels keep the crossroads lair, Level 3 opens on that same gate rather than the portal, and the rust/trap rooms have their distinct crossroads/corridor shapes.
+- **Objects and loot**: the shop stocks five and refills on a buy; the merchant holds the shop centre (a hero can't step onto it) and the shop opens / sells from the doorway on tile entry; a kill rolls the visible drop die and the object lands on the floor; the **Vault drops its consumable on the floor when laid** (grabbed like any drop, no silent pickup); pickup works only from the hero's own tile (no adjacent sniping); drop, auto-pickup and each consumable's effect are covered. A **Spare Die / Frenzy** die carries the `Bonus` flag so the client colours it.
 - **Start tiles**: Level 3 opens on the gate and spawns the party on its city-side street square (not the centre); other levels start on the crossroads portal's centre.
-- **Hazards and statuses (Level 2+)**: each hazard bites as specified (wiring on entry + end, mine once, coolant Snare, fire end-of-turn, fog hides contents until a hero is near, and the fog room always lays either a loot cache or a boss-free ambush of 3-4 robots whose combined Health stays below the budget); each status applies its effect (Electrocuted dice, Rusted die count, Snared move-dice cap ≤2/turn, Drained Courage, Electrified tick); a spring, the shop, Spores and a Torch clear them; Grounding Boots grant shock immunity; hazard rooms appear only from Level 2.
+- **Hazards and statuses (Level 2+)**: each hazard bites as specified (wiring on entry + end, mine once, coolant Snare, fire end-of-turn, fog hides contents until a hero is on the room's centre, and the fog room always lays either a loot cache or a boss-free ambush of 3-4 robots whose combined Health stays below the budget); each status applies its effect (Electrocuted dice, Rusted die count, Snared move-dice cap ≤2/turn, Drained Courage, Electrified tick); a spring, the shop, Spores and a Torch clear them; Grounding Boots grant shock immunity; hazard rooms appear only from Level 2.
 - **Client helpers (vitest)**: the shared `attackTargets` (melee plus a ranged totem's adjacent robots, boss excluded) and `useItemMsg` (a passive is unusable, the medkit gates on being hurt, the grenade auto-aims the lowest-Health eligible robot, the Lucky Charm needs a selected die) are unit-tested, since both the mouse action menu and the keyboard shortcuts resolve through them. `pickVariant` (per-tile-id art-variant selection, stable and wrapping) is covered too.
 - **Determinism**: a fixed seed reproduces a whole run (same rolls, same tiles, same placements).
 

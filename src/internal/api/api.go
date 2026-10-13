@@ -54,6 +54,10 @@ type Server struct {
 	// gameOrigins are extra host patterns allowed to open a game WebSocket, on
 	// top of the always-permitted same-origin case. See WithGameOrigins.
 	gameOrigins []string
+
+	// trustedProxies are the networks whose X-Forwarded-For / X-Real-IP headers
+	// we believe. See WithTrustedProxies.
+	trustedProxies []*net.IPNet
 }
 
 // Option adjusts a Server at construction. Options keep New's signature stable
@@ -67,6 +71,14 @@ type Option func(*Server)
 // production.
 func WithGameOrigins(patterns []string) Option {
 	return func(s *Server) { s.gameOrigins = patterns }
+}
+
+// WithTrustedProxies names the networks whose X-Forwarded-For / X-Real-IP
+// headers are believed when deriving the client IP for rate limiting. Only the
+// reverse-proxy/WAF host belongs here. With none set, forwarding headers are
+// ignored and the real TCP peer is used, so a direct client cannot spoof its IP.
+func WithTrustedProxies(nets []*net.IPNet) Option {
+	return func(s *Server) { s.trustedProxies = nets }
 }
 
 // WithSPA serves the embedded single-page app for all non-API routes. Pass the
@@ -90,7 +102,10 @@ func New(cat Catalog, images fs.FS, emoji map[string]string, opts ...Option) *Se
 	}
 
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
+	// NB: not chi's middleware.RealIP — that trusts X-Forwarded-For from ANY
+	// peer. s.realIP believes the forwarding headers only from a configured
+	// trusted proxy, so a direct client can't spoof its IP to beat the limiter.
+	r.Use(middleware.RequestID, s.realIP, middleware.Recoverer)
 	r.Use(secureHeaders)
 
 	r.Get("/healthz", s.health)
@@ -501,9 +516,50 @@ func (rl *rateLimiter) allow(ip string, now time.Time) bool {
 	return true
 }
 
+// realIP overwrites r.RemoteAddr with the forwarded client IP ONLY when the
+// direct TCP peer is a trusted proxy; otherwise it leaves the real peer in
+// place. X-Real-IP (set by the proxy to the peer it saw) is preferred over the
+// leftmost X-Forwarded-For hop (which the client can prepend). With no trusted
+// proxies configured, forwarding headers are never honoured, so a direct client
+// cannot spoof its IP to defeat the rate limiter.
+func (s *Server) realIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		peer := r.RemoteAddr
+		if host, _, err := net.SplitHostPort(peer); err == nil {
+			peer = host
+		}
+		if ip := net.ParseIP(peer); ip != nil && s.isTrustedProxy(ip) {
+			if client := forwardedClientIP(r); client != "" {
+				r.RemoteAddr = client
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) isTrustedProxy(ip net.IP) bool {
+	for _, n := range s.trustedProxies {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// forwardedClientIP reads the client IP a trusted proxy reported, or "" if none.
+func forwardedClientIP(r *http.Request) string {
+	if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" {
+		return xr
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+	}
+	return ""
+}
+
 func (rl *rateLimiter) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// RealIP middleware has already normalized r.RemoteAddr.
+		// r.RemoteAddr is the trusted client IP (see Server.realIP).
 		ip := r.RemoteAddr
 		if host, _, err := net.SplitHostPort(ip); err == nil {
 			ip = host

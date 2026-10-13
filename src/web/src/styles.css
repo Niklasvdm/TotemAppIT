@@ -535,6 +535,10 @@ header {
 .cr-die-face { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 74%; height: 74%; animation: cr-roll .42s ease; }
 .cr-die-face .pip { align-self: center; justify-self: center; width: 7px; height: 7px; border-radius: 50%; background: transparent; }
 .cr-die-face .pip.on { background: #2a2320; }
+/* An acquired attack die (Spare Die, Wolf Frenzy): blue, to stand apart from the rolled pool. */
+.cr-die.bonus { background: #27508a; border-color: #16304f; }
+.cr-die.bonus .cr-die-face .pip.on { background: #eaf1fb; }
+.cr-die.bonus small { color: #eaf1fb; }
 @keyframes cr-roll { 0% { transform: rotate(-150deg) scale(.45); opacity: .3; } 60% { transform: rotate(18deg) scale(1.1); } 100% { transform: none; opacity: 1; } }
 .cr-actions { display: flex; flex-direction: column; gap: .35rem; }
 .cr-action-row { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }

@@ -13,12 +13,13 @@ import { TILE_ART } from "./logic";
 // plain cell (a recurring bug). logic.ts is the source of truth; this test fails the build
 // the moment the server's edge-count for any kind drifts from it.
 //
-// It parses crawler.go as text (no Go toolchain needed) to read the server shapes.
+// It parses the Go source as text (no Go toolchain needed) to read the server shapes:
+// crawler.go holds crSpecialBase + the crKind consts, crawler_deck.go the base path tile
+// types (ttStraight, ...). Both are read and concatenated.
 
-const goSrc = readFileSync(
-  new URL("../../../../internal/game/crawler.go", import.meta.url),
-  "utf8",
-);
+const goSrc = ["crawler.go", "crawler_deck.go"]
+  .map((f) => readFileSync(new URL(`../../../../internal/game/${f}`, import.meta.url), "utf8"))
+  .join("\n");
 
 const countTrue = (s: string) => (s.match(/\btrue\b/g) ?? []).length;
 

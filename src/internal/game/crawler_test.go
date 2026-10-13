@@ -535,6 +535,7 @@ func TestCrawlerLayPhaseBoxedHeroStillLays(t *testing.T) {
 	g.AddPlayer("beaver", "bever")
 	g.phase = crPlaying
 	g.bands = 3
+	g.grace = -1 // no collapse countdown yet (startLevel sets this in a real run)
 	g.buildDeck()
 	c := g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // hero's tile, open all sides
 	g.players[0].tileID = c.id
@@ -1213,23 +1214,22 @@ func TestCrawlerObjectCapIsPerTotem(t *testing.T) {
 	}
 }
 
-func TestCrawlerVaultLootsOnceFromLevel2(t *testing.T) {
+func TestCrawlerVaultDropsVisibleLootWhenLaid(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
-	vault := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindVault, false, nil)
+	g.level = 2
+	vault := g.placeTile(5, 5, crSpecialBase[crKindVault], 0, crKindVault, false, nil)
+	g.populateVault(vault) // the drop that layTile performs when a Vault is laid
+	if len(vault.loot) != 1 || vault.loot[0].square != 4 {
+		t.Fatalf("a laid Vault should drop one consumable on its centre floor, got %v", vault.loot)
+	}
+	// The loot is a real floor object, grabbed like any drop (not auto-pocketed).
 	h := g.players[0]
 	h.tileID = vault.id
-	h.square = 3 // a doorway, not yet on the cache
+	h.square = 4
 	h.objects = nil
-	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1}) // step onto centre
-	if h.square != 4 || len(h.objects) != 1 || !vault.used {
-		t.Fatalf("stepping onto a Vault should grant one consumable and spend it: sq=%d objs=%v used=%v", h.square, h.objects, vault.used)
-	}
-	// Re-entering a looted Vault gives nothing more.
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actMove, "dir": 0}) // off to N door
-	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 2, "action": actMove, "dir": 2}) // back to centre
-	if len(h.objects) != 1 {
-		t.Fatalf("a looted Vault should not yield again, got %v", h.objects)
+	g.pickup(0, 4)
+	if len(h.objects) != 1 || len(vault.loot) != 0 {
+		t.Fatalf("a hero on the Vault's centre should pick up its loot: objs=%v floor=%v", h.objects, vault.loot)
 	}
 }
 
@@ -1623,12 +1623,21 @@ func TestCrawlerFogHidesTileContents(t *testing.T) {
 	if tv == nil || !tv.Fogged || len(tv.Monsters) != 0 {
 		t.Fatalf("a distant fog tile should hide its monsters: fogged=%v monsters=%d", tv != nil && tv.Fogged, len(tv.Monsters))
 	}
-	// Move a hero adjacent: the contents reveal.
+	// A hero merely adjacent does NOT reveal it (fog lifts only from the centre).
 	g.players[0].tileID = g.placeTile(9, 8, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
 	v = g.viewFor(0)
 	for i := range v.Tiles {
+		if v.Tiles[i].ID == far.id && (!v.Tiles[i].Fogged || len(v.Tiles[i].Monsters) != 0) {
+			t.Fatalf("an adjacent hero should NOT reveal the fog tile (centre-only), got monsters=%d", len(v.Tiles[i].Monsters))
+		}
+	}
+	// Push a hero onto the fog tile's centre: the contents reveal.
+	g.players[0].tileID = far.id
+	g.players[0].square = 4
+	v = g.viewFor(0)
+	for i := range v.Tiles {
 		if v.Tiles[i].ID == far.id && len(v.Tiles[i].Monsters) != 1 {
-			t.Fatalf("an adjacent hero should reveal the fog tile's monster, got %d", len(v.Tiles[i].Monsters))
+			t.Fatalf("a hero on the fog tile's centre should reveal its monster, got %d", len(v.Tiles[i].Monsters))
 		}
 	}
 }
@@ -1724,6 +1733,33 @@ func TestCrawlerSeedHazardsOnWiringRoom(t *testing.T) {
 		if hz.kind != hzWiring {
 			t.Fatalf("a wiring room should seed only wiring, got %q", hz.kind)
 		}
+	}
+}
+
+func TestCrawlerRustRoomInflictsRusted(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 3 // the rust room is a Ruins hazard (L3+)
+	room := g.placeTile(3, 0, crSpecialBase[crKindRust], 0, crKindRust, false, nil)
+	g.seedHazards(room)
+	if len(room.hazards) == 0 {
+		t.Fatal("a rust room should seed hazards on its doorways")
+	}
+	for _, hz := range room.hazards {
+		if hz.kind != hzRust {
+			t.Fatalf("a rust room should seed rust, got %q", hz.kind)
+		}
+	}
+	h := g.players[0]
+	h.tileID = room.id
+	h.square = room.hazards[0].square
+	hp := h.health
+	g.enterHazard(h) // rust does no damage on entry
+	if h.health != hp {
+		t.Fatalf("rust should not damage on entry: %d -> %d", hp, h.health)
+	}
+	g.endTurnHazards(h) // ending on rust inflicts Rusted
+	if !h.rusted {
+		t.Fatal("ending a turn on a rust square should inflict Rusted")
 	}
 }
 
@@ -2093,7 +2129,7 @@ func TestCrawlerShopBlocksCentreAndOpensOnEntry(t *testing.T) {
 		t.Fatal("the shop centre should be blocked (the merchant stands there)")
 	}
 	h.square = crawlerDoor[0] // the single open-edge doorway
-	if g.tryMove(0, 2) {       // step from the N doorway toward the centre (S)
+	if g.tryMove(0, 2) {      // step from the N doorway toward the centre (S)
 		t.Fatal("a hero must not be able to step onto the shop centre")
 	}
 	// Stepping onto the tile opens the shop: statuses clear from the doorway.
@@ -2194,4 +2230,100 @@ func containsStr(ss []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// --- 0.14.0 behaviour changes -----------------------------------------------
+
+func TestCrawlerBossLaidStartsCollapse(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.grace = -1
+	spec := tileSpec{band: g.bands - 1, kind: "boss", base: ttCross.base, isBoss: true}
+	opts := g.allLayOptions(spec)
+	if len(opts) == 0 {
+		t.Fatal("need a legal boss placement to test")
+	}
+	g.pending = &crawlerPending{spec: spec, options: opts, phaseLay: true}
+	g.step = crStepLay
+	o := opts[0]
+	g.layTile(0, o.X, o.Y, o.Rotation)
+	if g.grace != crGraceTurns {
+		t.Fatalf("laying the boss lair should start the collapse countdown, grace=%d", g.grace)
+	}
+}
+
+func TestCrawlerForcedBossConsumedAfterOneLevel(t *testing.T) {
+	g, _ := rawCrawler(t, 1)
+	g.defeatedBosses = map[string]bool{}
+	g.level = 3
+	g.forcedBoss = "teslacrane"
+	mons := g.rollBossMonsters()
+	if mons[0].kind != "teslacrane" {
+		t.Fatalf("the forced boss should be drawn, got %q", mons[0].kind)
+	}
+	if g.forcedBoss != "" {
+		t.Fatal("the forced boss should be consumed after its one level")
+	}
+}
+
+func TestCrawlerDefeatedBossNotRedrawn(t *testing.T) {
+	g, _ := rawCrawler(t, 1)
+	g.defeatedBosses = map[string]bool{"hauler": true, "vultrix": true}
+	g.level = 4
+	for i := 0; i < 20; i++ {
+		if k := g.rollBossMonsters()[0].kind; k == "hauler" || k == "vultrix" {
+			t.Fatalf("a beaten boss must never be redrawn, got %q", k)
+		}
+	}
+}
+
+func TestCrawlerSetTotemLockedOncePlaying(t *testing.T) {
+	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+	g.AddPlayer("beaver", "bever") // seat 0, still in the lobby
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgTotem, "totem": "wolf"})
+	if g.players[0].sheet.totem != "wolf" {
+		t.Fatalf("a lobby totem change should switch the sheet, got %q", g.players[0].sheet.totem)
+	}
+	g.phase = crPlaying
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgTotem, "totem": "bever"})
+	if g.players[0].sheet.totem != "wolf" {
+		t.Fatal("the totem must be locked once the run starts")
+	}
+}
+
+func TestCrawlerSpareDieIsBonus(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.objects = []string{"spare-die"}
+	g.beginTurn(0)
+	bonus := 0
+	for _, d := range g.dice {
+		if d.Bonus {
+			bonus++
+		}
+	}
+	if len(g.dice) != h.sheet.diceN+1 || bonus != 1 {
+		t.Fatalf("a Spare Die should add exactly one bonus die: dice=%d bonus=%d", len(g.dice), bonus)
+	}
+}
+
+func TestCrawlerRuinsHealingIsCross(t *testing.T) {
+	// Woodland (L1-2) healing is a 3-way T-junction; Ruins (L3-4) healing is a 4-way cross.
+	for _, tc := range []struct{ level, want int }{{1, 3}, {2, 3}, {3, 4}, {4, 4}} {
+		g, _ := rawCrawler(t, 1)
+		g.level = tc.level
+		g.biome = biomeForLevel(tc.level)
+		g.buildDeck()
+		found := false
+		for _, s := range g.deck {
+			if s.kind == crKindHealing {
+				found = true
+				if got := openEdgeCount(s.base); got != tc.want {
+					t.Fatalf("L%d healing should have %d open edges, got %d", tc.level, tc.want, got)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("L%d: no healing tile found in the deck", tc.level)
+		}
+	}
 }

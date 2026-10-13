@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"strings"
 )
@@ -26,6 +27,13 @@ type Config struct {
 	// differ, as with the Vite dev proxy. Empty in production, where the WAF
 	// forwards its own Host.
 	GameOrigins []string
+
+	// TrustedProxies are the networks (CIDRs or bare IPs) whose X-Forwarded-For
+	// / X-Real-IP headers the server will believe, from TOTEM_TRUSTED_PROXIES.
+	// Only the reverse-proxy/WAF host belongs here. When empty, forwarding
+	// headers are ignored and the real TCP peer is used, so a direct client
+	// cannot spoof its IP to defeat the rate limiter.
+	TrustedProxies []*net.IPNet
 }
 
 // Load resolves the full configuration for the server. Missing optional assets
@@ -42,6 +50,15 @@ func Load() (Config, error) {
 		DBPath:      env("TOTEM_DB_PATH", "totem.db"),
 		DBKey:       key,
 		GameOrigins: splitList(env("TOTEM_ALLOWED_ORIGINS", "")),
+	}
+
+	for _, item := range splitList(env("TOTEM_TRUSTED_PROXIES", "")) {
+		if n, ok := parseCIDR(item); ok {
+			c.TrustedProxies = append(c.TrustedProxies, n)
+		} else {
+			c.Warnings = append(c.Warnings,
+				fmt.Sprintf("ignoring invalid TOTEM_TRUSTED_PROXIES entry %q (want an IP or CIDR)", item))
+		}
 	}
 
 	emojiPath := env("TOTEM_EMOJI_FILE", "../data/emoji.json")
@@ -75,6 +92,22 @@ func DBKey() (string, error) {
 		return strings.TrimSpace(string(b)), nil
 	}
 	return "", fmt.Errorf("set TOTEM_DB_KEY or TOTEM_DB_KEY_FILE (the Adiantum encryption key)")
+}
+
+// parseCIDR accepts either a CIDR ("192.168.10.0/24") or a bare IP
+// ("192.168.10.1", treated as a /32 or /128), returning the network.
+func parseCIDR(s string) (*net.IPNet, bool) {
+	if _, n, err := net.ParseCIDR(s); err == nil {
+		return n, true
+	}
+	if ip := net.ParseIP(s); ip != nil {
+		bits := 32
+		if ip.To4() == nil {
+			bits = 128
+		}
+		return &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}, true
+	}
+	return nil, false
 }
 
 // splitList parses a comma-separated env value into trimmed, non-empty items.

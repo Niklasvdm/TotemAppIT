@@ -1,5 +1,7 @@
 package game
 
+import "fmt"
+
 // Per-seat view serialisation for Totem Crawler (see crawler.go). The DTOs the
 // client receives and viewFor, which projects game state for one seat.
 
@@ -64,7 +66,6 @@ type crawlerTileView struct {
 	Rot      int                  `json:"rot"`
 	Edges    [4]bool              `json:"edges"`
 	IsBoss   bool                 `json:"isBoss"`
-	Used     bool                 `json:"used,omitempty"` // a looted Vault
 	Monsters []crawlerMonsterView `json:"monsters"`
 	Loot     []crawlerGroundView  `json:"loot,omitempty"`    // objects lying on the floor
 	Hazards  []crawlerHazardView  `json:"hazards,omitempty"` // hazards on this tile's squares
@@ -125,6 +126,33 @@ type crawlerView struct {
 	LootRoll   *crawlerLootRollView   `json:"lootRoll"`   // the most recent kill's drop roll (a visible die)
 	StatusRoll *crawlerStatusRollView `json:"statusRoll"` // the most recent robot sting's status die
 	Log        []string               `json:"log"`
+	Debug      *crawlerDebugView      `json:"debug,omitempty"` // only when the run is in debug mode (F3 overlay)
+}
+
+// crawlerDebugView is the extra payload the debug overlay reads: the RNG seed, run state,
+// the remaining deck (what will spawn) and the per-band spawn odds. Sent only when the run
+// was started in debug mode, so normal players never receive it.
+type crawlerDebugView struct {
+	Seed       uint64            `json:"seed"`
+	Level      int               `json:"level"`
+	Biome      string            `json:"biome"`
+	Phase      string            `json:"phase"`
+	Step       string            `json:"step"`
+	Turn       int               `json:"turn"`
+	Grace      int               `json:"grace"`
+	DeckPos    int               `json:"deckPos"`
+	DeckLen    int               `json:"deckLen"`
+	ForcedBoss string            `json:"forcedBoss"`
+	Defeated   []string          `json:"defeated"` // boss slugs already beaten this run
+	Upcoming   []crawlerDeckPeek `json:"upcoming"` // the rest of the deck, top first
+	Odds       []string          `json:"odds"`     // per-band spawn-weight summary
+}
+
+type crawlerDeckPeek struct {
+	Idx      int      `json:"idx"`
+	Kind     string   `json:"kind"`
+	IsBoss   bool     `json:"isBoss"`
+	Monsters []string `json:"monsters"` // e.g. "hulk A3 H4 D3"
 }
 
 type crawlerBossView struct {
@@ -174,6 +202,9 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 	if g.phase == crPlaying && g.deckPos >= len(g.deck)-perBandSize() {
 		v.BossNear = true
 	}
+	if g.debug {
+		v.Debug = g.debugView()
+	}
 	connected := map[int]bool{}
 	for _, s := range g.out.Seats() {
 		connected[s] = true
@@ -206,16 +237,16 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 		v.Heroes = append(v.Heroes, hv)
 	}
 	for _, t := range g.tiles {
-		tv := crawlerTileView{ID: t.id, X: t.x, Y: t.y, Kind: t.kind, Rot: t.rot, Edges: t.edges, IsBoss: t.isBoss, Used: t.used, Monsters: []crawlerMonsterView{}}
+		tv := crawlerTileView{ID: t.id, X: t.x, Y: t.y, Kind: t.kind, Rot: t.rot, Edges: t.edges, IsBoss: t.isBoss, Monsters: []crawlerMonsterView{}}
 		for _, hz := range t.hazards {
 			if hz.spent {
 				continue
 			}
 			tv.Hazards = append(tv.Hazards, crawlerHazardView{Square: hz.square, Kind: hz.kind})
 		}
-		// Sensor fog hides a tile's robots and loot until a hero is on it or on an
-		// orthogonally adjacent tile.
-		fogged := tileHasFog(t) && !g.heroesNearTile(t)
+		// Sensor fog hides a tile's robots and loot until a hero stands on its CENTRE
+		// (you have to push into the middle of the room to see what it holds).
+		fogged := tileHasFog(t) && !g.heroOnTileCentre(t)
 		tv.Fogged = fogged
 		if !fogged {
 			for _, l := range t.loot {
@@ -263,4 +294,30 @@ func (g *crawlerGame) broadcastViews() {
 	for _, seat := range g.out.Seats() {
 		g.out.Send(seat, g.viewFor(seat))
 	}
+}
+
+// debugView assembles the debug overlay payload: the seed and run state, the remaining
+// deck (so you can see exactly what tiles and robots will spawn), and the per-band spawn
+// odds. Built only when g.debug is set.
+func (g *crawlerGame) debugView() *crawlerDebugView {
+	d := &crawlerDebugView{
+		Seed: g.seed, Level: g.level, Biome: biomeLabel(g.biome),
+		Phase: g.phase, Step: g.step, Turn: g.turn, Grace: g.grace,
+		DeckPos: g.deckPos, DeckLen: len(g.deck), ForcedBoss: g.forcedBoss,
+		Odds: bandOddsText(g.level),
+	}
+	for _, bd := range bossRoster { // stable order
+		if g.defeatedBosses[bd.slug] {
+			d.Defeated = append(d.Defeated, bd.slug)
+		}
+	}
+	for i := g.deckPos; i < len(g.deck); i++ {
+		s := g.deck[i]
+		peek := crawlerDeckPeek{Idx: i - g.deckPos, Kind: s.kind, IsBoss: s.isBoss}
+		for _, m := range s.monsters {
+			peek.Monsters = append(peek.Monsters, fmt.Sprintf("%s A%d H%d D%d", m.kind, m.armour, m.maxHealth, m.damage))
+		}
+		d.Upcoming = append(d.Upcoming, peek)
+	}
+	return d
 }

@@ -7,6 +7,7 @@ export interface CrDie {
   value: number;
   spent: boolean;
   usedFor: string;
+  bonus?: boolean; // an acquired attack die (Spare Die, Wolf Frenzy): drawn in a distinct colour
 }
 
 export interface CrHero {
@@ -65,7 +66,6 @@ export interface CrTile {
   rot: number;
   edges: [boolean, boolean, boolean, boolean];
   isBoss: boolean;
-  used?: boolean; // a looted Vault
   monsters: CrMonster[];
   loot?: { square: number; slug: string }[]; // objects lying on the floor
   hazards?: { square: number; kind: string }[]; // hazards on squares (square -1 = whole tile)
@@ -102,6 +102,24 @@ export interface CrView {
   lootRoll?: { roll: number; chance: number; hit: boolean; name?: string; killer?: string } | null;
   statusRoll?: { roll: number; need: number; status: string; hit: boolean; target?: string } | null;
   log: string[];
+  debug?: CrDebug; // only present when the run is in debug mode (the F3 overlay)
+}
+
+// CrDebug is the extra payload the F3 debug overlay reads (mirrors crawlerDebugView).
+export interface CrDebug {
+  seed: number;
+  level: number;
+  biome: string;
+  phase: string;
+  step: string;
+  turn: number;
+  grace: number;
+  deckPos: number;
+  deckLen: number;
+  forcedBoss: string;
+  defeated: string[] | null;
+  upcoming: { idx: number; kind: string; isBoss: boolean; monsters: string[] | null }[] | null;
+  odds: string[];
 }
 
 // spriteFor(seat) returns the walk pose/frame/flip for a board pawn (see useHeroSprites).

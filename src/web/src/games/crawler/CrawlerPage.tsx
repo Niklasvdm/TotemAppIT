@@ -26,7 +26,9 @@ export default function CrawlerPage() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
-  const [totem, setTotem] = useState(() => localStorage.getItem("totem-crawler-totem") ?? "bever");
+  // The animal is now picked in the lobby, not here; this is just the initial meta sent on
+  // join (the last pick, or a default), which the lobby picker can then change.
+  const [totem] = useState(() => localStorage.getItem("totem-crawler-totem") ?? "bever");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
   const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
   const [focus, setFocus] = useState<string | undefined>(undefined); // seat whose turn it is (auto-switch)
@@ -107,14 +109,7 @@ export default function CrawlerPage() {
           placeholder={t("gameNamePlaceholder")}
           onChange={(e) => setName(e.target.value)}
         />
-        <h3>Your totem</h3>
-        <select className="trait-search" value={totem} onChange={(e) => setTotem(e.target.value)}>
-          {TOTEMS.map((x) => (
-            <option key={x.slug} value={x.slug}>
-              {x.label}
-            </option>
-          ))}
-        </select>
+        <p className="muted-note">You'll pick your animal in the lobby.</p>
         {error && <p className="game-error">{error}</p>}
         <div className="game-actions">
           <button className="game-btn" disabled={busy} onClick={create}>
@@ -353,6 +348,22 @@ function CrawlerRoom({
               </li>
             ))}
           </ul>
+          <div className="cr-lobby-row">
+            <label className="cr-field-label" htmlFor="cr-totem">Your animal</label>
+            <select
+              id="cr-totem"
+              className="trait-search"
+              value={v.heroes.find((h) => h.s === v.you)?.totem ?? "bever"}
+              onChange={(e) => {
+                g.send({ t: "totem", totem: e.target.value });
+                localStorage.setItem("totem-crawler-totem", e.target.value);
+              }}
+            >
+              {TOTEMS.map((x) => (
+                <option key={x.slug} value={x.slug}>{x.label}</option>
+              ))}
+            </select>
+          </div>
           {isHost ? (
             <>
               <div className="cr-lobby-row">
@@ -397,7 +408,7 @@ function CrawlerRoom({
               )}
               <button
                 className="game-btn"
-                onClick={() => g.send({ t: "start", level: startLevel, boss: debug ? devBoss : "", loot: debug ? devLoot : [] })}
+                onClick={() => g.send({ t: "start", level: startLevel, boss: debug ? devBoss : "", loot: debug ? devLoot : [], debug })}
               >
                 Start run{startLevel !== 1 ? ` (Level ${startLevel})` : ""}
               </button>
@@ -479,6 +490,7 @@ function CrawlerRoom({
                     spent={d.spent}
                     selected={sel === i}
                     usedFor={d.usedFor}
+                    bonus={!!d.bonus}
                     disabled={d.spent}
                     onClick={() => setSel(sel === i ? null : i)}
                   />
@@ -587,7 +599,7 @@ function CrawlerRoom({
         {v.statusRoll && <CrawlerStatusRoll key={`sr-${v.statusRoll.roll}-${v.statusRoll.status}-${v.statusRoll.target ?? ""}`} roll={v.statusRoll} />}
       </div>
 
-      {debug && <CrawlerDebug v={v} />}
+      {debug && <CrawlerDebug v={v} conn={{ status: g.status, retries: g.retries, seats: g.roster.length, you: g.you, host: g.host }} />}
 
       {/* the game log */}
       {v.log.length > 0 && (

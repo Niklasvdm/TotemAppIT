@@ -79,6 +79,10 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 		g.awardKillCourage(t, h, m.reward)
 		g.dropFrom(t, m, h) // loot drops on the floor; the killer on-tile grabs it
 		if m.isBoss {
+			if g.defeatedBosses == nil {
+				g.defeatedBosses = map[string]bool{}
+			}
+			g.defeatedBosses[m.kind] = true // he's gone: never drawn again this run
 			if g.level >= crMaxLevel {
 				g.phase = crWon
 				g.log = append(g.log, m.bossName+" falls! You have cleared the dungeon.")
@@ -92,7 +96,7 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 		// Frenzy (Wolf, second special): each kill on your turn grants a free attack die
 		// (a fresh High die added unspent to the pool), so kills can chain.
 		if h.sheet.totem == "wolf" && h.specialActive(1) {
-			g.dice = append(g.dice, crawlerDie{Value: diceHigh[g.rng.IntN(len(diceHigh))]})
+			g.dice = append(g.dice, crawlerDie{Value: diceHigh[g.rng.IntN(len(diceHigh))], Bonus: true})
 			g.log = append(g.log, h.name+"'s Frenzy grants a free attack die.")
 		}
 	}
@@ -276,21 +280,6 @@ func (g *crawlerGame) maybeSpring(seat int) {
 	h.health = h.sheet.maxHP // a spring restores the hero to FULL health on entry
 	heroClearStatuses(h)     // and washes off every status
 	g.log = append(g.log, h.name+" is restored to full health by the spring.")
-}
-
-// maybeVault loots a Vault the moment a hero lands on its centre: one guaranteed
-// consumable, once. The tile is then spent for the rest of the level.
-func (g *crawlerGame) maybeVault(seat int) {
-	h := g.players[seat]
-	t := g.tiles[h.tileID]
-	if t == nil || t.kind != crKindVault || t.used || h.square != 4 || !h.alive {
-		return
-	}
-	t.used = true
-	slug := g.rollConsumableDrop()
-	if g.giveObject(h, slug) {
-		g.log = append(g.log, h.name+" loots the Vault: a "+objName(slug)+".")
-	}
 }
 
 // maybeShop clears a hero's statuses the moment they STEP ONTO a shop tile (the kangaroo

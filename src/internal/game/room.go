@@ -218,15 +218,24 @@ func (r *Room) sendTo(c *Conn, v any) {
 	if bytes.Equal(c.lastView, b) {
 		return
 	}
-	c.lastView = b
-	queue(c, b)
+	// Only record the frame as sent if it actually enqueued: a dropped frame
+	// must not advance lastView, or the next identical state would be suppressed
+	// as a "duplicate" and the client would sit on stale state until a different
+	// frame arrives (turn-based games change state rarely, so that can be a long
+	// time). Realtime snapshots supersede each other, so this only matters here.
+	if queue(c, b) {
+		c.lastView = b
+	}
 }
 
-// queue hands a frame to one client, dropping it if that client is backed up.
-func queue(c *Conn, b []byte) {
+// queue hands a frame to one client, dropping it (and returning false) if that
+// client's send buffer is backed up.
+func queue(c *Conn, b []byte) bool {
 	select {
 	case c.send <- b:
+		return true
 	default:
+		return false
 	}
 }
 

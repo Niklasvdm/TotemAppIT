@@ -1,14 +1,13 @@
 // Package store is the data layer: it opens the Adiantum-encrypted SQLite
-// database (pure Go, no CGO) and applies the embedded schema migrations.
-//
-// Phase 2 foundation. The query methods and the Store interface the domain
-// depends on come next; this file proves the encrypted store + migrations work.
+// database (pure Go, no CGO) and applies the embedded schema migrations. The
+// query methods the domain depends on live in catalog.go and feedback.go.
 package store
 
 import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -58,15 +57,33 @@ func Open(path, key string) (*Store, error) {
 	}
 	db, err := sql.Open("sqlite3", dsn(path, key))
 	if err != nil {
-		return nil, err
+		return nil, redactKey(err, key)
 	}
 	// SQLite is single-writer; a connection pool only adds lock contention here.
 	db.SetMaxOpenConns(1)
 	if err := db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("store: open encrypted db (wrong key?): %w", err)
+		return nil, fmt.Errorf("store: open encrypted db (wrong key?): %w", redactKey(err, key))
 	}
 	return &Store{DB: db}, nil
+}
+
+// redactKey strips the Adiantum key from a driver error before it is returned
+// (and logged). The key is inlined into the DSN as the `textkey` URI parameter,
+// so a driver that echoes the connection string in an open/parse error would
+// otherwise write the key into the journal. We replace both the raw key and its
+// URL-escaped form. The wrap chain is dropped deliberately: the only callers log
+// the text and match nothing on it.
+func redactKey(err error, key string) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if key != "" {
+		msg = strings.ReplaceAll(msg, key, "[redacted]")
+		msg = strings.ReplaceAll(msg, url.QueryEscape(key), "[redacted]")
+	}
+	return errors.New(msg)
 }
 
 // Close closes the underlying handle.

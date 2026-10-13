@@ -22,6 +22,7 @@ const (
 	hzCoolant = "coolant" // no damage; Snares you when you end on it (a movement tax)
 	hzFog     = "fog"     // no damage; hides the tile's robots and loot until a hero is on/adjacent
 	hzMine    = "mine"    // 3 damage one-off when a hero ENTERS, then spent
+	hzRust    = "rust"    // no damage; Rusted (one fewer die next turn) if you END on it
 )
 
 // crawlerHazard is one hazard occupying a tile square (square -1 = the whole tile, used
@@ -212,25 +213,11 @@ func tileHasFog(t *crawlerTile) bool {
 	return false
 }
 
-// heroesNearTile reports whether any living hero stands on tile t or on an orthogonally
-// adjacent tile (so a fog tile's contents are revealed).
-func (g *crawlerGame) heroesNearTile(t *crawlerTile) bool {
+// heroOnTileCentre reports whether a living hero stands on tile t's centre square (so a
+// fog tile's contents are revealed only once someone pushes into the middle of the room).
+func (g *crawlerGame) heroOnTileCentre(t *crawlerTile) bool {
 	for _, h := range g.players {
-		if !h.alive {
-			continue
-		}
-		ht := g.tiles[h.tileID]
-		if ht == nil {
-			continue
-		}
-		dx, dy := ht.x-t.x, ht.y-t.y
-		if dx < 0 {
-			dx = -dx
-		}
-		if dy < 0 {
-			dy = -dy
-		}
-		if dx+dy <= 1 { // same tile or an orthogonal neighbour
+		if h.alive && h.tileID == t.id && h.square == 4 {
 			return true
 		}
 	}
@@ -271,8 +258,8 @@ func (g *crawlerGame) enterHazard(h *crawlerHero) {
 }
 
 // endTurnHazards bites the hazards that trigger on ENDING a turn on their square: live
-// wiring Electrocutes, fire deals 2 and can Electrify. Called once per hero as the round
-// resolves. Coolant's Snare is applied on arrival (enterHazard).
+// wiring Electrocutes, rust Rusts, fire deals 2 and can Electrify. Called once per hero as
+// the round resolves. Coolant's Snare is applied on arrival (enterHazard).
 func (g *crawlerGame) endTurnHazards(h *crawlerHero) {
 	t := g.tiles[h.tileID]
 	if t == nil || g.level < 2 || !h.alive {
@@ -286,6 +273,10 @@ func (g *crawlerGame) endTurnHazards(h *crawlerHero) {
 	case hzWiring:
 		if g.applyStatus(h, "electrocuted") {
 			g.log = append(g.log, h.name+" ends on live wiring and is Electrocuted.")
+		}
+	case hzRust:
+		if g.applyStatus(h, "rusted") {
+			g.log = append(g.log, h.name+" ends in the rust and is Rusted.")
 		}
 	case hzFire:
 		g.hurt(h, 2)
@@ -376,7 +367,7 @@ func hazardForRoom(kind string) string {
 	case crKindFog:
 		return hzFog
 	case crKindRust:
-		return hzWiring // rust reskins wiring's Electrocuted bite as Rusted-flavoured chip (L3+)
+		return hzRust // Rusted (one fewer die next turn) when you end on it (Ruins L3+)
 	case crKindTrap:
 		return hzMine
 	case crKindOverheat:
