@@ -40,6 +40,12 @@ existing NGINX+ModSecurity WAF. No Docker: static binary + systemd on an LXC.
    first idea.
 8. **Testing is first-class.** Every backend change ships with tests; data integrity has its own
    gate. This is a self-identified weak spot, so do not skip it.
+9. **UI/UX placement is a decision to ASK, not assume.** When a feature needs somewhere to live on
+   screen (a new control, panel, list, callout), do not quietly reuse an existing surface. In
+   particular **never overload the dice / per-turn action column** with unrelated things (objects,
+   shop, inventory, statuses): those slots are for spending dice. Propose where it should go and
+   confirm before building, unless the user already said where. When in doubt, a **map callout**
+   (solid background, its own scroll, readable info) beats cramming it next to the dice.
 
 ## Servers and environments
 

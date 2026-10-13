@@ -19,6 +19,7 @@ import LoveLetterPage from "./games/loveletter/LoveLetterPage";
 import DecryptoPage from "./games/decrypto/DecryptoPage";
 import HanabiPage from "./games/hanabi/HanabiPage";
 import CrawlerPage from "./games/crawler/CrawlerPage";
+import SkyjoPage from "./games/skyjo/SkyjoPage";
 
 export default function App() {
   // Load the slug->emoji map once; cards fall back to 🐾 if it's unavailable.
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/games/decrypto" element={<DecryptoPage />} />
         <Route path="/games/hanabi" element={<HanabiPage />} />
         <Route path="/games/crawler" element={<CrawlerPage />} />
+        <Route path="/games/skyjo" element={<SkyjoPage />} />
       </Routes>
       {quizOpen && <Quiz onClose={() => setQuizOpen(false)} />}
       {aboutOpen && <AboutTotems onClose={closeAbout} />}

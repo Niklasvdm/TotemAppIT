@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 
 interface JoRoster {
@@ -128,6 +129,9 @@ function JustOneRoom({ code, name, onLeave }: { code: string; name: string; onLe
   const [guess, setGuess] = useState("");
   const v = g.view;
   const bar = <RoomBar code={code} title={t("gameJustOne")} infoSlug="justone" gameSlug="just-one" onLeave={onLeave} />;
+  if (g.game && g.game !== "just-one") {
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+  }
 
   if (g.status === "closed") {
     return (

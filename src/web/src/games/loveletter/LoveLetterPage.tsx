@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 import { LossFlash, useLossPulse } from "../LossFlash";
 
@@ -149,6 +150,9 @@ function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; o
   // Flash when you get knocked out of the round.
   const outPulse = useLossPulse(g.view?.players.find((p) => p.s === g.view!.you)?.out ? 0 : 1);
   const bar = <RoomBar code={code} title={t("gameLoveLetter")} infoSlug="loveletter" gameSlug="love-letter" onLeave={onLeave} />;
+  if (g.game && g.game !== "love-letter") {
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+  }
 
   if (g.status === "closed") {
     return (

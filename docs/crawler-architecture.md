@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.1.0
+version: 0.1.1
 relate to:
   - "[[TotemApp-IT]]"
   - "[[TotemApp-IT-Games]]"
@@ -17,7 +17,7 @@ The technical spec for the original co-op dungeon crawler. The product brief (th
 The crawler is one more `Game` on the existing multiplayer engine (see [[TotemApp-IT-Games]] for the engine). It is turn-based and co-op, so it reuses rooms, reconnection, the totem sprite atlas for hero avatars, and the `useRoom` client transport unchanged. Nothing about the netcode is new; what is new is a much larger game state and a richer turn.
 
 > [!note] Status: V0 implemented (0.4.1)
-> V0 is built and verified on DEV: `internal/game/crawler.go` and `src/web/src/games/crawler/CrawlerPage.tsx`. The V0 simplifications flagged below are the ones that actually shipped (no fine inner tile walls, no loot items or hazards yet). Several robots can now share a tile (a swarm, each on its own walkable square), and combat is a **group fight** resolved at the end of the round, so the earlier "one monster per tile, single-hero combat" simplifications no longer apply. Movement is **path-constrained**: a hero may only stand on the centre square and the doorway of each open edge (the four corners are off-path), so a straight is a corridor and a bend turns, without needing a full inner-wall model. This document stays the spec; the [changelog](../CHANGELOG.md) records the implementation.
+> V0 is built and verified on DEV. The backend is split across `internal/game/crawler.go` (state + turn flow + command dispatch), `crawler_sheets.go` (character sheets + dice), `crawler_tiles`/generation (in `crawler.go`), `crawler_combat.go` (attacks, the end-of-round group fight, shields, healing, rewards) and `crawler_view.go` (the per-seat DTOs + `viewFor`). The client is `src/web/src/games/crawler/CrawlerPage.tsx` with the pure, unit-tested helpers (tile-art rotation, walk-sprite direction, effective Armour) in `logic.ts`. The V0 simplifications flagged below are the ones that actually shipped (no fine inner tile walls, no loot items or hazards yet). Several robots can now share a tile (a swarm, each on its own walkable square), and combat is a **group fight** resolved at the end of the round, so the earlier "one monster per tile, single-hero combat" simplifications no longer apply. Movement is **path-constrained**: a hero may only stand on the centre square and the doorway of each open edge (the four corners are off-path), so a straight is a corridor and a bend turns, without needing a full inner-wall model. This document stays the spec; the [changelog](../CHANGELOG.md) records the implementation.
 
 ## UML notation
 
@@ -36,7 +36,7 @@ V0 is the first playable build this spec defines. It is a full vertical slice of
 - Random tile generation from a banded stack (easy early, nasty late) with named tile types (straight, bend, tee, cross, dead-end) and the boss shuffled into the final band. Tiles lay on all four sides, and an offered orientation always opens on the side you entered from, so the path always **connects** (you can never lay a tile whose path does not join the one you came from).
 - Combat against static enemies (Armour / Health / Damage): hits land live and a monster's lost Health **persists across turns**, so allies on a tile pool their blows (the **group fight**). Retaliation is at the **end of the round**, after every hero has acted: each monster still alive strikes **every living hero on its tile** for its Damage (minus that hero's Shields). The Beaver's Bulwark can soak an ally's hit.
 - Courage economy (earn on high dice and on kills, spend on rerolls) and Shields. **Shields are a per-round resource** (cleared after end-of-round combat; Thick Hide re-grants its 2 next round). **Specials auto-activate** at their Courage threshold (3, then 5) and switch off again if Courage drops below it: there is no manual unlock. Courage is capped at 10, and the Courage action is unavailable at the cap.
-- Five designed totems (Beaver, Arrow Squid, Treefrog, Raccoon, Comoros Weaver) with their own health, dice count, **weighted die type** (Low/Balanced/High) and menu; other totems fall back to a generic sheet. Specials wired so far: Brace (Beaver) and Mend (Treefrog); the loot/carry/reposition specials are V1 placeholders.
+- Five designed totems (Beaver, Arrow Squid, Treefrog, Raccoon, Comoros Weaver) with their own health, dice count, **weighted die type** (Low/Balanced/High) and menu; other totems fall back to a generic sheet. Both the inherent specials (Brace, Mend, Carry, Guard) and the Courage-tier unlocks are wired to effects (see [Characters and sheets](#characters-and-sheets)), including Spores (the Treefrog's Mend clears statuses) now the hazard/status system exists.
 - Win (boss defeated) and lose (party wiped, or the dungeon collapses). Running the tile stack out is **not** an instant loss: it starts a collapse countdown (5 turns) during which the party must reach and defeat the boss (which is already on the map, since every drawn tile was laid) before the run is lost. Plus a per-tile narrated beat.
 - **No dice left auto-ends the turn** (you do not have to click End turn once every die is spent).
 - Client: heroes are drawn from the **Bomberman totem sprite atlas** (not emoji), the player's **character sheet** sits at the top (sprite, health bar, resources, the action menu and the two specials), and hovering a monster shows its stats.
@@ -45,7 +45,7 @@ V0 is the first playable build this spec defines. It is a full vertical slice of
 **Deferred (V1 and later)**
 
 - Group fights (allies contributing reaction dice on another hero's turn, an interrupt mechanic).
-- The other friends' totems as distinct sheets, loot items and a shop, active hazards, carry-an-ally and scout abilities.
+- The other friends' totems as distinct sheets and the scout ability. (The loot system, shop, hazards/statuses and carry-an-ally have since shipped.)
 - Hidden enemy stats (the Wavelength-style reveal), richer story beats, boss mechanics, balancing pass, mobile polish.
 
 ## Why it fits the engine as-is
@@ -186,16 +186,42 @@ Game art is **not** in the database. The data model above is pure game state (an
 | Asset | Where it lives | Served at | Notes |
 | --- | --- | --- | --- |
 | **Hero totems** (in use) | `src/web/public/sprites/totems.{png,json}` | `/sprites/totems.png` | The shared atlas, one row per animal (see the main README's [Totem sprites](../README.md#totem-sprites)). The crawler draws each hero's **front frame** (column 0 of its row) via a CSS background, reusing the Bomberman art with no extra fetch. `SPRITE_ROWS` in `CrawlerPage.tsx` holds the row order. |
-| **Map tiles** (in use, 0.4.4) | `src/web/public/sprites/crawler/tiles/tile-<i>.png` | `/sprites/crawler/tiles/*` | Split from a grid sheet by [`scripts/make_tiles.py`](../scripts/make_tiles.py). The client maps each engine tile `kind` to a file and rotates it to the laid orientation (`TILE_ART` in `CrawlerPage.tsx`). |
-| **Enemies** (in use, 0.4.7+) | `src/web/public/sprites/crawler/enemies/<slug>/<pose>.png` | `/sprites/crawler/enemies/*` | Split from a sheet by [`scripts/make_enemies.py`](../scripts/make_enemies.py) (flat background stripped). Each monster carries a `kind` on the wire; the client maps it to a sprite (`MonsterSprite`): **drone** (Scrapling 3/1/1, reward 1), **brute** (mid bruiser 4/2/3, reward 2), **tank** (Hulk 3/4/3, reward 2), and the **boss** (Armour 4, Health ~3 per hero, Damage 4, reward 3). Courage reward scales with toughness; the boss ends the level on defeat so its reward rarely applies. Each draws its `idle` frame, its `attack` frame plus a lunge while **engaged** (you are fighting it this turn), or its `destroyed` frame once defeated (it stays on its square, dimmed, with no stat badge). The board badge is `🛡armour ❤health 💥damage ✊reward` so the Courage on offer is visible. Loot art is not wired yet. |
+| **Map tiles** (in use, 0.4.4) | `src/web/public/sprites/crawler/tiles/<biome>/tile-<i>.png` | `/sprites/crawler/tiles/*` | Split from a grid sheet by [`scripts/make_tiles.py`](../scripts/make_tiles.py). Tiles are foldered **per biome** (`woodland/`, and later `ruins/`, `machine/`); the client picks the folder from the level's biome (`biomeTileDir` in `logic.ts`), falling back to `woodland` until a biome's sheet lands. `TILE_ART` maps each engine `kind` to a file and the client rotates it to the laid orientation. |
+| **Object icons** (in use) | `src/web/public/sprites/crawler/objects/<slug>.png` | `/sprites/crawler/objects/*` | Split from a 4x4 sheet by [`scripts/make_objects.py`](../scripts/make_objects.py). The client (`ObjIcon`) shows the icon with an emoji fallback. |
+| **Enemies** (in use, 0.4.7+) | `src/web/public/sprites/crawler/enemies/<slug>/<pose>.png` | `/sprites/crawler/enemies/*` | Split from a sheet by [`scripts/make_enemies.py`](../scripts/make_enemies.py) (flat background stripped). Each monster carries a `kind` on the wire (the note's robot archetypes); the client maps it to a sprite (`MonsterSprite`): **scrapling** (A3 H1 D1, reward 1, swarm), **sentry** (A5 H1 D3, reward 1, hard to hit), **hulk** (A3 H4 D3, reward 2, soak it), **jammer** (A3 H2 D1, reward 2, +1 Armour to other robots on its tile), **grappler** (A4 H2 D1, reward 2, its clamp can Snare), and a **boss** drawn from the level's biome pool (see [Bosses and multi-level progression](#bosses-and-multi-level-progression)). Scrapling, Hulk, Jammer and Grappler have art, Sentry reuses the former bruiser sheet as a stand-in, and bosses without their own sheet fall back to the generic boss sprite. Each draws its `idle` frame, its `attack` frame plus a lunge while **engaged**, or its `destroyed` frame once defeated (dimmed, no stat badge). The board badge is `🛡armour ❤health 💥damage ✊reward`. Loot art is not wired yet. |
 
 **How map tiles are loaded.** Unlike the totem atlas, tiles are kept as **individual PNGs** (not one atlas): the client rotates each tile independently to the orientation it was laid in, and rotating a shared atlas viewport would rotate its neighbours too. The pipeline:
 
-1. `scripts/make_tiles.py SHEET --rows R --cols C` splits a grid sheet into `tile-<i>.png` (reading order) under `sprites/crawler/tiles/`, plus a `tiles.json` manifest. It is the tile counterpart of `make_sprites.py`. `--start N` numbers the first cell `tile-N` and **merges** the manifest, so a one-tile sheet overwrites a specific tile (e.g. `--rows 1 --cols 1 --start 3` drops a corrected T-junction onto `tile-3`) without renumbering or dropping the rest.
-2. `TILE_ART` in `CrawlerPage.tsx` maps each engine `kind` to a file and the open **edges as drawn** (N,E,S,W). On render, `tileArt(kind, edges)` finds the rotation (0/90/180/270) where `rotateEdges(base, r)` equals the tile's actual edges and applies it, so the drawn doorways line up with the real connectivity. The art sits in a layer **behind** the pawn/monster grid (`.cr-tile-art`, `z-index 0`) so pieces stay upright over a rotated tile.
-3. A kind with no entry falls back to the styled cell, which still shows the gold doorways and the type label, so connectivity is never ambiguous. Adding art later is a one-line `TILE_ART` edit, no protocol change (`kind` and `edges` are already on the wire).
+1. `scripts/make_tiles.py SHEET --rows R --cols C` cuts a grid sheet into `tile-<i>.png` (one PNG per cell, in reading order) under `sprites/crawler/tiles/`, plus a `tiles.json` manifest. It is the tile counterpart of `make_sprites.py`. Write into a biome with `--out sprites/crawler/tiles/<biome>`; trim a frame with `--inset`, resize with `--size`. Two knobs pick tiles: **`--start N`** numbers the first written tile `tile-N` (not `tile-0`), and **`--only K`** writes just cell K (0-based, reading order) named by `--start`. So `--start` says what to call the output and `--only` says which cell to take. The manifest is **merged**, so writing a few tiles never drops the rest. Examples: a full 3x3 is `--rows 3 --cols 3`; one corrected tile over `tile-3` is `--rows 1 --cols 1 --start 3`; the first cell of a 9x9 sheet written as `tile-9` is `--rows 9 --cols 9 --only 0 --start 9`. The script's header docstring carries the full recipe list.
+2. `TILE_ART` in `src/web/src/games/crawler/logic.ts` maps each engine `kind` to a file and the open **edges as drawn** (N,E,S,W). On render, `tileArt(kind, edges)` finds the rotation (0/90/180/270) where `rotateEdges(base, r)` equals the tile's actual edges and applies it, so the drawn doorways line up with the real connectivity. The art sits in a layer **behind** the pawn/monster grid (`.cr-tile-art`, `z-index 0`) so pieces stay upright over a rotated tile.
+3. A kind with no entry (or whose PNG is missing) falls back to the styled cell, which still shows the gold doorways and the type label, so connectivity is never ambiguous. Adding art later is a one-line `TILE_ART` edit, no protocol change (`kind` and `edges` are already on the wire).
 
-**Where the tile data lives (to check or correct it):** the `TILE_ART` table at the top of `CrawlerPage.tsx`. Each entry is `kind: { file, base }`, where `base` is the open edges **[N, E, S, W] as the art is drawn**. If a tile looks mislabelled or its path does not line up, fix its `base` (or point it at a different `tile-<i>.png`) there; nothing else needs to change. The current map is **straight → tile-1, bend → tile-2, T-junction → tile-3, crossroads → tile-4, dead-end → tile-0, boss → tile-7** (the stairs lair). The **gate** variant (tile-6) is left out for now. Because the server sends each tile's chosen `rot`, `tileArt` can rotate even a fully symmetric tile (the crossroads) for variety while still lining asymmetric tiles up with their real edges.
+**Which number is which tile (the authoritative map is `TILE_ART` in `logic.ts`).** When you split a biome sheet with `make_tiles.py`, cell N (reading order) must be the kind below. The woodland sheet is laid out in exactly this order:
+
+| File | Kind | Shape |
+| --- | --- | --- |
+| `tile-0` | dead-end | one doorway |
+| `tile-1` | straight | corridor (two opposite edges) |
+| `tile-2` | bend | corner (two adjacent edges) |
+| `tile-3` | tee | T-junction (three edges) |
+| `tile-4` | cross | crossroads (all four) |
+| `tile-5` | healing | healing spring (drawn as a T-junction) |
+| `tile-6` | portal | transporter / start (drawn as a crossroads) |
+| `tile-7` | shop | kangaroo shop (a dead-end nook) |
+| `tile-8` | boss | boss lair (one doorway) |
+| `tile-9` | vault | loot cache, a dead-end nook (from Level 2) |
+| `tile-10` | shrine | a landmark (cosmetic, from Level 2) |
+| `tile-11` | gate | the broken city gate (woodland -> ruins) |
+| `tile-12` | wiring | live-wiring hazard room (Woodland L2+) |
+| `tile-13` | coolant | coolant-flood hazard room (Woodland L2+) |
+| `tile-14` | fog | sensor-fog hazard room (Woodland L2+) |
+| `tile-15` | rust | rust hazard room (Ruins L3+) |
+| `tile-16` | trap | trap/mine hazard room (Ruins L3+) |
+| `tile-17` | overheat | overheat/fire hazard room (Machine L5+) |
+
+Art for `tile-10` and up is not ingested yet, so those tiles fall back to the styled cell (the `backgroundImage` 404s silently) until their sheets land; the `TILE_ART` rows and `buildDeck` entries are already wired. To change which cell a kind uses, edit that kind's `file` (and `base`, the drawn open edges) in `TILE_ART`; nothing else changes. Because the server sends each tile's chosen `rot`, `tileArt` can rotate even a symmetric tile (the crossroads) for variety while still lining asymmetric tiles up with their real edges.
+
+**Per-level tile roster.** Special tiles appear by level (the note's tile table), gated in the `switch` in `buildDeck`: the base paths, transporter, healing spring, shop and boss chamber on every level; the **Vault** from Level 2; and, also from Level 2, the **hazard rooms** and the cosmetic landmarks. The Woodland hazard rooms (**live-wiring**, **coolant-flood**, **sensor-fog**) come in at Level 2 and carry forward; the Ruins add **rust** and **trap** rooms at Level 3; the Machine rooms add the **overheat** room at Level 5. The **shrine** (cosmetic) appears from Level 2 and the **city gate** at the woodland -> ruins boundary (Level 2). A hazard room seeds its hazard onto its squares when laid (`seedHazards`); the shrine and gate have no mechanical effect (level transitions are automatic on a boss kill). See [Hazards and statuses](#hazards-and-statuses) for what each hazard does.
 
 The boss only ever appears in the **final band** of the stack (`buildDeck`, asserted over 40 seeds by `TestCrawlerBossInFinalBand`); a regular monster is never a boss.
 
@@ -203,7 +229,7 @@ The boss only ever appears in the **final band** of the stack (`buildDeck`, asse
 
 | Want to change | Edit | Notes |
 | --- | --- | --- |
-| Run length, number of bands, boss stats | `buildDeck` | `perBand` (tiles per band) and `g.bands` (set in `startRun`) size the stack and the boss clock. The boss stat line is built here; its Health is `3 x players` (minimum 3) so the fight lasts about the same few rounds at any party size. |
+| Run length, number of bands, boss stats | `buildDeck` | `perBand` (tiles per band) and `g.bands` (set in `startRun`) size the stack and the boss clock. The boss stat line is built here; its Armour is a high 5-6 (only strong dice land) and its Health is `3 x players` (minimum 3) so the fight lasts about the same few rounds at any party size. |
 | Special tiles (portal / healing / shop) and where they land | `buildDeck` + `insertSpec` | Each band gets its specials shuffled in: a healing spring in the two outer bands, the second portal and the shop in the middle. The start tile is a portal, so the two portals form the teleport pair. |
 | Which tile shapes are drawn, and how often | `crawlerTilePool` | A weighted slice of tile types; add or duplicate entries to reweight (corridors common, dead-ends rare). |
 | Which robots spawn, and swarms | `rollMonster(band)` | Returns the robots for one tile as a slice: a lone robot, a pair, or a late scrap swarm of three, weighted per band. `mk(armour, health, damage, reward, kind)` builds one. A tile holds up to three; `assignMonsterSquares` spreads them over the walkable squares (centre first, then the doorways) when the tile is laid. |
@@ -296,7 +322,7 @@ Hero -> G : SpendDie Attack (die=5) on M
 G -> M : 5 >= Armour ? yes -> Health -= 1 (live)
 alt Health <= 0
   M --> G : dies now
-  G -> Hero : +Courage (win if boss)
+  G -> Hero : +Courage to EVERY hero on the monster's tile (win if boss)
 else still alive
   note over M : lost Health PERSISTS across turns
   Hero -> G : End Turn
@@ -308,7 +334,84 @@ end
 @enduml
 ```
 
-A monster shows Armour (minimum die to land a hit), Health (hits to kill, tracked as a current value that drops live and persists), and Damage (dealt back if it survives). Heroes have no damage stat: output is purely how many Attack dice land, as in Explorers. Shields are consumed one per point of incoming Damage before it reaches Health. Worked example from the brief, which is a test: a Gor is A4 H2 D3; Attack dice 5, 4 land two hits (5 and 4 beat 4), dropping Health to 0, so it dies at once and deals nothing; had only the 5 landed, it survives on 1 Health (kept for next turn) and deals 3 minus Shields at end of turn. Hovering a monster on the board shows its Armour, current Health and Damage.
+A monster shows Armour (minimum die to land a hit), Health (hits to kill, tracked as a current value that drops live and persists), and Damage (dealt back if it survives). Heroes have no damage stat: output is purely how many Attack dice land, as in Explorers. Shields are consumed one per point of incoming Damage before it reaches Health. Worked example from the brief, which is a test: a Gor is A4 H2 D3; Attack dice 5, 4 land two hits (5 and 4 beat 4), dropping Health to 0, so it dies at once and deals nothing; had only the 5 landed, it survives on 1 Health (kept for next turn) and deals 3 minus Shields at end of turn. Hovering a monster on the board shows its Armour, current Health and Damage. A **boss cannot be sniped from an adjacent tile**: ranged reach (Arrow Squid, or the Scope object) works on ordinary robots, but the boss must be fought from its own tile (`tryAttack` rejects a boss hit when the hero is not on its tile).
+
+## Bosses and multi-level progression
+
+A run is **six levels across three biomes** (Woodland 1-2, Ruins 3-4, Machine 5-6). Each level is a fresh map built by `startLevel(n)` (`crawler.go`): Courage resets, health refills and the party regroups, while **objects carry over**. Each level draws **one boss at random from the bosses eligible at that level** (`rollBossMonsters`, `crawler_bosses.go`, using each boss's level range); beating it descends a level, and beating the Machine boss (The Core) wins. The defeat is deferred to the end of the acting hero's turn (`levelCleared`) so the map is never rebuilt mid-action. Level 1's pool deliberately carries only the **no-raw-damage specials** (Summoner I, Adaptive Plating, Jammer Field: Mossback, Vespex, Pylon); the damaging specials (Shockwave, Overload, Enrage) escalate with depth.
+
+Each boss is a **named character with a baked-in signature special** (two at L6), per the design note's Boss specials table; effects are in `crawler_combat.go`. Every boss is Armour 5-6, Damage 4, Courage reward 3 (the note's Enemies table); **Health is `baseHP + hpPerHero * players`** (the note's "X + Y" column), so a Mossback (6 + 2) is 10 at two players and 18 at six, keeping the fight a few rounds at any party size.
+
+All bosses are Armour 5-6, Damage 4, reward 3 (the note's Enemies table). Health is `base + per player`:
+
+| Boss | Levels | Armour | Health (base + /player) | Signature special |
+| --- | --- | --- | --- | --- |
+| **Mossback** | 1-2 | 5 | 6 + 2 | **Adaptive Plating**: +1 Armour each round until a 6 lands, then resets |
+| **Vespex** | 1-2 | 5 | 5 + 3 | **Summoner I**: 1 Scrapling each round |
+| **Pylon** | 1-2 | 6 | 5 + 2 | **Jammer Field**: +1 Armour to every other robot |
+| **Thornstag** | 2 | 5 | 5 + 3 | **Shockwave**: every hero on its tile takes 1 each round |
+| **Hauler** | 3-4 | 5 | 6 + 3 | **Hardened Core**: immune until its weak-point is destroyed |
+| **Vultrix** | 3-4 | 5 | 5 + 3 | **Summoner II**: 2 Scraplings each round |
+| **Teslacrane** | 3-4 | 6 | 6 + 2 | **Overload**: Electrifies a random hero each round |
+| **Widowframe** | 5-6 | 5 | 5 + 3 | **Split**: breaks off a second, weaker core at half Health |
+| **Ramhead** | 5-6 | 6 | 6 + 3 | **Enrage**: +1 Damage each round it survives |
+| **The Core** | 6 | 6 | 6 + 2 | **Summoner III** (a Sentry + a Scrapling) **+ Overload** (final boss) |
+
+Specials hook the flow: Adaptive Plating's climbing bonus and Jammer Field's aura adjust `effectiveArmour` (a landed 6 resets plating in `tryAttack`); Hardened Core rejects attacks in `tryAttack` while its **weak-point** (a separate monster laid with the boss) still stands; Enrage feeds `monsterDamage`; Split breaks off a fragment in `tryAttack`; and Summon/Shockwave/Overload/the per-round climbs run in `resolveRound`. The boss's own Overload-driven **Electrified** and the grunts' full status die (Electrocuted/Snared/Drained/Rusted) are all wired now (see [Hazards and statuses](#hazards-and-statuses)). Sprites: Mossback reuses the bear, Vespex and Pylon are ingested; the rest fall back to the generic boss sprite.
+
+## Objects and the shop
+
+Loot is wired from the design note's "Loot and objects" section (`crawler_objects.go`). A hero carries up to **three** objects, bought at the kangaroo's shop for Courage or dropped by robots; objects **carry across levels**, Courage does not. Permanents are passives folded into the turn and combat code; consumables are one-use free actions (`use`).
+
+| Permanent (shop; boss can drop one) | Cost | Effect (where it hooks) |
+| --- | --- | --- |
+| Spare Die | 5 | +1 High attack die (`beginTurn`) |
+| Whetstone | 4 | a 6 lands an extra hit (`tryAttack`) |
+| Lucky Charm | 4 | once a turn, nudge a die +1 (`nudgeDie`) |
+| Gambler's Glove | 4 | one free reroll a turn (`reroll`) |
+| Scope | 3 | attacks reach an adjacent tile (`attackTarget`) |
+| Plating | 3 | Shields topped to 2 at turn start (`beginTurn`) |
+| Harness | 3 | may Carry an ally even without the sheet action (`spendDie`) |
+| Grounding Boots | 3 | immune to shock statuses (inert until statuses exist) |
+
+| Consumable (shop or dropped) | Cost | Drop weight | Effect |
+| --- | --- | --- | --- |
+| Medkit | 2 | 20 | heal 3 |
+| Grenade | 2 | 18 | auto-kill a Health-1 robot on your tile |
+| Recall Whistle | 2 | 12 | teleport to a transporter |
+| Battery | 3 | 14 | +2 Courage |
+| Torch | 3 | 12 | clears a hazard (inert until hazards exist) |
+| Courage Horn | 3 | 10 | +1 Courage to every ally on your tile |
+| Beacon | 4 | 8 | place a transporter tile next to you |
+| Sap Seed | 5 | 6 | place a healing tile next to you |
+
+The shop (`rollShop`) offers **five** random objects at once (any gear or consumable); each purchase spends live Courage (`buyObject`) and is immediately replaced by a new random object (`refillShop`), so the stall never thins out mid-level. On a kill, a robot rolls a **visible d100** against its per-kind drop chance (Scrapling 15%, Sentry/Jammer/Grappler 25%, Hulk 35%) and, on a hit, drops a consumable from the weighted table; the roll is sent to the client as `lootRoll` and shown as a die that pops over the board (roll vs the needed percent, hit/miss). The boss is guaranteed 2 consumables + 1 permanent. **Drops land on the floor** (`dropFrom` -> `dropGround`): an object sits on the monster's square (spilling to a free walkable square if taken). The hero who landed the kill picks up automatically **if standing on that tile** (`autoPickup`); otherwise the object stays put and any hero **on that tile** grabs it by clicking it (`pickup`, square-matched, never an adjacent tile). A hero can also **drop** an object from a sheet slot (`dropObject`), leaving it exactly where they stand. Icons live at `sprites/crawler/objects/<slug>.png` (split by [`scripts/make_objects.py`](../scripts/make_objects.py) from a 4x4 sheet), with an emoji fallback. **Grounding Boots** grant immunity to the electrical statuses and the **Torch** clears the hazards on your current tile (both wired now the hazard/status system exists).
+
+## Hazards and statuses
+
+Hazards and statuses begin at **Level 2** (Level 1 is clean); the whole subsystem lives in [`crawler_hazards.go`](../src/internal/game/crawler_hazards.go). A **hazard** occupies tile squares and is a tax / routing puzzle, not a kill (every value is below hero health). A **status** is a small debuff carried on the hero until cleared (a spring, the shop, the Treefrog's Spores, or a repair item).
+
+Hazard rooms seed their hazard when laid (`seedHazards`): fog covers the whole tile (`square -1`), the others sit on the open doorway squares so the centre stays a safe perch. The bite fires from the movement primitives (`enterHazard`, on every landing) and at the end of a hero's turn (`endTurnHazards`, from `endTurn`).
+
+| Hazard | Room tile | Bite |
+| --- | --- | --- |
+| Live wiring | `wiring` | 1 damage each time you ENTER the square; Electrocuted if you END your turn on it |
+| Coolant flood | `coolant` | no damage; Snares you when you step in |
+| Sensor fog | `fog` | no damage; hides the tile's robots and loot in the view until a hero is on or orthogonally adjacent |
+| Mine / trap | `trap` | 3 damage one-off when a hero ENTERS, then spent |
+| Overheat / fire | `overheat` | 2 damage if you END your turn on it, and can Electrify |
+
+The **status die**: when an ordinary robot lands a hit it rolls a visible d6 (`rollStatusOnHit`, recorded on `statusRoll` for the client). The status lands only on a face at or above the kind's threshold for the current level, so the same grunt grows nastier with depth. The robots that carry a sting (`monsterStatus` / `statusThreshold`): the **Scrapling** (Electrocuted, switching to Rusted in the Machine rooms at L5-6), the **Sentry** (Electrocuted), the **Grappler** (Snared), and the **Jammer** (Drained, from Level 3). The Hulk is pure muscle, and bosses inflict via their own specials (Overload).
+
+| Status | Effect | Cleared by |
+| --- | --- | --- |
+| Electrocuted | -1 to each die value (floored at 1) | spring, shop, Spores, Grounding Boots (immune) |
+| Snared | can't leave your tile (edge crossing refused) | spring, shop, Spores |
+| Electrified | -1 health each round | a heal (Medkit / Spores / spring), Grounding Boots (immune) |
+| Drained | can't gain Courage (action, kills, Battery, Horn all blocked) | spring, shop, Spores |
+| Rusted | one fewer die next turn | spring, shop, Spores |
+
+Clearing: a **spring** (`maybeSpring`) and the **shop** centre (`maybeShop`) wash off every status on entry; the Treefrog's **Spores** (first unlock) clears the Mend target's statuses (and makes a Mend worthwhile even at full health); a **Medkit** clears only Electrified. Statuses reset on a new level and in the lobby.
 
 ## Tiles: random generation and placement
 
@@ -324,8 +427,8 @@ The V0 tile types (named shapes, by their open edges; rotations cover every orie
 | **cross** | all four | an open crossroads (the start tile) |
 | **dead-end** | one | caps a branch |
 | **portal** | all four (a crossroads) | the transporter: the start tile and one more in the deck; stand on the centre to teleport to another portal |
-| **healing** | three (a T-junction) | a healing spring: stand on the centre, spend a die, heal 2, then it depletes for the level |
-| **shop** | one (a nook) | a merchant stall (inert in V0, pending the loot system) |
+| **healing** | three (a T-junction) | a healing spring: step onto the centre to restore FULL health, no die, repeatable (it does not deplete) |
+| **shop** | one (a nook) | the kangaroo's stall: stand on the centre to buy from its five rotating objects for Courage |
 | **boss** | one (a lair) | the boss room, in the final band |
 
 The draw pool is weighted: corridors and bends common, junctions a little rarer, dead-ends rare. The start tile is a cross, so from the very first turn the party can explore (and the map can grow) in all four directions.
@@ -365,17 +468,18 @@ A totem is defined entirely by its sheet: dice (count and **weighted face set**)
 
 **Weighted dice (not a plain d6).** Each sheet rolls one of three die types, the design's identity lever: **Low** `{1,2,2,3,3,6}` (favours Move/Special, rarely meets Armour), **Balanced** `{1,2,3,4,5,6}` (a plain d6), **High** `{2,4,5,5,6,6}` (meets Armour often, feeds Courage). The monster's Armour sets the hit number, so a High die hits far more than a Low one. `rollFace` picks a face; `diceLow/diceBalanced/diceHigh` are the sets.
 
-**The designed roster.** Five totems have bespoke sheets; any other totem falls back to a generic sheet (4 Balanced dice, HP 5, a Guard placeholder special). Menus are the default map with the sheet's own special in the 2+ slot; an Attack needs a die that meets the target's Armour, Courage >=5.
+**Roles, not bespoke builds.** The note consolidates every totem into a handful of **archetypes (roles)**: an animal is an instance of a role, sharing its two Courage specials, and differs only in Health, dice and loot spots. Six totems have sheets today; any other totem falls back to the generic sheet (4 Balanced dice, HP 5, a Guard placeholder special). Menus are the default map with the sheet's own special in the 2+ slot; an Attack needs a die that meets the target's Armour, Courage >=5. **Loot spots** is the object-slot capacity (`objectSlots`, `heroSlots`).
 
-| Totem (slug) | Role | HP | Dice | Special (2+) | Unlocks (3 / 5 Courage) |
-| --- | --- | --- | --- | --- | --- |
-| Beaver (`bever`) | Guardian | 7 | 4 Low | Brace: 2 Shields to self/ally on tile | Thick Hide, Bulwark |
-| Arrow Squid (`pijlinktvis`) | Striker (ranged) | 4 | 4 High | none (its edge is ranged attack) | Barbed Shot, Deep Volley |
-| Treefrog (`boomkikker`) | Healer | 6 | 4 Low | Mend: heal 2 to a hero on your tile | Spores, Bloom |
-| Raccoon (`wasbeer`) | Trickster | 5 | 5 Balanced | Pilfer (placeholder) | Lucky Paws, Big Score |
-| Comoros Weaver (`comorenwever`) | Carrier | 5 | 5 Low | Carry (placeholder) | Ferry, Flock |
+| Totem (slug) | Role | HP | Dice | Loot | Signature (2+) | Unlocks (3 / 5 Courage) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Beaver (`bever`) | Guardian (tank) | 7 | 4 Low | 2 | Brace: 2 Shields to self/ally on tile | Thick Hide, Bulwark |
+| Arrow Squid (`pijlinktvis`) | Striker (ranged) | 4 | 3 High | 2 | none (its edge is ranged attack) | Barbed Shot, Deep Volley |
+| Wolf (`wolf`) | Striker (melee) | 5 | 4 High | 3 | Group strength: heal 1 at turn start with an ally on your tile | Pack Tactics, Frenzy |
+| Treefrog (`boomkikker`) | Healer | 6 | 5 Low | 3 | Mend: heal 2 to a hero on your tile | Spores, Bloom |
+| Raccoon (`wasbeer`) | Trickster | 5 | 5 Balanced | 3->4 | Guard (die-special) | Lucky Paws, Big Score |
+| Comoros Weaver (`comorenwever`) | Carrier | 5 | 5 Low | 2 | Carry: give an ally on your tile a 1-square move | Ferry, Flock |
 
-**What is wired in this build.** Health, dice count, weighted die type, and the menu thresholds are live for all five. Inherent specials now wired: **Brace** (Shields, Beaver), **Mend** (heal, Treefrog), **Carry** (Comoros, give an ally on your tile a 1-square move). The **Arrow Squid has no active special**: its signature is **ranged** attack (hit a monster on an adjacent tile), backed by its Courage unlocks (Barbed Shot, Deep Volley); it does not dash. Comoros is a **fast mover** (2 squares per Move die, each step directed separately). Raccoon's Pilfer is still a Guard placeholder (needs the loot system). The Courage-tier specials wired to effects are the Beaver's **Thick Hide** (2 Shields at the start of each turn while active) and **Bulwark** (soak an ally's end-of-round hit while active); the other totems' tiers are flagged (active by Courage) but their effects are not yet applied (tooltips describe the intent). Specials are auto-active by Courage, never bought.
+**What is wired in this build.** Health, dice count, weighted die type, loot spots and the menu thresholds are live for all six. Inherent specials wired: **Brace** (Shields, Beaver), **Mend** (heal, Treefrog), **Carry** (Comoros), **Guard** (Raccoon/generic, +1 Shield), and the Wolf's passive **Group strength** (heal 1 at turn start with an ally on your tile). The **Arrow Squid and the Wolf have no die-special**: the Squid's edge is **ranged** attack (hit a monster on an adjacent tile, it does not dash), the Wolf fights up close for its unlocks. Comoros is a **fast mover** (2 squares per Move die, each step directed separately). The Courage-tier specials are wired to effects across all six: Beaver **Thick Hide** (2 Shields at turn start) and **Bulwark** (soak an ally's end-of-round hit); Arrow Squid **Barbed Shot** (ignore 1 Armour) and **Deep Volley** (a 6 lands twice, once a turn); Wolf **Pack Tactics** (+1 hit while an ally shares your tile) and **Frenzy** (a free attack die on each kill, kills chain); Treefrog **Spores** (Mend also clears the target's statuses) and **Bloom** (Mend also heals every other hero on your tile 1); Raccoon **Lucky Paws** (free reroll each turn) and **Big Score** (a 4th object slot + an extra consumable from your kills); Comoros **Ferry** (Carry crosses a tile edge into the next room) and **Flock** (Carry moves two squares); generic totems' **Resolve/Second Wind** give a small start-of-turn Shield/heal. Specials are auto-active by Courage, never bought. The Wolf's totem art is not in the shared atlas yet, so it draws as the compass fallback until added.
 
 **Generic totem (every other seat in V0).** Health 5, four plain d6, the default menu with a plain Special (tune: a small self-buff), no distinct specials until its real sheet arrives in V1.
 
@@ -407,12 +511,17 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 - **Movement**: one square per Move die (two for a fast totem), inner walls and closed edges block it, and a Move that leaves the tile draws exactly one tile and sets a pending lay.
 - **Tile laying**: the server offers at least one legal option whenever a legal placement exists; every offered `(coord, rotation)` has an opening on the entry side and matches its neighbours; `layTile` accepts only an offered option and rejects anything else; the deck drains in band order; the boss always lands in the final band.
 - **Win and lose**: defeating the boss wins; all heroes down loses; draining the stack starts a 5-turn collapse countdown and loses only if the boss is not beaten before it runs out.
+- **Characters and archetypes**: each sheet's weighted dice, Health and loot spots match the note's archetype table (Beaver 4 Low/HP7/2, Arrow Squid 3 High/HP4/2, Wolf 4 High/HP5/3, Treefrog 5 Low/HP6/3, Raccoon 5 Balanced/HP5/3->4, Comoros 5 Low/HP5/2); the Wolf's Group strength, Pack Tactics and Frenzy, and every other totem's two unlocks, each have a focused test.
+- **Enemies**: the renamed archetypes keep the note's stats and drop chances (Scrapling 15% / Sentry, Jammer, Grappler 25% / Hulk 35%); a Jammer robot hardens the other robots on its tile by +1 Armour and the aura lifts on its death.
+- **Bosses and levels**: a drawn boss's Health equals `base + per-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test.
+- **Objects and loot**: the shop stocks five and refills on a buy; a kill rolls the visible drop die and the object lands on the floor; pickup works only from the hero's own tile (no adjacent sniping); drop, auto-pickup and each consumable's effect are covered.
+- **Hazards and statuses (Level 2+)**: each hazard bites as specified (wiring on entry + end, mine once, coolant Snare, fire end-of-turn, fog hides contents until a hero is near); each status applies its effect (Electrocuted dice, Rusted die count, Snared edge-block, Drained Courage, Electrified tick); a spring, the shop, Spores and a Torch clear them; Grounding Boots grant shock immunity; hazard rooms appear only from Level 2.
 - **Determinism**: a fixed seed reproduces a whole run (same rolls, same tiles, same placements).
 
 ## Roadmap
 
 - **V0** (this spec): engine `Game`, random banded tile generation with edge-matching and the boss in the final band, the full core turn (dice, menu, Move, Attack, Special, Courage, reroll), Shields, the Beaver plus a generic totem, win and lose, narrated beats, and the test suite.
-- **V1**: the loot system and a shop, active hazards, downed-not-dead revive, the scout ability, and wiring the remaining totems' Courage-tier specials to effects. (Group fights, ranged attack, carry and fast movement shipped.)
+- **V1**: downed-not-dead revive and the scout ability. (Group fights, ranged attack, carry and fast movement, the loot system with a shop and floor drops, every designed totem's Courage-tier special, and the hazard/status system with the Level-2 hazard rooms have shipped.)
 - **V2**: hidden enemy stats, richer per-tile story beats, boss mechanics, and a balancing pass once it is played with real people.
 - **V3**: mobile layout and art polish.
 

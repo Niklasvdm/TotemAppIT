@@ -6,6 +6,7 @@ import { InfoButton } from "../GameRules";
 import { GameReportButton } from "../GameReportButton";
 import { decayOffset, sample, useGame } from "./net";
 import NetHud, { useStatsFlag } from "./NetHud";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { draw, readPalette } from "./render";
 
 // Physical key codes, so the WASD cluster stays in the same place on an AZERTY
@@ -241,6 +242,14 @@ export default function GameRoom({
   const isHost = you >= 0 && you === g.host;
   const mine = roster.find((r) => r.s === you);
   const winnerEntry = roster.find((r) => r.s === winner);
+
+  if (g.game && g.game !== "bomberman") {
+    return (
+      <div className="game-room">
+        <WrongGameNotice actual={g.game} code={code} onLeave={onLeave} />
+      </div>
+    );
+  }
 
   if (g.error) {
     return (

@@ -59,6 +59,7 @@ type WelcomeMsg struct {
 	T      string        `json:"t"`
 	You    int           `json:"you"`
 	Code   string        `json:"code"`
+	Game   string        `json:"game"` // the room's game slug, so a client can reject a mismatched page
 	Host   int           `json:"host"`
 	Hz     int           `json:"hz"`
 	Fuse   int           `json:"fuse"`  // bomb fuse in ticks, for the client's countdown

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"bytes"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
@@ -35,6 +36,11 @@ type Conn struct {
 	slot  int
 	token string
 	send  chan []byte
+	// lastView is the last per-seat frame marshalled for this connection, so an
+	// identical follow-up is skipped (see sendTo). Only per-seat Sends are deduped;
+	// a reconnect gets a fresh Conn (empty lastView) plus a full frame via Joined, so
+	// the client never misses state.
+	lastView []byte
 }
 
 // Slot is the player slot this connection controls.
@@ -59,6 +65,7 @@ type heldSeat struct {
 // from connection goroutines.
 type Room struct {
 	code string
+	slug string // the registered game slug this room was created for (sent in the welcome)
 	game Game
 
 	conns   map[int]*Conn
@@ -80,6 +87,7 @@ func newRoom(code, gameSlug string, seed uint64) (*Room, error) {
 	}
 	r := &Room{
 		code:    code,
+		slug:    gameSlug,
 		conns:   map[int]*Conn{},
 		held:    map[int]heldSeat{},
 		host:    -1,
@@ -203,6 +211,14 @@ func (r *Room) sendTo(c *Conn, v any) {
 	if err != nil {
 		return
 	}
+	// Skip a per-seat view identical to the one already sent to this client: the UI
+	// renders the latest state, so an unchanged frame carries nothing. This is the
+	// safe alternative to a delta protocol (no shared diff state, no reconnect edge
+	// cases): correctness is unchanged, only redundant frames are dropped.
+	if bytes.Equal(c.lastView, b) {
+		return
+	}
+	c.lastView = b
 	queue(c, b)
 }
 
@@ -315,7 +331,7 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 		}
 		extra := r.game.WelcomeExtra()
 		wm = WelcomeMsg{
-			T: MsgWelcome, You: slot, Code: r.code, Host: r.host,
+			T: MsgWelcome, You: slot, Code: r.code, Game: r.slug, Host: r.host,
 			Hz: r.game.TickHz(), Fuse: extra.Fuse, Build: buildinfo.String(),
 			Token: conn.token, Arena: extra.Arena, Roster: r.roster(),
 		}
@@ -370,7 +386,16 @@ func (r *Room) Leave(slot int) {
 // costs little, where blocking the connection goroutine would cost much more.
 // The raw bytes are copied because the game parses them later, on the room
 // goroutine, after the transport's read buffer may have been reused.
+// maxCommandBytes caps one client frame. Commands are small JSON objects (a few
+// fields); anything larger is malformed or hostile, so it is dropped before it reaches
+// game code. The WebSocket layer also limits reads; this is the belt-and-braces bound
+// at the single trust boundary where every client frame enters the game.
+const maxCommandBytes = 8 << 10 // 8 KiB
+
 func (r *Room) Command(seat int, raw []byte) {
+	if len(raw) > maxCommandBytes {
+		return // oversized frame: never hand untrusted bulk to game parsing
+	}
 	cp := append([]byte(nil), raw...)
 	select {
 	case r.acts <- func() { r.game.Command(seat, seat == r.host, cp) }:

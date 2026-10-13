@@ -84,4 +84,5 @@ var gameFactories = map[string]gameFactory{
 	"decrypto":    newDecryptoGame,
 	"hanabi":      newHanabiGame,
 	"crawler":     newCrawlerGame,
+	"skyjo":       newSkyjoGame,
 }

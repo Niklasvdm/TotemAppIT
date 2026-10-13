@@ -138,6 +138,9 @@ func TestJoinSeatsPlayersAndNamesAHost(t *testing.T) {
 	if w0.You != 0 || w0.Host != 0 {
 		t.Fatalf("first joiner: You=%d Host=%d, want 0 and 0", w0.You, w0.Host)
 	}
+	if w0.Game != "bomberman" {
+		t.Fatalf("welcome should carry the room's game slug, got %q", w0.Game)
+	}
 	if w0.Arena.W != ArenaW || len(w0.Arena.Solid) != ArenaW*ArenaH {
 		t.Fatalf("welcome carried a malformed arena: %+v", w0.Arena)
 	}

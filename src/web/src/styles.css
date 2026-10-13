@@ -682,3 +682,109 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 /* The Game: a pile that grows downward (newest at the bottom), a tidy column. */
 .tg-stack { display: flex; flex-direction: column; align-items: center; gap: .18rem; }
 .tg-pile { overflow: visible; }
+
+/* --- Skyjo ------------------------------------------------------------- */
+.sk-room { display: flex; flex-direction: column; gap: .6rem; }
+.sk-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .6rem .8rem; }
+.sk-discard b { font-weight: 800; }
+.sk-tables { display: flex; flex-wrap: wrap; gap: .6rem; }
+.sk-player { padding: .5rem .6rem; min-width: 10.5rem; flex: 1 1 10.5rem; max-width: 16rem; }
+.sk-player.active { outline: 2px solid var(--gold, #c9a227); outline-offset: 1px; }
+.sk-player.gone { opacity: .5; }
+.sk-player-head { display: flex; justify-content: space-between; align-items: baseline; gap: .4rem; margin-bottom: .35rem; }
+.sk-grid { display: grid; gap: 4px; }
+.sk-cell {
+  aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 1.1rem; border-radius: 6px; border: 1px solid rgba(0,0,0,.35);
+  background: #1d232c; color: #e9edf3; cursor: default;
+}
+.sk-cell.down { background: repeating-linear-gradient(45deg, #2a3340, #2a3340 5px, #222a35 5px, #222a35 10px); color: #7c8798; }
+.sk-cell.gone { background: transparent; border: 1px dashed rgba(255,255,255,.15); }
+.sk-cell.actionable { cursor: pointer; box-shadow: 0 0 0 2px var(--gold, #c9a227) inset; }
+.sk-cell.actionable:hover { filter: brightness(1.12); }
+.sk-cell:disabled { cursor: default; }
+
+/* --- Crawler: multi-level + boss labels -------------------------------- */
+.cr-level { font-weight: 700; color: var(--gold, #c9a227); }
+.cr-boss-name {
+  position: absolute; top: -1.05rem; left: 50%; transform: translateX(-50%);
+  white-space: nowrap; font-size: .58rem; font-weight: 800; letter-spacing: .02em;
+  padding: .05rem .3rem; border-radius: 5px; background: rgba(120,20,30,.92); color: #ffe;
+  border: 1px solid rgba(225,73,92,.8); box-shadow: 0 1px 3px rgba(0,0,0,.5); z-index: 2;
+}
+
+/* --- Crawler: objects / loot ------------------------------------------- */
+.cr-obj-icon { vertical-align: middle; object-fit: contain; }
+.cr-pack-row { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.cr-pack-cell { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid rgba(201,162,39,.45); }
+.cr-pack-cell.empty { border-style: dashed; border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.03); }
+/* Object slots on the character sheet: obvious capacity + usable + info hover. */
+.cr-slots { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .5rem; border-top: 1px solid rgba(255,255,255,.1); padding-top: .45rem; }
+.cr-slots-label { font-weight: 700; color: var(--gold, #c9a227); }
+.cr-slot { width: 2.2rem; height: 2.2rem; display: inline-flex; align-items: center; justify-content: center; position: relative; border-radius: 7px; border: 1px solid rgba(201,162,39,.55); background: rgba(20,15,9,.5); }
+.cr-slot.empty { border-style: dashed; border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.03); }
+.cr-slot.usable { box-shadow: 0 0 0 2px var(--gold, #c9a227) inset; }
+.cr-slot .cr-info { position: absolute; top: -4px; right: -4px; }
+.cr-slot-btn { background: none; border: none; padding: 0; cursor: pointer; display: inline-flex; }
+.cr-slot-btn:hover { filter: brightness(1.15); }
+/* Drop control: a small badge at the slot's bottom-left to put the object on the floor. */
+.cr-slot-drop { position: absolute; bottom: -5px; left: -5px; width: 15px; height: 15px; line-height: 13px; font-size: 11px; text-align: center; padding: 0; cursor: pointer; border-radius: 50%; border: 1px solid rgba(201,162,39,.7); background: #140f09; color: #fdf6e8; }
+.cr-slot-drop:hover { background: #2a1f10; }
+/* Ground loot: an object lying on a board square; clickable (a button) when you can grab it. */
+.cr-loot { position: absolute; bottom: 1px; right: 1px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; background: rgba(20,15,9,.78); border: 1px solid rgba(201,162,39,.55); padding: 0; z-index: 4; }
+.cr-loot.grab { cursor: pointer; animation: cr-loot-pulse 1.2s ease-in-out infinite; }
+.cr-loot.grab:hover { filter: brightness(1.2); box-shadow: 0 0 0 2px var(--gold, #c9a227); }
+@keyframes cr-loot-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,39,.6); } 50% { box-shadow: 0 0 0 3px rgba(201,162,39,0); } }
+/* The drop-roll die that pops over the board after a kill. */
+.cr-lootroll {
+  position: absolute; left: 50%; top: .6rem; transform: translateX(-50%); z-index: 32;
+  display: inline-flex; align-items: center; gap: .5rem; padding: .35rem .7rem;
+  background: #140f09; color: #fdf6e8; border-radius: 999px; border: 1px solid rgba(201,162,39,.8);
+  box-shadow: 0 4px 14px rgba(0,0,0,.6); font-weight: 700; animation: cr-lootroll-in .3s ease-out;
+}
+.cr-lootroll.hit { border-color: #6fcf6f; }
+.cr-lootroll.miss { opacity: .85; }
+.cr-lootroll-die { font-size: 1.05rem; }
+.cr-lootroll-vs { opacity: .7; font-weight: 500; font-size: .8rem; }
+.cr-lootroll-result { color: var(--gold, #c9a227); }
+.cr-lootroll.miss .cr-lootroll-result { color: #bbb; }
+@keyframes cr-lootroll-in { from { transform: translateX(-50%) translateY(-6px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+/* The status die, sitting just under the loot die. */
+.cr-statusroll {
+  position: absolute; left: 50%; top: 3rem; transform: translateX(-50%); z-index: 32;
+  display: inline-flex; align-items: center; gap: .5rem; padding: .3rem .65rem;
+  background: #140f09; color: #fdf6e8; border-radius: 999px; border: 1px solid rgba(201,162,39,.8);
+  box-shadow: 0 4px 14px rgba(0,0,0,.6); font-weight: 700; animation: cr-lootroll-in .3s ease-out;
+}
+.cr-statusroll.hit { border-color: #d98cff; }
+.cr-statusroll.miss { opacity: .85; }
+/* Status badges on the party cards. */
+.cr-status-row { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+.cr-status { font-size: .95rem; cursor: help; filter: drop-shadow(0 0 2px rgba(217,140,255,.6)); }
+/* Hazard token on a board square. */
+.cr-hazard { position: absolute; top: 1px; left: 1px; font-size: 14px; z-index: 3; pointer-events: none; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+/* Sensor-fog overlay covering a hidden tile. */
+.cr-fog {
+  position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; color: #e8eef5; background: rgba(40,48,60,.82); border-radius: 6px; backdrop-filter: blur(2px);
+}
+.cr-pack { display: flex; flex-direction: column; gap: .4rem; padding: .5rem .6rem; margin-top: .4rem; }
+.cr-pack-use { display: flex; flex-wrap: wrap; gap: .35rem; }
+.cr-pack-use .game-btn { display: inline-flex; align-items: center; gap: .25rem; }
+/* Shop as a callout overlaying the board: solid panel, its own scroll, readable info. */
+.cr-board-wrap { position: relative; }
+.cr-shop-callout {
+  position: absolute; top: .6rem; right: .6rem; z-index: 30;
+  width: min(17rem, 80%); max-height: calc(100% - 1.2rem); overflow-y: auto;
+  background: #140f09; color: #fdf6e8; border: 1px solid rgba(201,162,39,.8);
+  border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.6); padding: .6rem .7rem;
+}
+.cr-shop-callout-head { font-weight: 800; color: var(--gold, #c9a227); margin-bottom: .4rem; }
+.cr-shop-note { font-size: .78rem; color: #e1a; margin-bottom: .35rem; }
+.cr-shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+.cr-shop-item { display: flex; align-items: center; gap: .5rem; }
+.cr-shop-item-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.2; }
+.cr-shop-item-text .muted-note { font-size: .72rem; }
+.cr-shop-item .game-btn { flex: none; }
+
+.cr-tile.used .cr-tile-art { filter: grayscale(.55) brightness(.78); } /* a looted Vault */

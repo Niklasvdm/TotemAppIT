@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.0
+version: 0.4.1
 relate to:
   - "[[TotemApp-IT]]"
 ---
@@ -318,7 +318,13 @@ Room --> Client : welcome (same seat, state intact)
 @enduml
 ```
 
-The frames on the wire are the same four for every game: `welcome` (seat, host, resume token, roster), `roster` (identities + host + "gone" flags), `state` (the per-seat view, each game's own shape) and `error`. The handshake, origin check, frame caps and resume-token flow are shared and unchanged from Bomberman. **What a game controls is only the message `t` values it accepts in `Command`, and the shape of the struct `viewFor` returns.**
+The frames on the wire are the same four for every game: `welcome` (seat, host, resume token, roster, **and the room's `game` slug**), `roster` (identities + host + "gone" flags), `state` (the per-seat view, each game's own shape) and `error`. The handshake, origin check, frame caps and resume-token flow are shared and unchanged from Bomberman. **What a game controls is only the message `t` values it accepts in `Command`, and the shape of the struct `viewFor` returns.**
+
+Three cross-cutting guards live at the room boundary, so no game repeats them:
+
+- **Game-slug check (client).** A room is bound to one game at creation, and the welcome now carries that slug. Each client page compares it to its own and, on a mismatch (a shared or mistyped code for another game), shows a "this is a <Game> room, join it?" notice instead of rendering frames meant for a different UI. The slug is untrusted input: the client only looks it up in a fixed allowlist (`games/WrongGameNotice.tsx`), never building a route from the raw string.
+- **Command size cap (server).** `Room.Command` drops any client frame over `maxCommandBytes` (8 KiB) before it reaches game parsing. Commands decode through the shared `decodeCmd[T]` helper (`command.go`), the one place to harden parsing.
+- **Identical-frame skip (server).** `sendTo` does not re-send a per-seat view byte-identical to the last one sent to that connection (the UI renders latest state, so it carries nothing). It is reconnect-safe: a reclaimed seat gets a fresh `Conn` and a full frame via `Joined`. Bomberman is unaffected (it broadcasts).
 
 ## Client structure
 
@@ -430,6 +436,14 @@ Every game reuses the whole engine; the per-game notes below are **all it adds**
 - **Commands:** `hint(target, kind:color|value, value)` (spend a token, marks all matching cards), `discard(card)` (regain a token), `play(card)`, `restart`.
 - **Win:** build five stacks 1→5 (perfect 25). A misplay burns a fuse; three blown fuses end the show. Completing a stack returns a hint token; the deck emptying triggers one final turn each. Score is the sum of the stack tops.
 - **Ref:** standard edition rulebook. **File:** `hanabi.go` (6 tests). **Client:** `hanabi/HanabiPage.tsx`.
+
+### Skyjo — push-your-luck grids
+- **Players / type:** 2–8. **Engine:** event-driven.
+- **Mostly public board:** every face-up card is visible to all and every face-down card is hidden from everyone (including its owner), so `viewFor` is the same for all seats except one private field: the card the **active** player has drawn from the deck and is still deciding on is sent only to that seat.
+- **State:** 150-card deck (−2 ×5, −1 ×10, 0 ×15, 1–12 ×10 each), each player's 3×4 grid of cells (value / face-up / cleared), the discard pile, the held card + its origin, whose turn, the closing seat and the final-turn countdown, running totals.
+- **Flow:** a `setup` phase (everyone flips 2) picks the highest-sum starter, then on a turn you `draw` the deck (then `swap` into a cell, or `discardDraw` and `flip` a face-down one) or `takeDiscard` (then `swap`). Three equal face-up cards in a column clear (score 0).
+- **Win:** turning your whole grid up closes the round; everyone else gets one more turn, grids are revealed and summed, and the closer's score doubles if it is positive and not the lowest. First total past 100 ends the game; lowest total wins.
+- **Ref:** published edition rules (deck + closer-penalty confirmed against the rulebook). **File:** `skyjo.go` (7 tests). **Client:** `skyjo/SkyjoPage.tsx`.
 
 ## Adding a new game
 

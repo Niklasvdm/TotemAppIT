@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 import { Card } from "../Card";
 
@@ -150,6 +151,12 @@ function TheGameRoom({
   const v = g.view;
 
   const bar = <RoomBar code={code} title={t("gameTheGame")} infoSlug="thegame" gameSlug="the-game" onLeave={onLeave} />;
+
+  if (g.game && g.game !== "the-game") {
+
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+
+  }
 
   if (g.status === "closed") {
     return (

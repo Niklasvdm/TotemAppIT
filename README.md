@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.15
+version: 0.4.16
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.4.15`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
+**Build `0.5.0`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -1148,40 +1148,41 @@ Mitigations, best-first:
 Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEMENT]` improve existing · `[CHORE]` infra/cleanup.
 
 ### Open
-- `[FEATURE]` ~~**Generalise the game layer into an engine + `Game` interface.**~~ — **done (0.3.9)**: `*Match` lifted out of `Room` behind a `Game` interface + an `Outbox` (per-seat `Send` is the private-view primitive); `Registry.Create(game)` selects by slug. Bomberman is now `bombermanGame`, wire protocol byte-identical. Design + PlantUML in [docs/games-architecture.md](docs/games-architecture.md). More games (Niklas's build order): **Codenames → The Mind → The Game → Wavelength**.
-- `[FEATURE]` ~~**(1) Game: Codenames**~~ — **done (0.3.9), playtest pending.** Backend (`codenamesGame` + 7 tests; first private-role view via `Outbox.Send`) **and** client (`useRoom()` + `CodenamesPage`: lobby team/role, 5×5 board with the private spymaster key, clue/guess, scoreboard) on DEV. Remaining: a real 4-player playtest + i18n (English-only now). Refs: [lxu213](https://github.com/lxu213/codenames), [cmkoller](https://github.com/cmkoller/codenames), [koldoon](https://github.com/koldoon/codenames-game).
-- `[FEATURE]` **(2) Game: The Mind** (co-op, 2–4) — play ascending cards onto a shared pile with no talking; a wrong order costs a life. **Foundation + client done (0.3.9), playtest pending** (`theMindGame` + 5 tests; `MindPage`). Remaining: bonus star/life rewards at milestone levels + i18n. Refs: [RafeArnold](https://github.com/RafeArnold/the-mind), [JonSeijo](https://github.com/JonSeijo/the-mind-online), [oraki23](https://github.com/oraki23/TheMindOnline).
-- `[FEATURE]` ~~**(3) Game: The Game**~~ — **done (0.3.9), playtest pending.** Backend (`theGameGame` + 6 tests) **and** client (`TheGamePage`: 4 piles, tap-card-then-pile, backwards trick, end-turn gated on the minimum). Remaining: a playtest + i18n of the board copy. Ref: [lschlesinger/the-game](https://github.com/lschlesinger/the-game).
-- `[FEATURE]` ~~**(4) Game: Wavelength**~~ — **done (0.3.9), playtest pending.** Backend (`wavelengthGame` + 5 tests: psychic sees the hidden 0–20 target, team dials, other team bets left/right, 4/3/2/0 + bet bonus, first to 10) **and** client (`WavelengthPage`: gradient spectrum + dial + the clue/guess/bet/reveal flow). 168-pair deck from the ref. Needs 2+ per team. Ref: [cynicaloptimist/longwave](https://github.com/cynicaloptimist/longwave) (MIT).
-- `[FEATURE]` ~~**Four more games: Just One, Love Letter, Decrypto, Hanabi**~~ — **done (0.4.0), playtest pending.** Backends (`justone.go`/`loveletter.go`/`decrypto.go`/`hanabi.go`, 4/5/4/6 Go tests) **and** clients (`JustOnePage`/`LoveLetterPage`/`DecryptoPage`/`HanabiPage`) on DEV, each with a rules entry, an index card and 3-language title/blurb. Just One and Hanabi exercise two new private-view shapes: a word hidden from one seat, and Hanabi's inverted view (you see everyone's hand but your own). Remaining: real multi-player playtests + i18n of the in-game copy (English-only for now). Simplifications noted in the [0.4.0 changelog](#changelog): Just One has no penalty card, Decrypto alternates the encrypting team.
-- `[FEATURE]` **2D sprites for the totems in Bomberman** — the pipeline shipped in 0.3.9 with the Beaver (`bever`) as the first animal; what remains is art for more animals and, optionally, real walk cycles.
-  - **Built:** a single-PNG + JSON frame-map atlas (`src/web/public/sprites/totems.{png,json}`), a one-time loader + per-slot animation state machine (`sprites.ts`), and the `ctx.drawImage` blit path in `drawPlayer` (`render.ts`). Facing is derived client-side from per-frame movement, so **no `PlayerDTO` change was needed** — idle/vertical → front, horizontal → side (mirrored), dead → defeated. Smoothing is **on** (cartoon art, not pixel art). Any animal without frames falls back to the emoji disc, which is not optional — the catalogue will never be fully covered.
-  - **Adding an animal is now art-only + two files:** cut `front`/`side`/`defeated` frames (transparent bg, feet at the bottom), append a row to `totems.png`, add the slug's rects to `totems.json`.
-  - **The real cost is art, and it does not scale.** Three static frames per animal is a modest ask; a readable 4-direction *walk cycle* (~4 frames × 4 directions + a death animation, 32×32–48×48) is a few hours per animal for a competent artist. **Pick 8–12 totems popular at camp** rather than the whole catalogue; a board mixing sprites and discs reads as "these ones are special", not "the rest are broken". *(Niklas to choose the animals.)*
-  - **Optional next steps:** real multi-frame walk cycles (the frame map and state machine already allow N frames per state — advance by wall time); and if remote players' facing ever looks off under latency, add the last input direction to `PlayerDTO` (one byte) rather than inferring it from interpolated motion.
-- `[ENHANCEMENT]` **Bomberman mobile controls** — the on-screen d-pad arrows are hard to tap on a phone (the board eats the screen and the pad is cramped). Make the board scale down on small screens so the pad has room, enlarge the touch targets, and/or offer a fuller-screen/landscape layout for the game view.
-- `[ENHANCEMENT]` **Bomberman lag feel** — under latency the local player should keep gliding from prediction rather than visibly jumping; tune the correction/interpolation (the `decayOffset` glide and the teleport threshold in `net.ts`) so a laggy link reads as smooth motion, not teleports.
-- `[ENHANCEMENT]` **Prod `:8683` is reachable directly on the LAN** — `totemd` binds `0.0.0.0` and the WAF runs on a separate host, so the API can be hit without passing through the WAF (no TLS, ModSecurity or edge rate-limiting; and the future [auth-header trust](#extensibility) would be spoofable). Restrict prod `:8683` to the ReverseProxy-WAF only (host firewall allowing just the WAF IP, or a tunnel with `totemd` bound to it). Deferred 2026-10-03.
-- `[ENHANCEMENT]` ~~**Frontend dev-only vuln** — the `esbuild`/`vite` dev-server advisory ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)) remains after the react-router fix.~~ — **done (0.3.9)**: upgraded `vite 5 → 7.3.6` + `@vitejs/plugin-react 4 → 5.2.0`, which also cleared a **high**-severity Vite advisory (path traversal in optimized-deps `.map` handling). `npm audit` now reports **0 vulnerabilities**.
-- `[BUG]` ~~31 animals lack an `en`/`nl` description~~ — **done (0.3.9)**: verified all **472** animals now carry a non-empty `desc_nl`, `desc_it` **and** `desc_en` in `data/animals.json`, none a copy of the Italian. (Re-seed, or `totem-seed --merge`, to propagate to a deployed DB.)
-- `[BUG]` ~~Italian animal names are largely unvalidated~~ — **done (0.3.9)**: `en` names validated against Wikidata (35 corrections) and `it` against it.wikipedia (**5** corrections: `geep`→Aguglia, `gibbon`→Gibbone, `manoel`→Gatto di Pallas, `serval`→Servalo, `zebramangoest`→Mangusta striata). Every animal has all three names; the rest were kept **deliberately** (most species only have a scientific binomial on Wikidata). See [`data/name-review.md`](data/name-review.md).
-- `[ENHANCEMENT]` **Paw fallbacks now 0** (hand-tuned in 0.2.26+); the remaining ~316 "category" emoji are family-level approximations that could still be refined from `data/emoji-review.md`.
-- `[FEATURE]` 27 animals have no image (names that are disambiguation pages in both nl+en) — manual sourcing, see `data/images/review.md`.
-- `[FEATURE]` Embed the built SPA into `totemd` via `embed.FS` + SPA-fallback routing → single-binary production (finishes Phase 3).
-- `[FEATURE]` ~~Deploy: rsync `data/images/` + systemd unit behind the WAF~~ — **done (0.3.x)**: [`deploy/deploy.sh`](deploy/deploy.sh) (build/ship/restart), [`update.sh`](deploy/update.sh), [`backup.sh`](deploy/backup.sh), prod workspace + `prod.tfvars`. Still open: **GitHub Actions CI** (build/test/scan).
-- `[FEATURE]` **"Which animal are you?" quiz** — **v1 built** (finder pop-up, 10 EN dilemmas). TODO: morally-grey **exclude** ("you are not") questions; translate prompts/options to it/nl; move questions to `data/quiz.json` + a `/api/v1/quiz` endpoint; a mobile entry point; author more questions to cover `loyal`/`brave`/`deft`/`enduring`. Gates the German translation; profiles & friends later (auth delegated to [[AuthenticationServer]]).
-- `[ENHANCEMENT]` Free-text search (`q`) matches names only; consider matching descriptions too.
-- `[ENHANCEMENT]` CI/CD workflows + vuln scanning designed but not yet wired — see [CI/CD](#cicd-testing--supply-chain).
-- `[CHORE]` Trait-translation + Italian-name quality pass — **done** (0.2.14); descriptions remain (see legal item).
-- `[LEGAL]` **Descriptions**: kept as-is for now (non-commercial, source credited — see [Data provenance](#data-provenance--licensing)); revisit (SGV permission or original rewrite) before any commercial/wide release.
-- `[FEATURE]` **German (DE) translation** — a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the "Which animal are you?" quiz ships.
-- `[FEATURE]` ~~**User requests**: request adding an animal~~ — **done (0.3.0)**: suggest + report with moderation via `totem-admin`. Still open: *request adding a trait/adjective*, and accepting a suggestion could scaffold a draft animal row.
-- `[FEATURE]` ~~"How totems really work" in-app info blurb~~ — **done (0.2.24)**: ℹ️ in the header opens it (English; it/nl TODO).
-- `[FEATURE]` **Group mode** — a second, open flow where a *group* chooses someone's totem together (mark adjectives that fit / don't, with aiding questions) — see [the design](#a-second-open-mode--a-group-chooses-someones-totem-design).
-- `[FEATURE]` Suggest a **voortotem** (adjective) for your matched animal, as a nod to the tradition.
-- `[FEATURE]` **Add Skyjo** — the push-your-luck card game (a 3×4 grid of face-down cards each player flips/swaps to lower their total; matching columns clear; lowest total over several rounds wins) as another game on the engine. Private view = your own grid (face-down cards hidden until flipped).
+
+**Games**
+- `[I18N]` **In-game copy is English-only** for the nine party games and the Totem Crawler. Titles and blurbs exist in it/en/nl, but the in-room strings do not; translate them.
+- `[PLAYTEST]` **Real multi-player playtests** are still pending for the party games and the crawler.
+- `[FEATURE]` **2D totem sprites in Bomberman**: the atlas pipeline shipped (0.3.9) with a growing roster; what remains is art for more animals and, optionally, real 4-direction walk cycles. Adding one is art-only: cut `front`/`side`/`defeated` frames, append a row to `totems.png`, add the slug's rects to `totems.json`. Pick 8-12 camp favourites rather than the whole catalogue (a board mixing sprites and discs reads as "these are special", not "the rest are broken").
+- `[ENHANCEMENT]` **Bomberman mobile controls**: the on-screen d-pad is cramped on a phone; scale the board down on small screens, enlarge the touch targets, offer a landscape layout.
+- `[ENHANCEMENT]` **Bomberman lag feel**: tune the prediction glide and teleport threshold (`decayOffset` in `net.ts`) so a laggy link reads as smooth motion, not jumps.
+- `[FEATURE]` **Remaining crawler art**: the art-pending boss sheets (Thornstag, Hauler, Vultrix, Teslacrane, Widowframe, Ramhead, The Core, drawn as the generic boss until then; Mossback reuses the existing bear, Vespex and Pylon are done), a dedicated **Sentry** sprite (it borrows the old bruiser sheet for now; Scrapling, Hulk, Jammer and Grappler are done), the **Wolf** totem's atlas row (it draws as the compass fallback until added), the Level-2+ feature tiles `tile-10..17` (shrine, city gate, the hazard rooms), and the ruins and machine tilesets. The sprite template and tileset prompts live in the [[TotemApp-IT-Crawler]] Project Logs.
+
+**Finder & data**
+- `[FEATURE]` **Embed the built SPA into `totemd`** via `embed.FS` + SPA-fallback routing for a single-binary production (finishes Phase 3).
+- `[FEATURE]` **27 animals have no image** (names that are disambiguation pages in both nl+en): manual sourcing, see `data/images/review.md`.
+- `[ENHANCEMENT]` **Emoji refinement**: paw fallbacks are 0; the ~316 family-level "category" emoji could still be refined from `data/emoji-review.md`.
+- `[FEATURE]` **"Which animal are you?" quiz**: v1 built (finder pop-up, 10 EN dilemmas). TODO: morally-grey **exclude** questions; translate prompts to it/nl; move questions to `data/quiz.json` + a `/api/v1/quiz` endpoint; a mobile entry point; more questions covering `loyal`/`brave`/`deft`/`enduring`. Gates the German translation; profiles & friends later (auth via [[AuthenticationServer]]).
+- `[ENHANCEMENT]` **Free-text search** (`q`) matches names only; consider matching descriptions too.
+- `[FEATURE]` **German (DE) translation**: a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the quiz ships.
+- `[FEATURE]` **Group mode**: a second, open flow where a *group* chooses someone's totem together (mark adjectives that fit / don't): see [the design](#a-second-open-mode--a-group-chooses-someones-totem-design).
+- `[FEATURE]` **Suggest a voortotem** (adjective) for your matched animal, as a nod to the tradition.
+- `[FEATURE]` **Request adding a trait/adjective**: animal requests shipped (0.3.0); trait requests, and scaffolding a draft row from an accepted suggestion, remain.
+
+**Infra & security**
+- `[ENHANCEMENT]` **Prod `:8683` is reachable directly on the LAN**: `totemd` binds `0.0.0.0` and the WAF is on a separate host, so the API can be hit without TLS/ModSecurity/edge rate-limiting. Restrict prod `:8683` to the ReverseProxy-WAF only (host firewall or a tunnel). Deferred 2026-10-03.
+- `[ENHANCEMENT]` **CI/CD + vuln scanning** designed but not yet wired: GitHub Actions build/test/scan, see [CI/CD](#cicd-testing--supply-chain).
+- `[LEGAL]` **Descriptions** kept as-is for now (non-commercial, source credited: see [Data provenance](#data-provenance--licensing)); revisit (SGV permission or an original rewrite) before any commercial/wide release.
 
 ### Done
+- `[FEATURE]` **Nine multiplayer games on the shared engine**: Codenames, The Mind, The Game, Wavelength (0.3.9), then Just One, Love Letter, Decrypto, Hanabi (0.4.0), plus **Skyjo** (0.4.15); each with per-seat private views, a rules card and 3-language titles.
+- `[FEATURE]` **Totem Crawler V0**: original co-op dungeon crawler (0.4.1), heavily iterated through 0.4.15 (tiles, characters, combat, specials, sprites).
+- `[FEATURE]` **Crawler multi-level + boss pool (0.4.15)**: six levels across three biomes (Woodland/Ruins/Machine), each drawing a named boss from its pool; ten bosses with signature specials (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Hardened Core, Overload, Split, Enrage) wired into combat; Courage resets and health refills between levels. Vespex and Pylon sprites ingested; the rest use the generic boss art.
+- `[FEATURE]` **Crawler objects / loot economy (0.4.15)**: the note's 16 objects (8 permanents, 8 consumables) with their Courage costs, effects and drop weights; the kangaroo shop (buy with Courage, restocks each level), robot/boss drops, and a 3-slot pack carried across levels. 16 icons ingested (`make_objects.py`). Torch and Grounding Boots are ownable but inert until hazards/statuses exist.
+- `[FEATURE]` **Game engine**: `Game` interface + `Outbox` + slug registry; Bomberman refactored onto it (0.3.9). Cross-game join guard, 8 KiB command cap and per-seat frame dedupe (0.4.15).
+- `[FEATURE]` **"Report a problem" for games**: `game_report` table, moderation CLI, a flag in every room bar (0.4.1).
+- `[SECURITY]` **Frontend dev-server vuln cleared**: vite 5 → 7, `npm audit` 0 vulnerabilities (0.3.9).
+- `[DATA]` **Descriptions + names complete**: all 472 animals carry it/en/nl descriptions; en/it names validated (0.3.9).
+- `[CHORE]` **Deploy scripts**: `deploy.sh`/`update.sh`/`backup.sh` + a prod Terraform workspace (0.3.x).
 - `[BUG]` Duplicate trait chips (synonyms collapsing in translation) → grouped by label (0.2.8).
 - `[BUG]` Similarity mode returned 0 → real trait-profile endpoint `/api/v1/similar` (0.2.8).
 - `[BUG]` 35 wrong/untranslated English names → Wikidata-validated corrections (0.2.9).

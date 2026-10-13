@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 import { LossFlash, useLossPulse } from "../LossFlash";
 
@@ -168,6 +169,9 @@ function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLea
   const v = g.view;
   const fuseLost = useLossPulse(v?.fuses); // a fuse blown → flash
   const bar = <RoomBar code={code} title={t("gameHanabi")} infoSlug="hanabi" gameSlug="hanabi" onLeave={onLeave} />;
+  if (g.game && g.game !== "hanabi") {
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+  }
 
   if (g.status === "closed") {
     return (

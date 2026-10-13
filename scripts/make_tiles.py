@@ -1,34 +1,43 @@
 #!/usr/bin/env python3
-"""Split a grid tile sheet into individual Totem Crawler tile images.
+"""Cut a grid tile sheet into the crawler's individual tile images.
 
-The crawler draws map tiles from art under src/web/public/sprites/crawler/tiles/.
-A "tile sheet" is one image holding several tiles in a regular grid (e.g. a 3x3
-sheet of forest tiles). This is the tile counterpart of scripts/make_sprites.py
-(which builds the Bomberman totem atlas); tiles are kept as INDIVIDUAL files
-rather than one atlas because the client rotates each tile independently to match
-the orientation it was laid in, and rotating a shared atlas viewport would rotate
-its neighbours too.
+The crawler draws each map tile from its own PNG under
+src/web/public/sprites/crawler/tiles/<biome>/tile-<N>.png. This script takes one
+"tile sheet" (an image with several tiles laid out in a regular grid) and writes
+out those PNGs, numbered tile-0, tile-1, ... in reading order (left to right, top
+to bottom), plus a tiles.json manifest. Tiles are separate files, not one atlas,
+because the client rotates each tile on its own to match how it was laid; a shared
+atlas would rotate its neighbours too.
 
-What it does:
-  1. splits the sheet into rows x cols equal cells (the tiles sit in a clean grid,
-     each already framed, so an arithmetic split is exact);
-  2. optionally trims a frame inset and rescales every cell to one square size;
-  3. writes each cell to <out>/tile-<i>.png in reading order (top-to-bottom,
-     left-to-right), plus a tiles.json manifest (index, row, col, file).
+WHAT GETS WRITTEN
+  Every cell becomes <out>/tile-<index>.png. The index is the cell's position in
+  reading order, shifted by --start. The manifest is merged with any existing
+  tiles.json, so writing a few tiles never drops the ones you did not touch. The
+  engine tile kinds (straight, bend, tee, ...) map to these files in TILE_ART
+  (src/web/src/games/crawler/logic.ts); re-running refreshes the art, no code change.
 
-The client maps engine tile kinds (straight/bend/tee/cross/dead-end/boss) to these
-files in TILE_ART (CrawlerPage.tsx); re-running with a new sheet refreshes the art
-with no code change as long as the grid shape is the same.
+THE THREE KNOBS THAT PICK TILES
+  --rows / --cols  describe the sheet's grid (always required).
+  --start N        number the first written tile tile-N instead of tile-0.
+  --only K         write ONLY cell K (0-based, reading order) instead of them all.
+  So --start says what to CALL the output, and --only says which cell to TAKE.
 
---start N numbers the FIRST cell tile-N instead of tile-0, so a small sheet can
-overwrite specific tiles without clobbering the rest: splitting a single corrected
-T-junction over the existing tile-3 is `--rows 1 --cols 1 --start 3`. The manifest is
-MERGED with any existing tiles.json (only the regenerated indices change), so a
-partial re-split never drops the tiles it did not touch.
+RECIPES
+  # a whole 3x3 sheet -> tile-0 .. tile-8
+  scripts/make_tiles.py sheet.png --rows 3 --cols 3
 
-  scripts/make_tiles.py SHEET --rows 3 --cols 3
-  scripts/make_tiles.py SHEET --rows 3 --cols 3 --size 256 --inset 8
-  scripts/make_tiles.py ONE-TILE.png --rows 1 --cols 1 --start 3   # overwrite tile-3
+  # same, into a biome folder, trimming an 8px frame, 256px tiles
+  scripts/make_tiles.py sheet.png --rows 3 --cols 3 --inset 8 --size 256 \
+    --out src/web/public/sprites/crawler/tiles/woodland
+
+  # one corrected tile over the existing tile-3 (sheet holds just that tile)
+  scripts/make_tiles.py one-tile.png --rows 1 --cols 1 --start 3
+
+  # a 9x9 sheet, but you only want its FIRST cell, written as tile-9
+  scripts/make_tiles.py big.png --rows 9 --cols 9 --only 0 --start 9
+
+  # the 4th cell of a 3x3 sheet (reading order: index 3), written as tile-9
+  scripts/make_tiles.py sheet.png --rows 3 --cols 3 --only 3 --start 9
 """
 import argparse
 import json
@@ -47,7 +56,8 @@ def main() -> None:
     ap.add_argument("--out", default=DEFAULT_OUT, help=f"output dir (default {DEFAULT_OUT})")
     ap.add_argument("--size", type=int, default=256, help="square px per tile (0 keeps the source size)")
     ap.add_argument("--inset", type=int, default=0, help="px trimmed from each side of a cell (drop the frame)")
-    ap.add_argument("--start", type=int, default=0, help="index of the first cell (tile-<start>); overwrite a specific tile without renumbering the rest")
+    ap.add_argument("--start", type=int, default=0, help="number the first written tile tile-<start> (default 0)")
+    ap.add_argument("--only", type=int, default=-1, help="write ONLY this cell (0-based, reading order), named by --start")
     args = ap.parse_args()
 
     img = Image.open(args.sheet).convert("RGBA")
@@ -65,8 +75,12 @@ def main() -> None:
 
     written = []
     i = args.start
+    cell_no = -1  # reading-order index within the sheet, for --only
     for r in range(args.rows):
         for c in range(args.cols):
+            cell_no += 1
+            if args.only >= 0 and cell_no != args.only:
+                continue  # skip every cell but the one requested
             left = round(c * cw) + args.inset
             top = round(r * ch) + args.inset
             right = round((c + 1) * cw) - args.inset

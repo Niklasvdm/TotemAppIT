@@ -144,4 +144,18 @@ export const GAME_RULES: Record<string, GameRules> = {
     ],
     example: "You roll 1, 2, 5, 6. Spend the 5 to Attack a Gor (Armour 4) for a hit, the 6 as Courage, the 2 to Brace an ally for Shields, and the 1 to Move toward the exit.",
   },
+  skyjo: {
+    icon: "🂡",
+    title: "Skyjo",
+    players: "2–8 players",
+    summary: "Lower your 3×4 grid's total. Lowest total when someone passes 100 wins.",
+    steps: [
+      "Everyone starts with 12 face-down cards and flips 2 of them.",
+      "On your turn, either draw the top of the deck (then keep it in place of a grid card, or discard it and flip one face-down card) or take the top discard (and swap it into your grid).",
+      "Three face-up cards of the same value in a column clear (they score 0), so matching columns is the way to cut your total.",
+      "When one player turns their whole grid face-up, everyone else takes one more turn, then all grids are revealed and scored (sum of your cards; cards run -2 to 12).",
+      "The round-ender's score is doubled if they did not finish lowest. First past 100 points ends the game; the lowest total wins.",
+    ],
+    example: "You draw a -2 from the deck and swap it over a face-down card: your total drops and the replaced card goes to the discard, face-up, for the next player.",
+  },
 };

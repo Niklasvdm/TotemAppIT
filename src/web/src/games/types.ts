@@ -71,6 +71,7 @@ export interface WelcomeMsg {
   t: "welcome";
   you: number;
   code: string;
+  game: string; // the room's game slug
   host: number;
   hz: number;
   fuse: number; // bomb fuse length in ticks

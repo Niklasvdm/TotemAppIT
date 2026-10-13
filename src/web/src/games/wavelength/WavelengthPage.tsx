@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 
 // Mirrors wlView in internal/game/wavelength.go. `target` is the hidden spot —
@@ -135,6 +136,9 @@ function WavelengthRoom({ code, name, onLeave }: { code: string; name: string; o
   const g = useRoom<WlView>(code, name);
   const v = g.view;
   const bar = <RoomBar code={code} title={t("gameWavelength")} infoSlug="wavelength" gameSlug="wavelength" onLeave={onLeave} />;
+  if (g.game && g.game !== "wavelength") {
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+  }
 
   if (g.status === "closed") {
     return (

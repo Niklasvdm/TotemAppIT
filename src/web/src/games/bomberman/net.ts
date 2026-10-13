@@ -139,6 +139,8 @@ export interface Connection {
   tickMs: number;
   fuseTicks: number;
   serverBuild: string;
+  /** The room's game slug from the welcome; a page rejects a mismatch. */
+  game: string;
   /** How many reconnect attempts have been made since the last good frame. */
   retries: number;
   stats: Stats;
@@ -167,6 +169,7 @@ export function useGame(
   const [tickMs, setTickMs] = useState(1000 / 60);
   const [fuseTicks, setFuseTicks] = useState(120);
   const [serverBuild, setServerBuild] = useState("?");
+  const [game, setGame] = useState(""); // the room's game slug from the welcome
   const [retries, setRetries] = useState(0);
   const [stats, setStats] = useState<Stats>({ bombs: 0, power: 0 });
 
@@ -398,6 +401,7 @@ export function useGame(
             setTickMs(1000 / msg.hz);
             setFuseTicks(msg.fuse);
             setServerBuild(msg.build || "?");
+            if (typeof msg.game === "string") setGame(msg.game);
             if (msg.token) {
               resumeToken.current = msg.token;
               try {
@@ -552,6 +556,7 @@ export function useGame(
     tickMs,
     fuseTicks,
     serverBuild,
+    game,
     retries,
     stats,
     net,

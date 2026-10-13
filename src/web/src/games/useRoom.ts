@@ -34,6 +34,7 @@ export interface Room<V> {
   host: number;
   roster: RoomRosterEntry[];
   view: V | null; // the latest game "state" frame
+  game: string; // the room's game slug from the welcome ("" until then); a page compares it to its own
   retries: number;
   send: (msg: object) => void;
 }
@@ -45,6 +46,7 @@ export function useRoom<V = unknown>(code: string, name: string, meta = ""): Roo
   const [host, setHost] = useState(-1);
   const [roster, setRoster] = useState<RoomRosterEntry[]>([]);
   const [view, setView] = useState<V | null>(null);
+  const [game, setGame] = useState("");
   const [retries, setRetries] = useState(0);
 
   const sock = useRef<WebSocket | null>(null);
@@ -87,6 +89,7 @@ export function useRoom<V = unknown>(code: string, name: string, meta = ""): Roo
           case "welcome":
             setYou(m.you as number);
             setHost(m.host as number);
+            if (typeof m.game === "string") setGame(m.game);
             setRoster((m.roster as RoomRosterEntry[]) ?? []);
             if (typeof m.token === "string" && m.token) {
               resume.current = m.token;
@@ -136,5 +139,5 @@ export function useRoom<V = unknown>(code: string, name: string, meta = ""): Roo
     };
   }, [code, name, meta, tokenKey]);
 
-  return { status, error, you, host, roster, view, retries, send };
+  return { status, error, you, host, roster, view, game, retries, send };
 }

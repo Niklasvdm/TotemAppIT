@@ -119,10 +119,11 @@ func TestCrawlerWeightedDicePerCharacter(t *testing.T) {
 		diceN int
 	}{
 		{"bever", diceLow, 7, 4},
-		{"pijlinktvis", diceHigh, 4, 4},
-		{"boomkikker", diceLow, 6, 4},
+		{"pijlinktvis", diceHigh, 4, 3},
+		{"boomkikker", diceLow, 6, 5},
 		{"wasbeer", diceBalanced, 5, 5},
 		{"comorenwever", diceLow, 5, 5},
+		{"wolf", diceHigh, 5, 4},
 	} {
 		s := sheetFor(tc.totem)
 		if s.maxHP != tc.hp || s.diceN != tc.diceN {
@@ -647,9 +648,9 @@ func TestCrawlerBossInFinalBand(t *testing.T) {
 func TestCrawlerMultipleMonstersPerTile(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	mons := []*crawlerMonster{
-		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "drone", alive: true, reward: 1},
-		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "drone", alive: true, reward: 1},
-		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "drone", alive: true, reward: 1},
+		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "scrapling", alive: true, reward: 1},
+		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "scrapling", alive: true, reward: 1},
+		{armour: 3, health: 1, maxHealth: 1, damage: 1, kind: "scrapling", alive: true, reward: 1},
 	}
 	edges := [4]bool{true, true, true, true} // a cross: centre + four doorways walkable
 	assignMonsterSquares(edges, mons)
@@ -682,7 +683,8 @@ func TestCrawlerMultipleMonstersPerTile(t *testing.T) {
 	}
 }
 
-// The boss's Health scales with the party size (~3 per hero) rather than a flat value.
+// The boss's Health scales with the party size (hpPerHero per hero), so it is always a
+// positive multiple of the player count.
 func TestCrawlerBossHealthScalesWithPlayers(t *testing.T) {
 	for _, n := range []int{1, 2, 4, 6} {
 		g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
@@ -690,19 +692,20 @@ func TestCrawlerBossHealthScalesWithPlayers(t *testing.T) {
 			g.AddPlayer("hero", "")
 		}
 		g.bands = 3
+		g.level = 1
 		g.buildDeck()
-		want := 3 * n
-		if want < 3 {
-			want = 3
-		}
 		found := false
 		for _, s := range g.deck {
 			if !s.isBoss {
 				continue
 			}
 			found = true
-			if len(s.monsters) != 1 || s.monsters[0].maxHealth != want {
-				t.Fatalf("%d players: boss Health = %v, want %d", n, s.monsters, want)
+			boss := s.monsters[0] // the boss is always the first monster of its tile
+			// Health = base + perHero*players; bases are 5-6 and perHero 2-3 across the
+			// pool, so any drawn boss sits within these bounds (the note's "X + Y").
+			lo, hi := 5+2*n, 6+3*n
+			if !boss.isBoss || boss.maxHealth < lo || boss.maxHealth > hi {
+				t.Fatalf("%d players: boss Health %d should be base+perHero*players (%d..%d)", n, boss.maxHealth, lo, hi)
 			}
 		}
 		if !found {
@@ -764,25 +767,44 @@ func TestCrawlerPortalTeleport(t *testing.T) {
 	}
 }
 
-// A healing spring heals the moment a hero steps onto its centre, costs no die, and is
-// not consumed: stepping off and back on heals again.
-func TestCrawlerHealingSpringHealsOnEntryRepeatable(t *testing.T) {
+// A healing spring restores a hero to FULL health the moment it steps onto the centre,
+// costs no die, and is not consumed: stepping off and back on heals again.
+func TestCrawlerHealingSpringHealsToFullOnEntryRepeatable(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	spring := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindHealing, false, nil)
 	h := g.players[0]
 	h.tileID = spring.id
 	h.square = 3 // W doorway, not yet on the spring
-	h.health = 2
+	h.health = 1
 	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1}) // East -> centre
-	if h.square != 4 || h.health != 2+crSpringHeal {
-		t.Fatalf("stepping onto the spring centre should heal with no extra die: sq=%d hp=%d", h.square, h.health)
+	if h.square != 4 || h.health != h.sheet.maxHP {
+		t.Fatalf("stepping onto the spring centre should restore full health with no die: sq=%d hp=%d/%d", h.square, h.health, h.sheet.maxHP)
 	}
-	// Step off to the N doorway and back onto the centre: it heals again (not depleted).
+	// Take damage, step off and back onto the centre: it heals to full again (not depleted).
+	h.health = 2
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actMove, "dir": 0}) // North -> N door
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 2, "action": actMove, "dir": 2}) // South -> centre
-	if h.square != 4 || h.health != 2+2*crSpringHeal {
-		t.Fatalf("re-entering the spring centre should heal again (not depleted): sq=%d hp=%d", h.square, h.health)
+	if h.square != 4 || h.health != h.sheet.maxHP {
+		t.Fatalf("re-entering the spring centre should heal to full again: sq=%d hp=%d/%d", h.square, h.health, h.sheet.maxHP)
+	}
+}
+
+// Defeating a monster grants its Courage reward to every living hero on its tile (the
+// group that fought it), not only the one who struck the killing blow.
+func TestCrawlerKillCourageSharedOnTile(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	m := &crawlerMonster{armour: 3, health: 1, maxHealth: 1, damage: 1, square: 4, alive: true, reward: 2}
+	tile := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "cross", false, []*crawlerMonster{m})
+	g.players[0].tileID = tile.id
+	g.players[1].tileID = tile.id // ally sharing the tile, did not attack
+	g.players[0].courage = 0
+	g.players[1].courage = 0
+	g.turn = 0
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if g.players[0].courage != 2 || g.players[1].courage != 2 {
+		t.Fatalf("both heroes on the tile should gain the %d reward: p0=%d p1=%d", m.reward, g.players[0].courage, g.players[1].courage)
 	}
 }
 
@@ -815,15 +837,996 @@ func TestCrawlerSquidBarbedShotAndDeepVolley(t *testing.T) {
 	}
 }
 
+// Defeating the FINAL level's boss wins the run.
 func TestCrawlerBossDefeatWins(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
-	boss := &crawlerMonster{armour: 5, health: 1, maxHealth: 1, damage: 4, square: 4, alive: true, isBoss: true, reward: 3}
+	g.level = crMaxLevel // final boss: its defeat ends the run
+	boss := &crawlerMonster{armour: 5, health: 1, maxHealth: 1, damage: 4, square: 4, alive: true, isBoss: true, reward: 3, bossName: "The Core"}
 	bt := g.placeTile(9, 9, [4]bool{true, false, false, false}, 2, "boss", true, []*crawlerMonster{boss})
 	g.players[0].tileID = bt.id
 	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
 	if g.phase != crWon {
-		t.Fatalf("defeating the boss should win, phase=%q", g.phase)
+		t.Fatalf("defeating the final boss should win, phase=%q", g.phase)
+	}
+}
+
+// Defeating a non-final boss descends to the next level with a fresh map; beating the
+// last Forest level (2) crosses into the Ruins biome (level 3).
+func TestCrawlerBossDefeatDescendsLevel(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2
+	g.biome = crWoodland
+	boss := &crawlerMonster{armour: 5, health: 1, maxHealth: 1, damage: 4, square: 4, alive: true, isBoss: true, reward: 3, bossName: "Vespex"}
+	bt := g.placeTile(9, 9, [4]bool{true, false, false, false}, 2, "boss", true, []*crawlerMonster{boss})
+	g.players[0].tileID = bt.id
+	g.players[0].courage = 5 // will be reset by the level transition
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
+	if g.phase != crPlaying || g.level != 3 || g.biome != crRuins {
+		t.Fatalf("beating level 2 should start level 3 (Ruins), got phase=%q level=%d biome=%q", g.phase, g.level, g.biome)
+	}
+	if g.players[0].courage != 0 || g.players[0].health != g.players[0].sheet.maxHP {
+		t.Fatalf("a new level should reset Courage and refill health: courage=%d hp=%d", g.players[0].courage, g.players[0].health)
+	}
+}
+
+// --- boss pool & signature specials ----------------------------------------
+
+func crBossFight(g *crawlerGame, m *crawlerMonster) *crawlerTile {
+	t := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{m})
+	g.players[0].tileID = t.id
+	g.players[0].square = 4
+	return t
+}
+
+func TestCrawlerRollBossIsLevelGated(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	// Level 1 only draws Mossback, Vespex or Pylon (no raw-damage specials).
+	g.level = 1
+	ok := map[string]bool{"Mossback": true, "Vespex": true, "Pylon": true}
+	for i := 0; i < 30; i++ {
+		m := g.rollBossMonsters()[0]
+		if !m.isBoss || !ok[m.bossName] {
+			t.Fatalf("level 1 boss should be a Woodland opener, got %q", m.bossName)
+		}
+	}
+	// Level 6 can draw The Core (the finale, two specials).
+	g.level = 6
+	sawCore := false
+	for i := 0; i < 60; i++ {
+		if g.rollBossMonsters()[0].bossName == "The Core" {
+			sawCore = true
+		}
+	}
+	if !sawCore {
+		t.Fatal("level 6 should be able to draw The Core")
+	}
+}
+
+func TestCrawlerBossAdaptivePlatingClimbsResetOnSix(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := &crawlerMonster{armour: 3, health: 6, maxHealth: 6, damage: 1, square: 4, alive: true, isBoss: true, reward: 3, bossName: "Mossback", specials: []string{bsAdaptive}}
+	crBossFight(g, m)
+	m.plating = 2 // two rounds of climbing Armour
+	h := g.players[0]
+	if got := g.effectiveArmour(h, m); got != 5 {
+		t.Fatalf("Adaptive Plating should add to Armour (3+2), got %d", got)
+	}
+	// A landed 6 cracks the plating back to 0.
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.plating != 0 {
+		t.Fatalf("a 6 should reset the plating, got %d", m.plating)
+	}
+}
+
+func TestCrawlerBossJammerRaisesOthersArmour(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	jammer := &crawlerMonster{armour: 6, health: 3, maxHealth: 3, damage: 3, square: 4, alive: true, isBoss: true, bossName: "Pylon", specials: []string{bsJammer}}
+	g.placeTile(7, 7, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{jammer})
+	drone := &crawlerMonster{armour: 3, health: 1, maxHealth: 1, damage: 1, square: 4, alive: true, kind: "scrapling"}
+	crBossFight(g, drone)
+	h := g.players[0]
+	if got := g.effectiveArmour(h, drone); got != 4 {
+		t.Fatalf("jammer should raise a drone's Armour from 3 to 4, got %d", got)
+	}
+	jammer.alive = false
+	if got := g.effectiveArmour(h, drone); got != 3 {
+		t.Fatalf("with the jammer dead the drone's Armour returns to 3, got %d", got)
+	}
+}
+
+func TestCrawlerBossShockwaveHitsTileOnly(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	m := &crawlerMonster{armour: 5, health: 5, maxHealth: 5, damage: 0, square: 4, alive: true, isBoss: true, bossName: "Thornstag", specials: []string{bsShockwave}}
+	bt := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{m})
+	far := g.placeTile(9, 9, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	// Seat 0 on the boss tile, seat 1 far away.
+	g.players[0].tileID = bt.id
+	g.players[0].health = 5
+	g.players[1].tileID = far.id
+	g.players[1].health = 5
+	g.resolveRound()
+	if g.players[0].health != 4 {
+		t.Fatalf("shockwave should hit a hero on the boss tile for 1, got %d", g.players[0].health)
+	}
+	if g.players[1].health != 5 {
+		t.Fatalf("shockwave must NOT reach a hero on another tile, got %d", g.players[1].health)
+	}
+}
+
+func TestCrawlerBossSummonerISpawnsScrapling(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := &crawlerMonster{armour: 5, health: 6, maxHealth: 6, damage: 3, square: 4, alive: true, isBoss: true, bossName: "Vespex", specials: []string{bsSummon1}}
+	bt := crBossFight(g, m)
+	g.players[0].tileID = g.placeTile(9, 9, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	g.resolveRound()
+	drones := 0
+	for _, mm := range bt.monsters {
+		if mm.alive && mm.kind == "scrapling" {
+			drones++
+		}
+	}
+	if drones != 1 {
+		t.Fatalf("Vespex (Summoner I) should spawn 1 Scrapling each round, got %d", drones)
+	}
+}
+
+func TestCrawlerBossSummonerIIISpawnsSentryAndDrone(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := &crawlerMonster{armour: 6, health: 8, maxHealth: 8, damage: 4, square: 4, alive: true, isBoss: true, bossName: "The Core", specials: []string{bsSummon3}}
+	bt := crBossFight(g, m)
+	g.players[0].tileID = g.placeTile(9, 9, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	g.resolveRound()
+	sentries, drones := 0, 0
+	for _, mm := range bt.monsters {
+		if !mm.alive {
+			continue
+		}
+		if mm.kind == "sentry" {
+			sentries++
+		}
+		if mm.kind == "scrapling" {
+			drones++
+		}
+	}
+	if sentries != 1 || drones != 1 {
+		t.Fatalf("Summoner III should add a Sentry and a Scrapling, got sentries=%d drones=%d", sentries, drones)
+	}
+}
+
+func TestCrawlerBossHardenedCoreImmuneUntilWeakPoint(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	boss := &crawlerMonster{armour: 3, health: 6, maxHealth: 6, damage: 4, square: 4, alive: true, isBoss: true, bossName: "Hauler", specials: []string{bsHardcore}}
+	wp := &crawlerMonster{armour: 3, health: 1, maxHealth: 1, alive: true, weakPoint: true}
+	t2 := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{boss, wp})
+	g.players[0].tileID = t2.id
+	g.players[0].square = 4
+	g.dice = []crawlerDie{{Value: 6}, {Value: 6}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0}) // boss (idx 0): immune
+	if boss.health != 6 {
+		t.Fatalf("the boss should be immune while its weak-point stands, hp=%d", boss.health)
+	}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actAttack, "monster": 1}) // kill weak-point (idx 1)
+	g.dice = []crawlerDie{{Value: 6}, {Value: 6}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0}) // now the boss takes it
+	if wp.alive || boss.health != 5 {
+		t.Fatalf("with the weak-point gone the boss takes damage: wpAlive=%v hp=%d", wp.alive, boss.health)
+	}
+}
+
+func TestCrawlerMonsterDamageEnrage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	base := &crawlerMonster{damage: 4, specials: []string{bsEnrage}}
+	if d := g.monsterDamage(base); d != 4 {
+		t.Fatalf("no enrage stacks yet -> base damage 4, got %d", d)
+	}
+	base.enrage = 2 // two rounds survived
+	if d := g.monsterDamage(base); d != 6 {
+		t.Fatalf("Enrage adds +1 per round survived (4+2), got %d", d)
+	}
+}
+
+func TestCrawlerBossOverloadElectrifies(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := &crawlerMonster{armour: 6, health: 6, maxHealth: 6, damage: 0, square: 4, alive: true, isBoss: true, bossName: "Teslacrane", specials: []string{bsOverload}}
+	crBossFight(g, m)
+	g.players[0].health = 6
+	g.resolveRound() // overload electrifies, then the tick deals 1
+	if !g.players[0].electrified {
+		t.Fatal("Overload should apply Electrified to a hero")
+	}
+	hp := g.players[0].health
+	g.resolveRound() // still electrified -> another tick
+	if g.players[0].health >= hp {
+		t.Fatalf("Electrified should tick 1 damage each round: %d -> %d", hp, g.players[0].health)
+	}
+	// Grounding Boots make a hero immune.
+	g.players[0].electrified = false
+	g.players[0].objects = []string{"grounding-boots"}
+	g.resolveRound()
+	if g.players[0].electrified {
+		t.Fatal("Grounding Boots should prevent Electrified")
+	}
+}
+
+func TestCrawlerBossSplitBreaksOffCore(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := &crawlerMonster{armour: 3, health: 4, maxHealth: 4, damage: 4, square: 4, alive: true, isBoss: true, bossName: "Widowframe", specials: []string{bsSplit}}
+	bt := crBossFight(g, m)
+	g.dice = []crawlerDie{{Value: 4}, {Value: 4}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0}) // 4 -> 3
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actAttack, "monster": 0}) // 3 -> 2 (half) -> split
+	if !m.didSplit {
+		t.Fatal("Widowframe should split at half health")
+	}
+	adds := 0
+	for _, mm := range bt.monsters {
+		if mm.alive && !mm.isBoss {
+			adds++
+		}
+	}
+	if adds != 1 {
+		t.Fatalf("Split should break off one weaker core, got %d adds", adds)
+	}
+}
+
+// --- objects / loot economy ------------------------------------------------
+
+func TestCrawlerObjectCatalogueMatchesNote(t *testing.T) {
+	perms, cons := 0, 0
+	weight := 0
+	for _, o := range crObjects {
+		if o.perm {
+			perms++
+		} else {
+			cons++
+			weight += o.weight
+		}
+	}
+	if perms != 8 || cons != 8 {
+		t.Fatalf("catalogue should be 8 permanents + 8 consumables, got %d/%d", perms, cons)
+	}
+	if weight != 100 {
+		t.Fatalf("consumable drop weights should sum to 100, got %d", weight)
+	}
+}
+
+func TestCrawlerShopBuySpendsCourage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	shop := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindShop, false, nil)
+	h := g.players[0]
+	h.tileID = shop.id
+	h.square = 4
+	h.courage = 10
+	h.objects = nil
+	g.shopStock = []string{"medkit", "scope"}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgBuy, "obj": "scope"})
+	if h.courage != 7 || !heroHas(h, "scope") {
+		t.Fatalf("buying Scope (cost 3) should spend Courage and add it: courage=%d objs=%v", h.courage, h.objects)
+	}
+	// Off a shop tile, buying is refused.
+	h.tileID = g.placeTile(6, 6, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgBuy, "obj": "medkit"})
+	if heroHas(h, "medkit") {
+		t.Fatal("buying away from a shop must be refused")
+	}
+}
+
+func TestCrawlerSpareDieAddsHighDie(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	base := h.sheet.diceN
+	h.objects = []string{"spare-die"}
+	g.beginTurn(0)
+	if len(g.dice) != base+1 {
+		t.Fatalf("Spare Die should add one die: %d, want %d", len(g.dice), base+1)
+	}
+}
+
+func TestCrawlerWhetstoneDoublesSixes(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := setupFight(g, 3, 5, 1) // Armour 3, Health 5
+	g.players[0].objects = []string{"whetstone"}
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.health != 3 {
+		t.Fatalf("Whetstone should make a 6 land two hits (5 -> 3): %d", m.health)
+	}
+}
+
+func TestCrawlerMedkitHeals(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.health = 2
+	h.objects = []string{"medkit"}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgUse, "obj": "medkit"})
+	if h.health != 5 || heroHas(h, "medkit") {
+		t.Fatalf("Medkit should heal 3 and be consumed: hp=%d objs=%v", h.health, h.objects)
+	}
+}
+
+func TestCrawlerBatteryGivesCourage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.courage = 1
+	h.objects = []string{"battery"}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgUse, "obj": "battery"})
+	if h.courage != 3 || heroHas(h, "battery") {
+		t.Fatalf("Battery should give +2 Courage and be consumed: courage=%d", h.courage)
+	}
+}
+
+func TestCrawlerGloveFreeRerollThenCourage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.objects = []string{"gamblers-glove"}
+	h.courage = 1
+	g.beginTurn(0)
+	g.reroll(0, 0) // free via the glove
+	if h.courage != 1 || !h.gloveUsed {
+		t.Fatalf("first reroll should be free via the glove: courage=%d used=%v", h.courage, h.gloveUsed)
+	}
+	g.reroll(0, 0) // now costs Courage
+	if h.courage != 0 {
+		t.Fatalf("the second reroll should spend Courage: courage=%d", h.courage)
+	}
+}
+
+func TestCrawlerObjectsCarryAcrossLevels(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.players[0].objects = []string{"scope", "medkit"}
+	g.players[0].courage = 5
+	g.startLevel(2)
+	if len(g.players[0].objects) != 2 {
+		t.Fatalf("objects should carry across levels, got %v", g.players[0].objects)
+	}
+	if g.players[0].courage != 0 {
+		t.Fatalf("Courage should reset across levels, got %d", g.players[0].courage)
+	}
+}
+
+func TestCrawlerObjectCapIsPerTotem(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0] // the Beaver carries only 2
+	if heroSlots(h) != 2 {
+		t.Fatalf("the Beaver should have 2 object slots, got %d", heroSlots(h))
+	}
+	h.objects = []string{"medkit", "grenade"} // full at 2
+	if g.giveObject(h, "scope") {
+		t.Fatal("a full pack should refuse a new object")
+	}
+	if len(h.objects) != heroSlots(h) {
+		t.Fatalf("pack should stay at the cap, got %d", len(h.objects))
+	}
+	// The Arrow Squid (Striker, ranged) carries 2; the Treefrog (Healer) carries 3.
+	g.players[0].sheet = squidSheet()
+	if heroSlots(g.players[0]) != 2 {
+		t.Fatalf("the Arrow Squid should have 2 object slots, got %d", heroSlots(g.players[0]))
+	}
+	g.players[0].sheet = treefrogSheet()
+	if heroSlots(g.players[0]) != 3 {
+		t.Fatalf("the Treefrog should have 3 object slots, got %d", heroSlots(g.players[0]))
+	}
+}
+
+func TestCrawlerVaultLootsOnceFromLevel2(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	vault := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindVault, false, nil)
+	h := g.players[0]
+	h.tileID = vault.id
+	h.square = 3 // a doorway, not yet on the cache
+	h.objects = nil
+	g.dice = []crawlerDie{{Value: 1}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1}) // step onto centre
+	if h.square != 4 || len(h.objects) != 1 || !vault.used {
+		t.Fatalf("stepping onto a Vault should grant one consumable and spend it: sq=%d objs=%v used=%v", h.square, h.objects, vault.used)
+	}
+	// Re-entering a looted Vault gives nothing more.
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 1, "action": actMove, "dir": 0}) // off to N door
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 2, "action": actMove, "dir": 2}) // back to centre
+	if len(h.objects) != 1 {
+		t.Fatalf("a looted Vault should not yield again, got %v", h.objects)
+	}
+}
+
+func TestCrawlerVaultOnlyFromLevel2(t *testing.T) {
+	for _, lvl := range []int{1, 2} {
+		g := newCrawlerGame(newFakeOutbox(0), 9).(*crawlerGame)
+		g.AddPlayer("a", "")
+		g.bands = 3
+		g.level = lvl
+		g.buildDeck()
+		has := false
+		for _, s := range g.deck {
+			if s.kind == crKindVault {
+				has = true
+			}
+		}
+		if lvl == 1 && has {
+			t.Fatal("no Vault should appear at Level 1")
+		}
+		if lvl == 2 && !has {
+			t.Fatal("a Vault should appear from Level 2")
+		}
+	}
+}
+
+// --- loot on the floor ------------------------------------------------------
+
+func TestCrawlerBossDropsLandAndKillerOnTilePicksUp(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := setupFight(g, 1, 1, 1)
+	m.isBoss = true
+	m.bossName = "Test Boss"
+	h := g.players[0]
+	tile := g.tiles[h.tileID] // setupFight puts the hero on the monster's tile
+	h.objects = nil
+	g.dropFrom(tile, m, h)
+	// A boss drops 3 items; the killer on the tile auto-picks up to its slot cap.
+	if len(h.objects) == 0 {
+		t.Fatalf("killer on the boss tile should auto-pick its drops, got %v", h.objects)
+	}
+	picked := len(h.objects)
+	left := len(tile.loot)
+	if picked+left != 3 {
+		t.Fatalf("a boss drops 3 items (picked %d + floor %d != 3)", picked, left)
+	}
+	if picked != heroSlots(h) && left != 0 {
+		t.Fatalf("auto-pickup should fill the pack or clear the floor: picked=%d slots=%d floor=%d", picked, heroSlots(h), left)
+	}
+}
+
+func TestCrawlerPickupOnlyFromOwnTile(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.objects = nil
+	// Loot sits on a DIFFERENT tile from the hero.
+	other := g.placeTile(9, 9, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	g.dropGround(other, 4, "medkit")
+	// Hero stands elsewhere: a pickup must be refused (no sniping the adjacent tile).
+	g.pickup(0, 4)
+	if heroHas(h, "medkit") || len(other.loot) != 1 {
+		t.Fatalf("pickup from another tile must fail: objs=%v floor=%d", h.objects, len(other.loot))
+	}
+	// Move onto that tile, then the pickup succeeds.
+	h.tileID = other.id
+	h.square = 4
+	g.pickup(0, 4)
+	if !heroHas(h, "medkit") || len(other.loot) != 0 {
+		t.Fatalf("pickup from your own tile should work: objs=%v floor=%d", h.objects, len(other.loot))
+	}
+}
+
+func TestCrawlerDropLeavesObjectOnTheSquare(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.objects = []string{"scope"}
+	h.square = 2
+	g.dropObject(0, "scope")
+	if heroHas(h, "scope") {
+		t.Fatal("dropping should remove the object from the pack")
+	}
+	tile := g.tiles[h.tileID]
+	if len(tile.loot) != 1 || tile.loot[0].square != 2 || tile.loot[0].slug != "scope" {
+		t.Fatalf("the dropped object should stay on square 2: %+v", tile.loot)
+	}
+}
+
+func TestCrawlerBossCannotBeSnipedFromAdjacentTile(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.sheet.ranged = true // give reach so only the boss rule blocks it
+	m := &crawlerMonster{armour: 1, health: 5, maxHealth: 5, damage: 1, square: 4, alive: true, reward: 1, isBoss: true, bossName: "Boss"}
+	bossTile := g.placeTile(1, 0, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{m})
+	// Hero stands on the adjacent start tile, not the boss tile.
+	if g.tryAttack(0, bossTile.id, 0, 6) {
+		t.Fatal("a boss must not be hittable from an adjacent tile")
+	}
+	// Standing on the boss tile, the same attack lands.
+	h.tileID = bossTile.id
+	if !g.tryAttack(0, bossTile.id, 0, 6) {
+		t.Fatal("a boss on your own tile should be hittable")
+	}
+}
+
+func TestCrawlerLootRollRecordedOnOrdinaryKill(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	m := setupFight(g, 1, 1, 1)
+	m.kind = "hulk" // highest drop chance
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.alive {
+		t.Fatal("the monster should be dead")
+	}
+	if g.lootRoll == nil {
+		t.Fatal("an ordinary kill should record a visible drop roll")
+	}
+	if g.lootRoll.chance != robotDropChance("hulk") || g.lootRoll.roll < 1 || g.lootRoll.roll > 100 {
+		t.Fatalf("drop roll should be 1..100 vs the kind's chance: %+v", g.lootRoll)
+	}
+}
+
+func TestCrawlerLootRollClearsAtTurnStart(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.lootRoll = &crawlerLootRoll{roll: 10, chance: 35}
+	g.beginTurn(0)
+	if g.lootRoll != nil {
+		t.Fatal("the drop roll should clear at the start of a turn")
+	}
+}
+
+// --- character ability coverage ---------------------------------------------
+
+func TestCrawlerRaccoonLuckyPawsFreeReroll(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.sheet = raccoonSheet()
+	h.courage = 3 // Lucky Paws (first unlock) active at 3
+	h.objects = nil
+	g.beginTurn(0)
+	h.courage = 3 // beginTurn does not change courage; keep it explicit
+	g.reroll(0, 0)
+	if h.courage != 3 || !h.pawsUsed {
+		t.Fatalf("Lucky Paws should give one free reroll: courage=%d used=%v", h.courage, h.pawsUsed)
+	}
+	g.reroll(0, 0) // the second reroll now costs Courage
+	if h.courage != 2 {
+		t.Fatalf("the second reroll should spend Courage: %d", h.courage)
+	}
+}
+
+func TestCrawlerTreefrogBloomHealsParty(t *testing.T) {
+	g, _ := startedCrawler(t, 3)
+	heal := g.players[0]
+	heal.sheet = treefrogSheet()
+	heal.courage = 5
+	a, b := g.players[1], g.players[2]
+	a.health, b.health = 1, 1
+	g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMend, "ally": 1})
+	if a.health != 1+2+1 {
+		t.Fatalf("Bloom: mend target should heal 2 + 1 Bloom = +3, got %d", a.health-1)
+	}
+	if b.health != 1+1 {
+		t.Fatalf("Bloom: the other ally on the tile should heal 1, got %d", b.health-1)
+	}
+	if !heal.bloomUsed {
+		t.Fatal("Bloom should be marked used for the round")
+	}
+}
+
+func TestCrawlerWeaverFerryCarriesAcrossTileEdge(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	w := g.players[0]
+	w.sheet = comorosSheet()
+	w.courage = 3 // Ferry (first unlock) active at 3
+	// Two adjacent cross tiles already placed; the ally sits at the east doorway.
+	a := g.tiles[w.tileID]                                                          // at (0,0)
+	b := g.placeTile(1, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // east neighbour
+	ally := g.players[1]
+	ally.tileID = a.id
+	ally.square = 5 // east doorway
+	g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actCarry, "ally": 1, "dir": 1})
+	if ally.tileID != b.id {
+		t.Fatalf("Ferry should carry the ally into the east tile, got tile %d (want %d)", ally.tileID, b.id)
+	}
+}
+
+func TestCrawlerWeaverFlockCarriesTwoSquares(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	w := g.players[0]
+	w.sheet = comorosSheet()
+	w.courage = 5 // Flock (second unlock) active at 5
+	ally := g.players[1]
+	ally.tileID = w.tileID
+	ally.square = 3 // west doorway on the cross
+	g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actCarry, "ally": 1, "dir": 1})
+	if ally.square != 5 {
+		t.Fatalf("Flock should carry two squares W-door -> centre -> E-door (5), got %d", ally.square)
+	}
+}
+
+func TestCrawlerRaccoonBigScoreAddsSlot(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.sheet = raccoonSheet() // 3 object slots
+	h.courage = 0
+	if heroSlots(h) != 3 {
+		t.Fatalf("Raccoon base slots should be 3, got %d", heroSlots(h))
+	}
+	h.courage = 5 // Big Score active
+	if heroSlots(h) != 4 {
+		t.Fatalf("Big Score should grant a 4th slot, got %d", heroSlots(h))
+	}
+}
+
+func TestCrawlerShopStocksFiveAndRefillsOnBuy(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.rollShop()
+	if len(g.shopStock) != crShopSize {
+		t.Fatalf("the shop should stock %d objects, got %d", crShopSize, len(g.shopStock))
+	}
+	shop := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindShop, false, nil)
+	h := g.players[0]
+	h.tileID = shop.id
+	h.square = 4
+	h.courage = 10
+	h.objects = nil
+	bought := g.shopStock[0]
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgBuy, "obj": bought})
+	if !heroHas(h, bought) {
+		t.Fatalf("the hero should hold the bought object %q", bought)
+	}
+	if len(g.shopStock) != crShopSize {
+		t.Fatalf("the shop should refill back to %d after a purchase, got %d", crShopSize, len(g.shopStock))
+	}
+}
+
+// --- statuses and hazards (Level 2+) ----------------------------------------
+
+func TestCrawlerElectrocutedLowersEachDie(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.electrocuted = true
+	g.beginTurn(0)
+	for i, d := range g.dice {
+		if d.Value < 1 {
+			t.Fatalf("die %d below 1: %d", i, d.Value)
+		}
+	}
+	// A fresh roll with electrocuted off should (on average) read higher, but the key
+	// invariant is: no die exceeds the sheet's max face minus the shock, and min is 1.
+	max := 0
+	for _, f := range h.sheet.faces {
+		if f > max {
+			max = f
+		}
+	}
+	for _, d := range g.dice {
+		if d.Value > max {
+			t.Fatalf("electrocuted die %d exceeds max face %d", d.Value, max)
+		}
+	}
+}
+
+func TestCrawlerRustedDropsADie(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	base := h.sheet.diceN
+	h.rusted = true
+	g.beginTurn(0)
+	if len(g.dice) != base-1 {
+		t.Fatalf("Rusted should drop one die (%d -> %d), got %d", base, base-1, len(g.dice))
+	}
+}
+
+func TestCrawlerSnaredBlocksLeavingTile(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	g.placeTile(1, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // east neighbour
+	h.square = crawlerDoor[1]                                                  // east doorway of the start cross
+	h.snared = true
+	if g.tryMove(0, 1) {
+		t.Fatal("a Snared hero must not cross a tile edge")
+	}
+	// Within-tile movement is still allowed.
+	h.square = 4
+	if !g.tryMove(0, 1) {
+		t.Fatal("a Snared hero can still move within its own tile")
+	}
+}
+
+func TestCrawlerDrainedBlocksCourage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.drained = true
+	h.courage = 2
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actCourage})
+	if h.courage != 2 || g.dice[0].Spent {
+		t.Fatalf("Drained must block the Courage action: courage=%d spent=%v", h.courage, g.dice[0].Spent)
+	}
+}
+
+func TestCrawlerWiringHazardEntryAndEndOfTurn(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2 // hazards begin at Level 2
+	h := g.players[0]
+	t0 := g.tiles[h.tileID]
+	t0.hazards = []crawlerHazard{{square: h.square, kind: hzWiring}}
+	hp := h.health
+	g.enterHazard(h)
+	if h.health != hp-1 {
+		t.Fatalf("live wiring should chip 1 on entry (%d -> %d), got %d", hp, hp-1, h.health)
+	}
+	g.endTurnHazards(h)
+	if !h.electrocuted {
+		t.Fatal("ending a turn on live wiring should Electrocute")
+	}
+}
+
+func TestCrawlerMineFiresOnce(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2
+	h := g.players[0]
+	t0 := g.tiles[h.tileID]
+	t0.hazards = []crawlerHazard{{square: h.square, kind: hzMine}}
+	hp := h.health
+	g.enterHazard(h)
+	if h.health != hp-3 {
+		t.Fatalf("a mine should burst for 3 (%d -> %d), got %d", hp, hp-3, h.health)
+	}
+	hp = h.health
+	g.enterHazard(h) // spent now
+	if h.health != hp {
+		t.Fatal("a spent mine should not fire again")
+	}
+}
+
+func TestCrawlerCoolantSnaresOnEntry(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2
+	h := g.players[0]
+	t0 := g.tiles[h.tileID]
+	t0.hazards = []crawlerHazard{{square: h.square, kind: hzCoolant}}
+	g.enterHazard(h)
+	if !h.snared {
+		t.Fatal("wading into coolant should Snare")
+	}
+}
+
+func TestCrawlerFireEndOfTurn(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2
+	h := g.players[0]
+	t0 := g.tiles[h.tileID]
+	t0.hazards = []crawlerHazard{{square: h.square, kind: hzFire}}
+	hp := h.health
+	g.endTurnHazards(h)
+	if h.health != hp-2 || !h.electrified {
+		t.Fatalf("fire should deal 2 + Electrify: hp %d->%d electrified=%v", hp, h.health, h.electrified)
+	}
+}
+
+func TestCrawlerFogHidesTileContents(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	g.level = 2
+	// Put the party far away, then a fog tile with a monster off on its own.
+	far := g.placeTile(9, 9, [4]bool{true, true, true, true}, 0, crKindFog, false,
+		[]*crawlerMonster{{armour: 3, health: 1, maxHealth: 1, damage: 1, square: 4, alive: true}})
+	far.hazards = []crawlerHazard{{square: -1, kind: hzFog}}
+	v := g.viewFor(0)
+	var tv *crawlerTileView
+	for i := range v.Tiles {
+		if v.Tiles[i].ID == far.id {
+			tv = &v.Tiles[i]
+		}
+	}
+	if tv == nil || !tv.Fogged || len(tv.Monsters) != 0 {
+		t.Fatalf("a distant fog tile should hide its monsters: fogged=%v monsters=%d", tv != nil && tv.Fogged, len(tv.Monsters))
+	}
+	// Move a hero adjacent: the contents reveal.
+	g.players[0].tileID = g.placeTile(9, 8, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	v = g.viewFor(0)
+	for i := range v.Tiles {
+		if v.Tiles[i].ID == far.id && len(v.Tiles[i].Monsters) != 1 {
+			t.Fatalf("an adjacent hero should reveal the fog tile's monster, got %d", len(v.Tiles[i].Monsters))
+		}
+	}
+}
+
+func TestCrawlerStatusDieTablePure(t *testing.T) {
+	if monsterStatus("scrapling", 2) != "electrocuted" || monsterStatus("scrapling", 5) != "rusted" {
+		t.Fatal("Scrapling sting should be Electrocuted early, Rusted in the machine rooms")
+	}
+	if monsterStatus("hulk", 3) != "" {
+		t.Fatal("the Hulk carries no status")
+	}
+	if monsterStatus("sentry", 2) != "electrocuted" || monsterStatus("grappler", 2) != "snared" || monsterStatus("jammer", 3) != "drained" {
+		t.Fatal("Sentry = Electrocuted, Grappler = Snared, Jammer = Drained")
+	}
+	if statusThreshold("scrapling", 1) != 7 || statusThreshold("scrapling", 4) != 4 {
+		t.Fatalf("thresholds: L1 never(7), L4 4; got %d/%d", statusThreshold("scrapling", 1), statusThreshold("scrapling", 4))
+	}
+}
+
+func TestCrawlerGroundingBootsImmuneToShock(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.objects = []string{"grounding-boots"}
+	if g.applyStatus(h, "electrocuted") || g.applyStatus(h, "electrified") {
+		t.Fatal("Grounding Boots should shrug off the electrical statuses")
+	}
+	if !g.applyStatus(h, "snared") {
+		t.Fatal("Grounding Boots do not block Snared")
+	}
+}
+
+func TestCrawlerSpringClearsStatuses(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.electrocuted, h.snared, h.drained = true, true, true
+	h.health = h.sheet.maxHP // full health, but still afflicted
+	spring := g.placeTile(2, 0, crSpecialBase[crKindHealing], 0, crKindHealing, false, nil)
+	h.tileID = spring.id
+	h.square = 4
+	g.maybeSpring(0)
+	if heroHasStatus(h) {
+		t.Fatal("a spring should wash off every status")
+	}
+}
+
+func TestCrawlerSporesClearsOnMend(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	heal := g.players[0]
+	heal.sheet = treefrogSheet()
+	heal.courage = 3 // Spores (first unlock) active at 3
+	a := g.players[1]
+	a.electrocuted, a.snared = true, true
+	a.health = a.sheet.maxHP // full health: only Spores' cleanse should justify the Mend
+	g.dice = []crawlerDie{{Value: 3}, {Value: 3}, {Value: 3}, {Value: 3}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMend, "ally": 1})
+	if heroHasStatus(a) {
+		t.Fatalf("Spores should clear the Mend target's statuses")
+	}
+	if !g.dice[0].Spent {
+		t.Fatal("a Spores cleanse should consume the die even at full health")
+	}
+}
+
+func TestCrawlerHazardRoomsAppearFromLevel2(t *testing.T) {
+	for _, lvl := range []int{1, 2} {
+		g := newCrawlerGame(newFakeOutbox(0), 9).(*crawlerGame)
+		g.AddPlayer("a", "")
+		g.bands = 3
+		g.level = lvl
+		g.buildDeck()
+		seen := map[string]bool{}
+		for _, s := range g.deck {
+			seen[s.kind] = true
+		}
+		haz := seen[crKindWiring] || seen[crKindCoolant] || seen[crKindFog]
+		if lvl == 1 && haz {
+			t.Fatal("no hazard rooms should appear at Level 1")
+		}
+		if lvl == 2 && !haz {
+			t.Fatal("hazard rooms should appear from Level 2")
+		}
+	}
+}
+
+func TestCrawlerSeedHazardsOnWiringRoom(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	room := g.placeTile(3, 0, crSpecialBase[crKindWiring], 0, crKindWiring, false, nil)
+	g.seedHazards(room)
+	if len(room.hazards) == 0 {
+		t.Fatal("a wiring room should seed wiring hazards on its doorways")
+	}
+	for _, hz := range room.hazards {
+		if hz.kind != hzWiring {
+			t.Fatalf("a wiring room should seed only wiring, got %q", hz.kind)
+		}
+	}
+}
+
+func TestCrawlerTorchClearsTileHazards(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2
+	h := g.players[0]
+	h.objects = []string{"torch"}
+	t0 := g.tiles[h.tileID]
+	t0.hazards = []crawlerHazard{{square: 1, kind: hzWiring}, {square: 5, kind: hzWiring}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgUse, "obj": "torch"})
+	if len(t0.hazards) != 0 || heroHas(h, "torch") {
+		t.Fatalf("a Torch should clear the tile's hazards and be consumed: hazards=%d held=%v", len(t0.hazards), h.objects)
+	}
+}
+
+// --- archetypes, Wolf, and renamed enemies ----------------------------------
+
+func TestCrawlerWolfGroupStrengthHealsWithAlly(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	w := g.players[0]
+	w.sheet = wolfSheet()
+	w.health = 3
+	ally := g.players[1]
+	ally.tileID = w.tileID // share the tile
+	g.beginTurn(0)
+	if w.health != 4 {
+		t.Fatalf("Group strength should heal 1 with an ally on the tile (3 -> 4), got %d", w.health)
+	}
+	// Alone, no heal.
+	w.health = 3
+	ally.tileID = g.placeTile(9, 9, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	g.beginTurn(0)
+	if w.health != 3 {
+		t.Fatalf("Group strength should not heal when alone, got %d", w.health)
+	}
+}
+
+func TestCrawlerWolfPackTacticsExtraHit(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	w := g.players[0]
+	w.sheet = wolfSheet()
+	w.courage = 3                             // Pack Tactics active
+	m := setupFight(g, 3, 5, 1)               // Armour 3, Health 5; hero 0 is on its tile
+	g.players[1].tileID = g.players[0].tileID // ally shares the Wolf's tile
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.health != 3 { // 1 base + 1 Pack Tactics = 2 hits, 5 -> 3
+		t.Fatalf("Pack Tactics should add a hit with an ally on the tile (5 -> 3), got %d", m.health)
+	}
+}
+
+func TestCrawlerWolfFrenzyFreeDieOnKill(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	w := g.players[0]
+	w.sheet = wolfSheet()
+	w.courage = 5 // Frenzy active
+	m := setupFight(g, 3, 1, 1)
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	before := len(g.dice)
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.alive {
+		t.Fatal("the Health-1 monster should die")
+	}
+	if len(g.dice) != before+1 {
+		t.Fatalf("Frenzy should add a free attack die on a kill (%d -> %d), got %d", before, before+1, len(g.dice))
+	}
+}
+
+func TestCrawlerJammerRobotHardensAllies(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	jammer := &crawlerMonster{armour: 3, health: 2, maxHealth: 2, damage: 1, square: 1, kind: "jammer", alive: true, reward: 2}
+	scrap := &crawlerMonster{armour: 3, health: 1, maxHealth: 1, damage: 1, square: 5, kind: "scrapling", alive: true, reward: 1}
+	t0 := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "cross", false, []*crawlerMonster{jammer, scrap})
+	h.tileID = t0.id
+	if g.effectiveArmour(h, scrap) != 4 {
+		t.Fatalf("a Jammer robot should harden the Scrapling to Armour 4, got %d", g.effectiveArmour(h, scrap))
+	}
+	// Kill the Jammer: the aura lifts.
+	jammer.alive = false
+	if g.effectiveArmour(h, scrap) != 3 {
+		t.Fatalf("with the Jammer dead the Scrapling is back to Armour 3, got %d", g.effectiveArmour(h, scrap))
+	}
+}
+
+func TestCrawlerBossHealthIsBasePlusPerPlayer(t *testing.T) {
+	for _, n := range []int{1, 3, 5} {
+		g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+		for i := 0; i < n; i++ {
+			g.AddPlayer("h", "")
+		}
+		g.level = 1
+		mons := g.rollBossMonsters()
+		boss := mons[0]
+		var def *bossDef
+		for i := range bossRoster {
+			if bossRoster[i].name == boss.bossName {
+				def = &bossRoster[i]
+			}
+		}
+		if def == nil {
+			t.Fatalf("drawn boss %q not in the roster", boss.bossName)
+		}
+		want := def.baseHP + def.hpPerHero*n
+		if boss.maxHealth != want {
+			t.Fatalf("%s with %d players: Health %d, want base+perHero = %d", boss.bossName, n, boss.maxHealth, want)
+		}
+	}
+}
+
+func TestCrawlerRobotDropChancesMatchNote(t *testing.T) {
+	for kind, want := range map[string]int{"scrapling": 15, "sentry": 25, "jammer": 25, "grappler": 25, "hulk": 35} {
+		if got := robotDropChance(kind); got != want {
+			t.Fatalf("%s drop chance %d, want %d", kind, got, want)
+		}
 	}
 }

@@ -1,5 +1,5 @@
 {
-  "slug": "brute",
+  "slug": "grappler",
   "size": 128,
   "frames": [
     {
@@ -9,8 +9,8 @@
     },
     {
       "i": 1,
-      "name": "attack",
-      "file": "attack.png"
+      "name": "alert",
+      "file": "alert.png"
     },
     {
       "i": 2,
@@ -29,8 +29,8 @@
     },
     {
       "i": 5,
-      "name": "charge",
-      "file": "charge.png"
+      "name": "attack",
+      "file": "attack.png"
     },
     {
       "i": 6,

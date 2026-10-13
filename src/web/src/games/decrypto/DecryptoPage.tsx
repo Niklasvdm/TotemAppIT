@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 
 interface DcHist {
@@ -162,6 +163,9 @@ function DecryptoRoom({ code, name, onLeave }: { code: string; name: string; onL
   const [myGuess, setMyGuess] = useState([0, 0, 0]);
   const v = g.view;
   const bar = <RoomBar code={code} title={t("gameDecrypto")} infoSlug="decrypto" gameSlug="decrypto" onLeave={onLeave} />;
+  if (g.game && g.game !== "decrypto") {
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+  }
 
   if (g.status === "closed") {
     return (

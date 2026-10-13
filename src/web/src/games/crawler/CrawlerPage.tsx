@@ -4,17 +4,23 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 import { LossFlash, useLossPulse } from "../LossFlash";
 import { useStatsFlag } from "../bomberman/NetHud";
+import {
+  type Edges, type CrPose, tileArt,
+  POSE_BASE, POSE_LEN, poseFromDelta, effectiveArmour, biomeTileDir,
+} from "./logic";
 
 // A roster of totems to play as. Only the Beaver has a distinct sheet in V0
 // (Brace); the rest share the generic sheet. meta = the slug sent on join. Every
 // slug here has sprites in the Bomberman atlas (see SPRITE_ROWS).
 const TOTEMS = [
   { slug: "bever", label: "Beaver 🦫 (Guardian · 4 Low dice, HP7)" },
-  { slug: "pijlinktvis", label: "Arrow squid 🦑 (Striker · 4 High dice, HP4)" },
-  { slug: "boomkikker", label: "Treefrog 🐸 (Healer · 4 Low dice, HP6)" },
+  { slug: "pijlinktvis", label: "Arrow squid 🦑 (Striker ranged · 3 High dice, HP4)" },
+  { slug: "wolf", label: "Wolf 🐺 (Striker melee · 4 High dice, HP5)" },
+  { slug: "boomkikker", label: "Treefrog 🐸 (Healer · 5 Low dice, HP6)" },
   { slug: "wasbeer", label: "Raccoon 🦝 (Trickster · 5 Balanced dice, HP5)" },
   { slug: "comorenwever", label: "Comoros weaver 🕷 (Carrier · 5 Low dice, HP5)" },
   { slug: "eekhoorn", label: "Squirrel (generic)" },
@@ -37,13 +43,10 @@ const SPRITE_ROWS = [
 const ATLAS_COLS = 11; // front(3)+back(3)+side(4)+defeated(1)
 const ATLAS_ROWS = SPRITE_ROWS.length;
 
-// Walk poses in the atlas: each pose's first column and its walk-cycle length. The
-// art faces right, so a leftward move mirrors the `side` pose. The defeated frame is
-// the last column. (Same layout as Bomberman's totems.json: front 0-2, back 3-5,
-// side 6-9, defeated 10.)
-type CrPose = "front" | "back" | "side";
-const POSE_BASE: Record<CrPose, number> = { front: 0, back: 3, side: 6 };
-const POSE_LEN: Record<CrPose, number> = { front: 3, back: 3, side: 4 };
+// Walk poses, tile-art rotation and the effective-Armour rule live in ./logic (pure,
+// unit-tested). The defeated frame is the last atlas column; the pose columns come from
+// POSE_BASE/POSE_LEN. (Atlas layout matches Bomberman's totems.json: front 0-2, back
+// 3-5, side 6-9, defeated 10.)
 const WALK_FRAME_MS = 140; // ms per walk-cycle frame (matches Bomberman's walkMs)
 const WALK_STEP_MS = 560; // how long a single server move plays its walk cycle
 
@@ -95,6 +98,16 @@ interface CrHero {
   unlock1?: string;
   diceType?: string; // low/balanced/high
   ranged?: boolean;
+  objects: string[]; // object slugs held
+  slots: number; // object capacity (per totem)
+  electrified?: boolean;
+  electrocuted?: boolean; // status: -1 to each die value
+  snared?: boolean; // status: can't leave your tile
+  drained?: boolean; // status: can't gain Courage
+  rusted?: boolean; // status: one fewer die
+  freeReroll?: boolean; // a free reroll (Glove or Lucky Paws) is available (own hero)
+  freeSrc?: string; // emoji for the free-reroll source
+  luckyReady?: boolean; // Lucky Charm nudge still available (own hero)
   gone?: boolean;
 }
 interface CrMonster {
@@ -109,12 +122,73 @@ interface CrMonster {
   engaged: boolean;
   alive: boolean;
   isBoss: boolean;
+  name?: string; // boss display name
+  specials?: string[]; // boss signature specials
 }
 
 // Enemies with art (scripts/make_enemies.py). Each renders its idle frame, or its
-// attack frame + a lunge while engaged (the hero is fighting it this turn). Unknown
-// kinds and the boss fall back to an emoji.
-const ENEMY_ART = new Set(["drone", "brute", "tank", "boss"]);
+// attack frame + a lunge while engaged (the hero is fighting it this turn). A boss kind
+// without its own art falls back to the generic boss sprite; other unknowns to an emoji.
+const ENEMY_ART = new Set(["scrapling", "sentry", "hulk", "jammer", "grappler", "boss", "vespex", "pylon"]);
+
+// Human labels for a boss's signature specials (keys match the server's bs* consts).
+const BOSS_SPECIALS: Record<string, string> = {
+  adaptive: "Adaptive Plating (+1 Armour each round until a 6 lands, then resets)",
+  summon1: "Summoner I (spawns 1 Scrapling each round)",
+  summon2: "Summoner II (spawns 2 Scraplings each round)",
+  summon3: "Summoner III (spawns a Sentry and a Scrapling each round)",
+  jammer: "Jammer Field (+1 Armour to every other robot)",
+  shockwave: "Shockwave (every hero on its tile takes 1 each round)",
+  hardcore: "Hardened Core (immune until its weak-point is destroyed)",
+  overload: "Overload (Electrifies a random hero each round)",
+  split: "Split (breaks off a second core at half health)",
+  enrage: "Enrage (+1 Damage each round it survives)",
+};
+function specialLabel(s: string): string {
+  return BOSS_SPECIALS[s] ?? s;
+}
+
+// Objects/loot (mirrors the design note + crawler_objects.go). Each has an icon under
+// sprites/crawler/objects/<slug>.png with an emoji fallback; `target` marks consumables
+// whose use needs a monster target (Grenade). Permanents are passive (no Use button).
+const OBJECTS: Record<string, { name: string; emoji: string; perm: boolean; effect: string; target?: boolean }> = {
+  "spare-die": { name: "Spare Die", emoji: "🎲", perm: true, effect: "adds a High attack die to your pool" },
+  whetstone: { name: "Whetstone", emoji: "🔪", perm: true, effect: "your 6s count as two hits" },
+  "lucky-charm": { name: "Lucky Charm", emoji: "🍀", perm: true, effect: "once a turn, nudge one die +1" },
+  "gamblers-glove": { name: "Gambler's Glove", emoji: "🧤", perm: true, effect: "one free reroll each turn" },
+  scope: { name: "Scope", emoji: "🎯", perm: true, effect: "your attacks reach an adjacent tile" },
+  plating: { name: "Plating", emoji: "🛡️", perm: true, effect: "start each turn with Shields topped to 2" },
+  harness: { name: "Harness", emoji: "🎒", perm: true, effect: "carry an ally when you move" },
+  "grounding-boots": { name: "Grounding Boots", emoji: "🥾", perm: true, effect: "immune to shock statuses" },
+  medkit: { name: "Medkit", emoji: "🩹", perm: false, effect: "heal 3" },
+  grenade: { name: "Grenade", emoji: "💣", perm: false, effect: "auto-kill a Health-1 robot on your tile", target: true },
+  "recall-whistle": { name: "Recall Whistle", emoji: "↩️", perm: false, effect: "teleport to a transporter" },
+  battery: { name: "Battery", emoji: "🔋", perm: false, effect: "+2 Courage" },
+  torch: { name: "Torch", emoji: "🔦", perm: false, effect: "clears the hazards on your tile" },
+  "courage-horn": { name: "Courage Horn", emoji: "📯", perm: false, effect: "+1 Courage to every ally on your tile" },
+  beacon: { name: "Beacon", emoji: "📍", perm: false, effect: "place a transporter tile next to you" },
+  "sap-seed": { name: "Sap Seed", emoji: "🌱", perm: false, effect: "place a healing tile next to you" },
+};
+function objInfo(slug: string) {
+  return OBJECTS[slug] ?? { name: slug, emoji: "📦", perm: false, effect: "" };
+}
+
+// ObjIcon shows the object's art, falling back to its emoji if the image is missing.
+function ObjIcon({ slug, size = 22 }: { slug: string; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  const info = objInfo(slug);
+  if (broken) return <span style={{ fontSize: size * 0.9 }}>{info.emoji}</span>;
+  return (
+    <img
+      className="cr-obj-icon"
+      src={`/sprites/crawler/objects/${slug}.png`}
+      alt={info.name}
+      width={size}
+      height={size}
+      onError={() => setBroken(true)}
+    />
+  );
+}
 function MonsterSprite({ m }: { m: CrMonster }) {
   const slug = ENEMY_ART.has(m.kind) ? m.kind : m.isBoss ? "boss" : "";
   if (!slug) return <>{m.alive ? "👹" : "💀"}</>;
@@ -137,7 +211,11 @@ interface CrTile {
   rot: number;
   edges: [boolean, boolean, boolean, boolean];
   isBoss: boolean;
+  used?: boolean; // a looted Vault
   monsters: CrMonster[];
+  loot?: { square: number; slug: string }[]; // objects lying on the floor
+  hazards?: { square: number; kind: string }[]; // hazards on squares (square -1 = whole tile)
+  fogged?: boolean; // sensor fog hides this tile's contents
 }
 interface CrLayOption {
   x: number;
@@ -161,8 +239,42 @@ interface CrView {
   bossNear: boolean;
   bonusMoves: number; // directed steps left in the active hero's multi-move (a fast mover)
   grace: number; // collapse countdown once the stack is empty; -1 while tiles remain
+  level: number; // 1..6
+  biome: string; // Woodland / Ruins / Machine
+  shopStock: { slug: string; name: string; cost: number }[];
+  lootRoll?: { roll: number; chance: number; hit: boolean; name?: string; killer?: string } | null;
+  statusRoll?: { roll: number; need: number; status: string; hit: boolean; target?: string } | null;
   log: string[];
 }
+
+// Status metadata: an icon + one-line meaning, keyed by the server's status slug.
+const STATUSES: Record<string, { icon: string; label: string; blurb: string }> = {
+  electrified: { icon: "⚡", label: "Electrified", blurb: "Loses 1 health each round until cleared (a heal clears it)." },
+  electrocuted: { icon: "🔌", label: "Electrocuted", blurb: "-1 to each die value until cleared." },
+  snared: { icon: "🕸️", label: "Snared", blurb: "Can't leave your tile until cleared." },
+  drained: { icon: "🪫", label: "Drained", blurb: "Can't gain Courage until cleared." },
+  rusted: { icon: "🦠", label: "Rusted", blurb: "One fewer die until cleared." },
+};
+
+// heroStatuses lists the active status slugs on a hero, in display order.
+function heroStatuses(h: CrHero): string[] {
+  const out: string[] = [];
+  if (h.electrified) out.push("electrified");
+  if (h.electrocuted) out.push("electrocuted");
+  if (h.snared) out.push("snared");
+  if (h.drained) out.push("drained");
+  if (h.rusted) out.push("rusted");
+  return out;
+}
+
+// Hazard metadata for the board tokens.
+const HAZARDS: Record<string, { icon: string; label: string }> = {
+  wiring: { icon: "⚡", label: "Live wiring: 1 damage to cross, Electrocuted if you end here" },
+  fire: { icon: "🔥", label: "Fire: 2 damage and Electrified if you end here" },
+  coolant: { icon: "💧", label: "Coolant: Snares you when you step in" },
+  fog: { icon: "🌫️", label: "Sensor fog: contents hidden until a hero is on or next to the tile" },
+  mine: { icon: "💥", label: "Mine: bursts once for 3 damage when stepped on" },
+};
 
 // The minimum die value each action needs. Comes from the hero's sheet (sent by the
 // server on your own hero); falls back to the default map. Attack has min 1 (any die
@@ -177,6 +289,7 @@ function menuMins(me: CrHero): Record<string, number> {
 // (10), with the two unlocks marked along it.
 const COURAGE_UNLOCKS: [number, number] = [3, 5];
 const COURAGE_CAP = 10;
+const OBJECT_CAP = 3; // object slots per hero (matches crObjectCap on the server)
 
 // Human labels and one-line explanations for the tile shapes (kind on the wire).
 const TILE_KINDS: Record<string, { label: string; blurb: string }> = {
@@ -187,8 +300,17 @@ const TILE_KINDS: Record<string, { label: string; blurb: string }> = {
   "dead-end": { label: "Dead end", blurb: "A single doorway: caps a branch." },
   boss: { label: "Boss lair", blurb: "The boss waits here. One doorway in." },
   portal: { label: "Portal", blurb: "Stand on the centre to teleport to another portal." },
-  healing: { label: "Healing spring", blurb: "Step onto the centre to heal. No die needed, and it keeps working on each fresh entry." },
-  shop: { label: "Shop", blurb: "A merchant's stall. Trading arrives with the loot system." },
+  healing: { label: "Healing spring", blurb: "Step onto the centre to heal to full. No die needed, and it keeps working on each fresh entry." },
+  shop: { label: "Shop", blurb: "The kangaroo's stall: buy objects with Courage. Standing here also clears your statuses." },
+  vault: { label: "Vault", blurb: "A loot cache: step onto the centre for one free consumable (once)." },
+  shrine: { label: "Shrine", blurb: "A landmark (cosmetic, from Level 2)." },
+  gate: { label: "City gate", blurb: "The broken gate from the woodland into the ruins (cosmetic)." },
+  wiring: { label: "Live wiring", blurb: "Hazard room: the doorway squares are live floor (1 damage to cross, Electrocuted if you end on one)." },
+  coolant: { label: "Coolant flood", blurb: "Hazard room: wading into the coolant on a doorway square Snares you." },
+  fog: { label: "Sensor fog", blurb: "Hazard room: its robots and loot stay hidden until a hero is on or next to it." },
+  rust: { label: "Rust room", blurb: "Ruins hazard room (from Level 3)." },
+  trap: { label: "Trap room", blurb: "Hazard room: a mine on a doorway square bursts once for 3 damage." },
+  overheat: { label: "Overheat room", blurb: "Machine hazard room: fire deals 2 and can Electrify if you end on it (from Level 5)." },
 };
 function tileKind(kind: string) {
   return TILE_KINDS[kind] ?? { label: kind || "Tile", blurb: "" };
@@ -201,40 +323,6 @@ function tileKind(kind: string) {
 // a different cell, just change its file + base here. The boss (stairs, tile-7)
 // and the gate (tile-6) are deliberately left out for now, so a boss tile uses
 // the styled fallback cell (red border + "Boss lair" label).
-type Edges = [boolean, boolean, boolean, boolean];
-const T = true, F = false;
-const TILE_ART: Record<string, { file: string; base: Edges }> = {
-  straight: { file: "tile-1", base: [T, F, T, F] }, //   horizontal corridor
-  bend: { file: "tile-2", base: [F, T, T, F] }, //        N+W corner
-  tee: { file: "tile-3", base: [T, T, T, F] }, //         E+S+W junction
-  cross: { file: "tile-4", base: [T, T, T, T] }, //       4-way clearing
-  "dead-end": { file: "tile-0", base: [F, F, T, F] }, //  one doorway (from the top)
-  healing: { file: "tile-5", base: [T, T, T, F] }, //     healing spring: same open edges as the T-junction (tee)
-  portal: { file: "tile-6", base: [T, T, T, T] }, //      transporter/start: same open edges as the crossroads
-  shop: { file: "tile-7", base: [F, T, F, F] }, //        merchant stall, a dead-end nook
-  boss: { file: "tile-8", base: [T, F, F, F] }, //        the boss lair
-};
-
-function rotateEdges(base: Edges, r: number): Edges {
-  return [0, 1, 2, 3].map((d) => base[(d - r + 4) % 4]) as Edges;
-}
-
-// tileArt picks the art for a tile and the rotation (0/90/180/270) to draw it at.
-// It uses the rotations whose edges line up with the tile's actual open edges, and
-// among those prefers the one matching the tile's stored `rot` so a symmetric tile
-// (the crossroads) still rotates visibly. Returns null when the kind has no art.
-function tileArt(kind: string, edges: Edges, rot = 0): { file: string; deg: number } | null {
-  const art = TILE_ART[kind];
-  if (!art) return null;
-  const valid: number[] = [];
-  for (let r = 0; r < 4; r++) {
-    if (rotateEdges(art.base, r).every((v, i) => v === edges[i])) valid.push(r);
-  }
-  const want = ((rot % 4) + 4) % 4;
-  const pick = valid.includes(want) ? want : valid.length ? valid[0] : want;
-  return { file: art.file, deg: pick * 90 };
-}
-
 // What each inherent special does, keyed by its action. Shown in the info hover on
 // the character sheet so players know before spending Courage.
 const SPECIAL_INFO: Record<string, { name: string; blurb: string }> = {
@@ -253,14 +341,16 @@ const UNLOCK_BLURBS: Record<string, string> = {
   "Bulwark": "Passive: when an ally on your tile would take Damage, you may take it instead, reduced by your Shields first.",
   "Barbed Shot": "Active at 3 Courage: your attacks ignore 1 Armour, so a lower die can land.",
   "Deep Volley": "Active at 5 Courage: once a turn, an attacking 6 counts as two hits.",
-  "Spores": "Mend also clears a hazard on the target. Spec'd; needs the hazard system.",
-  "Bloom": "Once a round, Mend heals everyone on your tile 1. Spec'd; not active in V0 yet.",
-  "Lucky Paws": "Once a turn, reroll any one die for free. Spec'd; not active in V0 yet.",
-  "Big Score": "Defeated robots drop +1 loot; hold 4 loot. Spec'd; needs the loot system.",
-  "Ferry": "Carry an ally as far as you move, across tiles. Spec'd; needs the carry system.",
-  "Flock": "Carry two allies, or the carried ally gets a free step. Spec'd; needs the carry system.",
-  "Resolve": "A self-buff unlocked with Courage.",
-  "Second Wind": "A stronger self-buff unlocked with Courage.",
+  "Spores": "Your Mend also clears the target's statuses (works even at full health).",
+  "Bloom": "Once a round, your Mend also heals every other hero on your tile 1.",
+  "Lucky Paws": "Once a turn, reroll any one die for free.",
+  "Big Score": "Hold one more object (4), and your kills drop one extra consumable.",
+  "Ferry": "Your Carry can cross a tile edge, moving the ally into the next tile.",
+  "Flock": "Your Carry moves the ally two squares (a free extra step).",
+  "Pack Tactics": "While a living ally shares your tile, your attacks land an extra hit.",
+  "Frenzy": "Each kill on your turn grants a free attack die, so kills can chain.",
+  "Resolve": "Passive: start your turn with at least 1 Shield.",
+  "Second Wind": "Passive: heal 1 at the start of your turn.",
 };
 function unlockInfo(me: CrHero): [{ name: string; blurb: string }, { name: string; blurb: string }] {
   const one = me.unlock0 ?? "First special";
@@ -310,15 +400,7 @@ function useHeroSprites(v?: CrView | null): SpriteFor {
         return;
       }
       if (prev.gx === gx && prev.gy === gy) return;
-      const dx = gx - prev.gx, dy = gy - prev.gy;
-      let pose = prev.pose, flip = prev.flip;
-      if (Math.abs(dx) >= Math.abs(dy)) {
-        pose = "side";
-        if (dx < 0) flip = true;
-        else if (dx > 0) flip = false;
-      } else {
-        pose = dy < 0 ? "back" : "front"; // up = away (back), down = toward (front)
-      }
+      const { pose, flip } = poseFromDelta(gx - prev.gx, gy - prev.gy, prev.flip);
       anim.current.set(h.s, { gx, gy, pose, flip, until: now + WALK_STEP_MS });
     });
   }, [v]);
@@ -472,6 +554,9 @@ function CrawlerRoom({
   const myHp = g.view ? g.view.heroes.find((h) => h.s === g.view!.you)?.health : undefined;
   const hpLost = useLossPulse(myHp);
   const bar = <RoomBar code={code} title={t("gameCrawler")} infoSlug="crawler" gameSlug="crawler" onLeave={onLeave} />;
+  if (g.game && g.game !== "crawler") {
+    return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;
+  }
 
   if (g.status === "closed") {
     return (
@@ -577,6 +662,7 @@ function CrawlerRoom({
       {bar}
       <LossFlash show={hpLost} icon="💔" label="damage" />
       <div className="mind-hud panel">
+        {v.level > 0 && <span className="cr-level">⛰ Level {v.level}/6 · {v.biome}</span>}
         <span>
           {v.grace >= 0
             ? `🂠 stack empty`
@@ -588,7 +674,7 @@ function CrawlerRoom({
 
       {/* top row: character sheet (3/4) beside the dice + actions (1/4) */}
       <div className="cr-top-row">
-        {me && <CharacterSheet me={me} lost={v.ph === "lost"} />}
+        {me && <CharacterSheet me={me} lost={v.ph === "lost"} view={v} myTurn={myTurn} selDie={sel} onSend={(msg) => { g.send(msg); }} />}
         <div className="panel cr-action-col">
           {v.step === "lay" ? (
             layActive && layPreview ? (
@@ -601,7 +687,7 @@ function CrawlerRoom({
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", "tile")}
                   title={isPhaseLay ? "Rotate me, then drop me on any glowing cell" : "Rotate me, then drop me on the glowing cell"}
                 >
-                  <TilePreview kind={v.pending!.kind} edges={layPreview.edges} rot={layPreview.rotation} size={92} />
+                  <TilePreview kind={v.pending!.kind} edges={layPreview.edges} rot={layPreview.rotation} size={92} dir={biomeTileDir(v.biome)} />
                 </div>
                 <div className="cr-lay-ctl">
                   {layRots.length > 1 && <button className="game-btn ghost" onClick={rotateLay}>⟳ Rotate</button>}
@@ -675,7 +761,22 @@ function CrawlerRoom({
           <div key={h.s} className={`cr-hero${h.s === v.turn ? " active" : ""}${!h.alive ? " down" : ""}`}>
             <strong>{h.n}{h.s === v.you ? " (you)" : ""}</strong>
             <span>❤ {h.health}/{h.maxHP} · ✊ {h.courage} · 🛡 {h.shields}</span>
+            {heroStatuses(h).length > 0 && (
+              <span className="cr-status-row">
+                {heroStatuses(h).map((s) => (
+                  <span key={s} className="cr-status" title={`${STATUSES[s].label}: ${STATUSES[s].blurb}`}>{STATUSES[s].icon}</span>
+                ))}
+              </span>
+            )}
             <span className="muted-note">{h.totem}{h.unlocked[0] ? " ·★" : ""}{h.unlocked[1] ? "★" : ""}</span>
+            <span className="cr-pack-row" title={`${h.objects.length}/${h.slots || OBJECT_CAP} object slots`}>
+              {Array.from({ length: h.slots || OBJECT_CAP }, (_, i) => {
+                const o = h.objects[i];
+                return o
+                  ? <span key={i} className="cr-pack-cell" title={`${objInfo(o).name}: ${objInfo(o).effect}`}><ObjIcon slug={o} size={18} /></span>
+                  : <span key={i} className="cr-pack-cell empty" />;
+              })}
+            </span>
           </div>
         ))}
       </div>
@@ -687,14 +788,22 @@ function CrawlerRoom({
         </div>
       )}
 
-      {/* the board */}
-      <CrawlerMap
-        v={v}
-        focus={focus}
-        debug={debug}
-        spriteFor={spriteFor}
-        lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt } : null}
-      />
+      {/* the board, with the shop as an overlay callout when you stand on a shop tile */}
+      <div className="cr-board-wrap">
+        <CrawlerMap
+          v={v}
+          focus={focus}
+          debug={debug}
+          spriteFor={spriteFor}
+          onPickup={(sq) => g.send({ t: "pickup", square: sq })}
+          lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt } : null}
+        />
+        {me && myTurn && myTile?.kind === "shop" && me.square === 4 && (
+          <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} />
+        )}
+        {v.lootRoll && <CrawlerLootRoll roll={v.lootRoll} />}
+        {v.statusRoll && <CrawlerStatusRoll roll={v.statusRoll} />}
+      </div>
 
       {debug && <CrawlerDebug v={v} />}
 
@@ -710,10 +819,39 @@ function CrawlerRoom({
 
 // The player's own character sheet, shown prominently at the top: totem sprite,
 // health bar, resources, the action menu (die thresholds) and the two specials.
-function CharacterSheet({ me, lost }: { me: CrHero; lost: boolean }) {
+function CharacterSheet({ me, lost, view, myTurn, selDie, onSend }: {
+  me: CrHero;
+  lost: boolean;
+  view: CrView;
+  myTurn: boolean;
+  selDie: number | null;
+  onSend: (msg: object) => void;
+}) {
   const mins = menuMins(me);
   const spec = specialInfo(me.special);
   const unlocks = unlockInfo(me);
+  const myTile = view.tiles.find((t) => t.id === me.tile);
+  const grenadeTargets = (myTile?.monsters ?? []).filter((m) => m.alive && m.health <= 1 && !m.isBoss);
+  const hasPortal = view.tiles.some((t) => t.kind === "portal");
+  // Whether a held object can be used right now (from its slot), and what happens.
+  const usable = (slug: string): boolean => {
+    if (!myTurn || !me.alive) return false;
+    switch (slug) {
+      case "lucky-charm": return selDie != null;
+      case "grenade": return grenadeTargets.length > 0;
+      case "medkit": return me.health < me.maxHP || !!me.electrified;
+      case "battery": return me.courage < COURAGE_CAP;
+      case "recall-whistle": return hasPortal;
+      case "torch": return (myTile?.hazards?.length ?? 0) > 0; // clears this tile's hazards
+      case "courage-horn": case "beacon": case "sap-seed": return true;
+      default: return false; // other permanents are passive
+    }
+  };
+  const useSlot = (slug: string) => {
+    if (slug === "lucky-charm" && selDie != null) onSend({ t: "lucky", die: selDie });
+    else if (slug === "grenade" && grenadeTargets.length > 0) onSend({ t: "use", obj: "grenade", monster: grenadeTargets[0].id });
+    else onSend({ t: "use", obj: slug });
+  };
   const hpPct = Math.max(0, Math.min(100, Math.round((me.health / me.maxHP) * 100)));
   const couPct = Math.max(0, Math.min(100, Math.round((me.courage / COURAGE_CAP) * 100)));
   // A special's label turns blue once Courage reaches its unlock cost (and it is
@@ -760,11 +898,80 @@ function CharacterSheet({ me, lost }: { me: CrHero; lost: boolean }) {
           ★ {unlocks[1].name} {me.unlocked[1] ? "⚡active" : `(${COURAGE_UNLOCKS[1]}✊)`} <InfoDot text={unlocks[1].blurb} />
         </span>
       </div>
+      <div className="cr-slots">
+        <span className="cr-slots-label">🎒 Objects {me.objects.length}/{me.slots || OBJECT_CAP}</span>
+        {Array.from({ length: me.slots || OBJECT_CAP }, (_, i) => {
+          const slug = me.objects[i];
+          if (!slug) {
+            return (
+              <span key={i} className="cr-slot empty">
+                <InfoDot text="An empty object slot. Fill it with loot dropped by robots, from a Vault, or bought at the kangaroo shop." />
+              </span>
+            );
+          }
+          const info = objInfo(slug);
+          const canUse = usable(slug);
+          const tip = `${info.name}: ${info.effect}${info.perm ? " (permanent)" : " (one-use)"}`;
+          return (
+            <span key={i} className={`cr-slot filled${canUse ? " usable" : ""}`}>
+              {canUse ? (
+                <button className="cr-slot-btn" title={`Use: ${info.name}`} onClick={() => useSlot(slug)}><ObjIcon slug={slug} size={26} /></button>
+              ) : (
+                <ObjIcon slug={slug} size={26} />
+              )}
+              {myTurn && me.alive && (
+                <button className="cr-slot-drop" title={`Drop ${info.name} on your square`} onClick={() => onSend({ t: "drop", obj: slug })}>⤓</button>
+              )}
+              <InfoDot text={tip} />
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// Actions available for the selected die, with their targets inline.
+// CrawlerShop is the kangaroo's stall, shown only while you stand on a shop tile: buy
+// objects with Courage into a free slot. (Using/held objects live on the character
+// sheet's slots now.)
+// CrawlerShopCallout overlays the board (solid panel, its own scroll) when you stand on
+// a shop tile's centre. Each item shows its icon, name, cost and a readable description
+// of what it does; Buy spends Courage into a free slot.
+function CrawlerShopCallout({ me, shop, onSend }: {
+  me: CrHero;
+  shop: { slug: string; name: string; cost: number }[];
+  onSend: (msg: object) => void;
+}) {
+  const packFull = me.objects.length >= (me.slots || OBJECT_CAP);
+  return (
+    <div className="cr-shop-callout">
+      <div className="cr-shop-callout-head">
+        🛒 Kangaroo shop <span className="muted-note">({me.courage}✊ · {me.objects.length}/{me.slots || OBJECT_CAP} slots)</span>
+      </div>
+      {packFull && <div className="cr-shop-note">Pack full: use or drop something first.</div>}
+      {shop.length === 0 && <div className="cr-shop-note">Sold out this level.</div>}
+      <ul className="cr-shop-list">
+        {shop.map((s) => {
+          const info = objInfo(s.slug);
+          const afford = me.courage >= s.cost && !packFull;
+          return (
+            <li key={s.slug} className="cr-shop-item">
+              <ObjIcon slug={s.slug} size={26} />
+              <div className="cr-shop-item-text">
+                <strong>{info.name}</strong>
+                <span className="muted-note">{info.effect}</span>
+              </div>
+              <button className="game-btn" disabled={!afford} onClick={() => onSend({ t: "buy", obj: s.slug })}>
+                {s.cost}✊
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function CrawlerActions({
   die,
   me,
@@ -788,7 +995,7 @@ function CrawlerActions({
   // Arrow Squid's Barbed Shot (first special, active by Courage) lowers a target's
   // Armour by 1; a die lands only if it meets the effective Armour (mirrors the server).
   const barbed = me.totem === "pijlinktvis" && me.unlocked[0];
-  const effArmour = (m: CrMonster) => Math.max(1, m.armour - (barbed ? 1 : 0));
+  const effArmour = (m: CrMonster) => effectiveArmour(m.armour, barbed);
   // Attack targets: living monsters on your tile, plus (for a ranged totem) ones on a
   // tile reachable through an open edge of yours. Only those the selected die can
   // actually hit are offered: attacking with a die below the Armour is not allowed.
@@ -806,7 +1013,11 @@ function CrawlerActions({
   return (
     <div className="cr-actions">
       <div className="cr-action-row">
-        <button className="game-btn ghost" disabled={me.courage < 1} onClick={onReroll}>↻ reroll (1✊)</button>
+        {me.freeReroll ? (
+          <button className="game-btn ghost" title="A free reroll is available this turn" onClick={onReroll}>↻ reroll ({me.freeSrc || "🎲"} free)</button>
+        ) : (
+          <button className="game-btn ghost" disabled={me.courage < 1} onClick={onReroll}>↻ reroll (1✊)</button>
+        )}
       </div>
       {can("move") && (
         <div className="cr-action-row">
@@ -904,7 +1115,7 @@ function TileGlyph({ edges }: { edges: [boolean, boolean, boolean, boolean] }) {
 
 // TilePreview shows a tile's art (rotated to its edges) at an arbitrary size, or
 // the line glyph if the kind has no art. Used for the lay panel and the map ghost.
-function TilePreview({ kind, edges, rot = 0, size = 56 }: { kind: string; edges: Edges; rot?: number; size?: number }) {
+function TilePreview({ kind, edges, rot = 0, size = 56, dir = "woodland" }: { kind: string; edges: Edges; rot?: number; size?: number; dir?: string }) {
   const art = tileArt(kind, edges, rot);
   if (!art) return <TileGlyph edges={edges} />;
   return (
@@ -913,7 +1124,7 @@ function TilePreview({ kind, edges, rot = 0, size = 56 }: { kind: string; edges:
       style={{
         width: size,
         height: size,
-        backgroundImage: `url(/sprites/crawler/tiles/${art.file}.png)`,
+        backgroundImage: `url(/sprites/crawler/tiles/${dir}/${art.file}.png)`,
         transform: `rotate(${art.deg}deg)`,
       }}
     />
@@ -953,6 +1164,38 @@ function Die({ value, spent, selected, usedFor, disabled, onClick }: {
   );
 }
 
+// CrawlerLootRoll is the visible drop die shown after a kill: the d100 result against
+// the robot's drop chance, and whether an item fell. It overlays the board for the rest
+// of the turn (the server clears it when the next turn begins). Keyed on the roll so a
+// fresh kill re-triggers the tumble.
+function CrawlerLootRoll({ roll }: { roll: NonNullable<CrView["lootRoll"]> }) {
+  return (
+    <div className={`cr-lootroll${roll.hit ? " hit" : " miss"}`} key={`${roll.roll}-${roll.chance}`} role="status">
+      <span className="cr-lootroll-die">🎲 {roll.roll}</span>
+      <span className="cr-lootroll-vs">vs ≤{roll.chance}</span>
+      <span className="cr-lootroll-result">
+        {roll.hit ? `${roll.name || "Loot"} drops!` : "No drop"}
+      </span>
+    </div>
+  );
+}
+
+// CrawlerStatusRoll is the visible status die: when a robot's sting rolls for a status,
+// it shows the d6 result against the needed face and whether the status landed. Keyed on
+// the roll so a fresh sting re-triggers the tumble. Cleared by the server next turn.
+function CrawlerStatusRoll({ roll }: { roll: NonNullable<CrView["statusRoll"]> }) {
+  const meta = STATUSES[roll.status];
+  return (
+    <div className={`cr-statusroll${roll.hit ? " hit" : " miss"}`} key={`${roll.roll}-${roll.status}`} role="status">
+      <span className="cr-lootroll-die">🎲 {roll.roll}</span>
+      <span className="cr-lootroll-vs">vs ≥{roll.need}</span>
+      <span className="cr-lootroll-result">
+        {roll.hit ? `${roll.target ?? "A hero"} ${meta?.icon ?? ""} ${meta?.label ?? roll.status}` : "no status"}
+      </span>
+    </div>
+  );
+}
+
 type LayState = {
   kind: string;
   rot: number; // the orientation the player has chosen (0..3)
@@ -964,7 +1207,7 @@ type LayState = {
 // `focus` is the cell to keep centred (your tile, or the tile being laid); `lay`
 // turns every legal frontier cell into a glowing drop-zone, with a ghost of the
 // tile on the currently-selected cell.
-function CrawlerMap({ v, focus, lay, debug, spriteFor }: { v: CrView; focus: { x: number; y: number } | null; lay: LayState | null; debug?: boolean; spriteFor: SpriteFor }) {
+function CrawlerMap({ v, focus, lay, debug, spriteFor, onPickup }: { v: CrView; focus: { x: number; y: number } | null; lay: LayState | null; debug?: boolean; spriteFor: SpriteFor; onPickup?: (square: number) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Keep the focus cell centred in the scroll box as the map grows / you move.
   useEffect(() => {
@@ -1013,14 +1256,14 @@ function CrawlerMap({ v, focus, lay, debug, spriteFor }: { v: CrView; focus: { x
             title={hasRot ? "Drop or click to place here (your rotation)" : "Drop or click to place here (this cell's rotation)"}
           >
             {art ? (
-              <div className="cr-tile-art" style={{ backgroundImage: `url(/sprites/crawler/tiles/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }} />
+              <div className="cr-tile-art" style={{ backgroundImage: `url(/sprites/crawler/tiles/${biomeTileDir(v.biome)}/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }} />
             ) : (
               <TileGlyph edges={ghost.edges} />
             )}
           </div>,
         );
       } else if (tile) {
-        cells.push(<CrawlerTileCell key={key} tile={tile} v={v} focus={isFocus(x, y)} debug={debug} spriteFor={spriteFor} />);
+        cells.push(<CrawlerTileCell key={key} tile={tile} v={v} focus={isFocus(x, y)} debug={debug} spriteFor={spriteFor} onPickup={onPickup} />);
       } else if (frontierAt(x, y)) {
         cells.push(<div key={key} className="cr-cell cr-frontier">?</div>);
       } else {
@@ -1037,36 +1280,70 @@ function CrawlerMap({ v, focus, lay, debug, spriteFor }: { v: CrView; focus: { x
   );
 }
 
-function CrawlerTileCell({ tile, v, focus, debug, spriteFor }: { tile: CrTile; v: CrView; focus?: boolean; debug?: boolean; spriteFor: SpriteFor }) {
+function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: { tile: CrTile; v: CrView; focus?: boolean; debug?: boolean; spriteFor: SpriteFor; onPickup?: (square: number) => void }) {
   const heroesHere = v.heroes.filter((h) => h.tile === tile.id); // includes the fallen (death stance)
   const lost = v.ph === "lost"; // a party wipe or collapse: everyone drops to the defeated frame
+  // You can grab ground loot only on your own turn, in the spend step, while your hero
+  // stands on THIS tile (no sniping loot from the tile next door).
+  const you = v.heroes.find((h) => h.s === v.you);
+  const canGrab = !!onPickup && v.ph === "playing" && v.step === "spend" && v.turn === v.you && !!you?.alive && you?.tile === tile.id;
   const edgeClass = ["n", "e", "s", "w"].filter((_, d) => tile.edges[d]).map((s) => `open-${s}`).join(" ");
   const art = tileArt(tile.kind, tile.edges, tile.rot);
   return (
     <div
-      className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}`}
+      className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}${tile.used ? " used" : ""}`}
       data-focus={focus ? "1" : undefined}
     >
       {art && (
         <div
           className="cr-tile-art"
-          style={{ backgroundImage: `url(/sprites/crawler/tiles/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }}
+          style={{ backgroundImage: `url(/sprites/crawler/tiles/${biomeTileDir(v.biome)}/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }}
         />
       )}
       {debug && <span className="cr-tile-kind">{tileKind(tile.kind).label} ({tile.x},{tile.y})</span>}
+      {tile.fogged && <div className="cr-fog" title="Sensor fog: move a hero onto or next to this tile to reveal it">🌫️</div>}
       <div className="cr-squares">
         {Array.from({ length: 9 }, (_, sq) => {
           // Each square holds at most one monster; a defeated one stays put in its
           // destroyed frame (no stat badge), a living one shows its stats + Courage reward.
           const monster = tile.monsters.find((m) => m.square === sq);
           const here = heroesHere.filter((h) => h.square === sq);
+          const loot = (tile.loot ?? []).filter((l) => l.square === sq);
+          const hazard = (tile.hazards ?? []).find((hz) => hz.square === sq);
           return (
             <div key={sq} className="cr-sq">
+              {hazard && HAZARDS[hazard.kind] && (
+                <span className="cr-hazard" title={HAZARDS[hazard.kind].label}>{HAZARDS[hazard.kind].icon}</span>
+              )}
+              {loot.map((l, i) => {
+                const info = objInfo(l.slug);
+                const title = `${info.name} on the floor${canGrab ? " (click to pick up)" : " (stand on this tile to pick it up)"}`;
+                return canGrab ? (
+                  <button
+                    key={`loot-${i}`}
+                    type="button"
+                    className="cr-loot grab"
+                    title={title}
+                    onClick={() => onPickup!(sq)}
+                  >
+                    <ObjIcon slug={l.slug} size={18} />
+                  </button>
+                ) : (
+                  <span key={`loot-${i}`} className="cr-loot" title={title}>
+                    <ObjIcon slug={l.slug} size={18} />
+                  </span>
+                );
+              })}
               {monster && (
                 <span className="cr-mon">
+                  {monster.alive && monster.name && (
+                    <span className="cr-boss-name" title={(monster.specials ?? []).map(specialLabel).join(" · ")}>
+                      {monster.name}{(monster.specials?.length ?? 0) > 0 ? " ⚡" : ""}
+                    </span>
+                  )}
                   <MonsterSprite m={monster} />
                   {monster.alive && (
-                    <span className="cr-mon-badge" title={`Armour ${monster.armour}, Health ${monster.health}/${monster.maxHP}, Damage ${monster.damage}, grants ${monster.reward} Courage on defeat`}>
+                    <span className="cr-mon-badge" title={`Armour ${monster.armour}, Health ${monster.health}/${monster.maxHP}, Damage ${monster.damage}, grants ${monster.reward} Courage on defeat${(monster.specials?.length ?? 0) > 0 ? ". Specials: " + (monster.specials ?? []).map(specialLabel).join(", ") : ""}`}>
                       🛡{monster.armour} ❤{monster.health} 💥{monster.damage} ✊{monster.reward}
                     </span>
                   )}
