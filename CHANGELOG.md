@@ -10,6 +10,10 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.8.1 — 2026-10-13
+- `[FIX]` **Crawler: boss Health scaling corrected.** Health is now `base + per-hero × (players − 1)`: `baseHP` is the one-player value and the `+` adds per EXTRA player, so a Mossback (`6 + 2`) is 6 solo, 8 at two players and 16 at six (was 10 / 18, which made fights a slog).
+- `[CHORE]` **Crawler client split into modules.** The 1444-line `CrawlerPage.tsx` is now the page/room orchestration only (~465 lines); the rest moved to focused files under `games/crawler/` (`types`, `data`, `sprites`, `Die`, `TilePreview`, `banners`, `shop`, `sheet`, `actions`, `tilecell`, `board`, `debug`, `widgets`). Pure move, no behaviour change.
+
 ### 0.8.0 — 2026-10-13
 - `[FEATURE]` **Local multiplayer is now in every turn-based game.** Rolled the shared `LocalSeats` tab wrapper into the remaining seven: **Skyjo, Decrypto, Love Letter, Wavelength, Just One, The Mind, The Game** (joining Codenames, the Crawler and Hanabi). Each per-seat-turn game (Skyjo, Love Letter, The Game) auto-switches to the player whose turn it is; each hidden-information game (Decrypto, Love Letter, Wavelength, Just One, The Mind, The Game) shows the pass-the-device cover when switching players. Only realtime Bomberman is left out. No server change: every local player is just another seat in the room.
 

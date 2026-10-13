@@ -342,11 +342,11 @@ A monster shows Armour (minimum die to land a hit), Health (hits to kill, tracke
 
 A run is **six levels across three biomes** (Woodland 1-2, Ruins 3-4, Machine 5-6). Each level is a fresh map built by `startLevel(n)` (`crawler.go`): Courage resets, health refills and the party regroups, while **objects carry over**. Each level draws **one boss at random from the bosses eligible at that level** (`rollBossMonsters`, `crawler_bosses.go`, using each boss's level range); beating it descends a level, and beating the Machine boss (The Core) wins. The defeat is deferred to the end of the acting hero's turn (`levelCleared`) so the map is never rebuilt mid-action. Level 1's pool deliberately carries only the **no-raw-damage specials** (Summoner I, Adaptive Plating, Jammer Field: Mossback, Vespex, Pylon); the damaging specials (Shockwave, Overload, Enrage) escalate with depth.
 
-Each boss is a **named character with a baked-in signature special** (two at L6), per the design note's Boss specials table; effects are in `crawler_combat.go`. Every boss is Armour 5-6, Damage 4, Courage reward 3 (the note's Enemies table); **Health is `baseHP + hpPerHero * players`** (the note's "X + Y" column), so a Mossback (6 + 2) is 10 at two players and 18 at six, keeping the fight a few rounds at any party size.
+Each boss is a **named character with a baked-in signature special** (two at L6), per the design note's Boss specials table; effects are in `crawler_combat.go`. Every boss is Armour 5-6, Damage 4, Courage reward 3 (the note's Enemies table); **Health is `baseHP + hpPerHero * (players - 1)`**: `baseHP` is the one-player value and the `+` adds per EXTRA player, so a Mossback (6 + 2) is 6 solo, 8 at two players and 16 at six, keeping the fight a few rounds without ballooning.
 
-All bosses are Armour 5-6, Damage 4, reward 3 (the note's Enemies table). Health is `base + per player`:
+All bosses are Armour 5-6, Damage 4, reward 3 (the note's Enemies table). Health is `base + per EXTRA player` (base is the one-player value):
 
-| Boss | Levels | Armour | Health (base + /player) | Signature special |
+| Boss | Levels | Armour | Health (base + /extra player) | Signature special |
 | --- | --- | --- | --- | --- |
 | **Mossback** | 1-2 | 5 | 6 + 2 | **Adaptive Plating**: +1 Armour each round until a 6 lands, then resets |
 | **Vespex** | 1-2 | 5 | 5 + 3 | **Summoner I**: 1 Scrapling each round |
@@ -515,7 +515,7 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 - **Win and lose**: defeating the boss wins; all heroes down loses; draining the stack starts a 5-turn collapse countdown and loses only if the boss is not beaten before it runs out.
 - **Characters and archetypes**: each sheet's weighted dice, Health and loot spots match the note's archetype table (Beaver 4 Low/HP7/2, Arrow Squid 3 High/HP4/2, Wolf 4 High/HP5/3, Treefrog 5 Low/HP6/3, Raccoon 5 Balanced/HP5/3->4, Comoros 5 Low/HP5/2); the Wolf's Group strength, Pack Tactics and Frenzy, and every other totem's two unlocks, each have a focused test.
 - **Enemies**: the renamed archetypes keep the note's stats and drop chances (Scrapling 15% / Sentry, Jammer, Grappler 25% / Hulk 35%); a Jammer robot hardens the other robots on its tile by +1 Armour and the aura lifts on its death.
-- **Bosses and levels**: a drawn boss's Health equals `base + per-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test.
+- **Bosses and levels**: a drawn boss's Health equals `base + per-extra-player` for its roster entry at any party size, the draw is gated to the boss's level range, and each signature special (Adaptive Plating, Summoner I/II/III, Jammer Field, Shockwave, Overload, Hardened Core, Enrage, Split) has its own test.
 - **Objects and loot**: the shop stocks five and refills on a buy; a kill rolls the visible drop die and the object lands on the floor; pickup works only from the hero's own tile (no adjacent sniping); drop, auto-pickup and each consumable's effect are covered.
 - **Hazards and statuses (Level 2+)**: each hazard bites as specified (wiring on entry + end, mine once, coolant Snare, fire end-of-turn, fog hides contents until a hero is near); each status applies its effect (Electrocuted dice, Rusted die count, Snared edge-block, Drained Courage, Electrified tick); a spring, the shop, Spores and a Torch clear them; Grounding Boots grant shock immunity; hazard rooms appear only from Level 2.
 - **Determinism**: a fixed seed reproduces a whole run (same rolls, same tiles, same placements).

@@ -701,11 +701,11 @@ func TestCrawlerBossHealthScalesWithPlayers(t *testing.T) {
 			}
 			found = true
 			boss := s.monsters[0] // the boss is always the first monster of its tile
-			// Health = base + perHero*players; bases are 5-6 and perHero 2-3 across the
-			// pool, so any drawn boss sits within these bounds (the note's "X + Y").
-			lo, hi := 5+2*n, 6+3*n
+			// Health = base + perHero*(players-1); bases are 5-6 and perHero 2-3 across the
+			// pool, so any drawn boss sits within these bounds (the note's "base + per extra").
+			lo, hi := 5+2*(n-1), 6+3*(n-1)
 			if !boss.isBoss || boss.maxHealth < lo || boss.maxHealth > hi {
-				t.Fatalf("%d players: boss Health %d should be base+perHero*players (%d..%d)", n, boss.maxHealth, lo, hi)
+				t.Fatalf("%d players: boss Health %d should be base+perHero*(players-1) (%d..%d)", n, boss.maxHealth, lo, hi)
 			}
 		}
 		if !found {
@@ -1816,9 +1816,9 @@ func TestCrawlerBossHealthIsBasePlusPerPlayer(t *testing.T) {
 		if def == nil {
 			t.Fatalf("drawn boss %q not in the roster", boss.bossName)
 		}
-		want := def.baseHP + def.hpPerHero*n
+		want := def.baseHP + def.hpPerHero*(n-1)
 		if boss.maxHealth != want {
-			t.Fatalf("%s with %d players: Health %d, want base+perHero = %d", boss.bossName, n, boss.maxHealth, want)
+			t.Fatalf("%s with %d players: Health %d, want base+perHero*(players-1) = %d", boss.bossName, n, boss.maxHealth, want)
 		}
 	}
 }

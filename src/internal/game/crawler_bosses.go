@@ -48,8 +48,9 @@ type bossDef struct {
 
 // bossRoster is the full pool; rollBoss draws from the entries eligible at the level.
 // Stats are the design note's "Enemies (robots)" and "Boss pool" tables: every boss is
-// Armour 5-6, Damage 4, Courage reward 3, and Health = base + per-player (the "X + Y"
-// column), so a 2-player Mossback is 6+2*2 = 10, a 6-player one 6+2*6 = 18.
+// Armour 5-6, Damage 4, Courage reward 3, and Health = baseHP (the one-player value) plus
+// hpPerHero for each EXTRA player, so a solo Mossback is 6, a 2-player one 6+2=8, a
+// 6-player one 6+2*5 = 16.
 var bossRoster = []bossDef{
 	{name: "Mossback", slug: "boss", armour: 5, damage: 4, reward: 3, baseHP: 6, hpPerHero: 2, minLvl: 1, maxLvl: 2, specials: []string{bsAdaptive}},
 	{name: "Vespex", slug: "vespex", armour: 5, damage: 4, reward: 3, baseHP: 5, hpPerHero: 3, minLvl: 1, maxLvl: 2, specials: []string{bsSummon1}},
@@ -105,7 +106,9 @@ func (g *crawlerGame) rollBossMonsters() []*crawlerMonster {
 	if players < 1 {
 		players = 1
 	}
-	hp := d.baseHP + d.hpPerHero*players // the note's "base + per player" Health
+	// Health = base (the one-player value) + per-hero for each EXTRA player beyond the
+	// first, so a solo boss is just baseHP and a full party scales up gently.
+	hp := d.baseHP + d.hpPerHero*(players-1)
 	boss := &crawlerMonster{
 		armour: d.armour, health: hp, maxHealth: hp, damage: d.damage, square: 4,
 		kind: d.slug, alive: true, isBoss: true, reward: d.reward,
