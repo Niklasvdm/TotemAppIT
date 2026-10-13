@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.1.1
+version: 0.2.0
 relate to:
   - "[[TotemApp-IT]]"
   - "[[TotemApp-IT-Games]]"
@@ -10,24 +10,24 @@ relate to:
 ```table-of-contents
 ```
 
-# Totem Crawler: architecture & V0 spec
+# Totem Crawler: architecture & spec
 
-The technical spec for the original co-op dungeon crawler. The product brief (theme, inspirations, character fiction, task list) lives in the design note [[Totem App - Interactive Dungeon Crawler]]; this document is the locked architecture: the data model, the turn rules as code will enforce them, the random tile generator, the wire protocol, and the test plan. It is deliberately written before any code, so the hard decisions are settled on paper first. Numbers marked "tune" are placeholders to playtest, not architecture.
+The technical spec for the original co-op dungeon crawler. The product brief (theme, inspirations, character fiction, task list) lives in the design note [[Totem App - Interactive Dungeon Crawler]]; this document is the implemented architecture: the data model, the turn rules as the code enforces them, the random tile generator, the wire protocol, and the test plan. It began as a before-any-code spec and now tracks what shipped. Numbers marked "tune" are placeholders to playtest, not architecture.
 
 The crawler is one more `Game` on the existing multiplayer engine (see [[TotemApp-IT-Games]] for the engine). It is turn-based and co-op, so it reuses rooms, reconnection, the totem sprite atlas for hero avatars, and the `useRoom` client transport unchanged. Nothing about the netcode is new; what is new is a much larger game state and a richer turn.
 
-> [!note] Status: V0 implemented (0.4.1)
-> V0 is built and verified on DEV. The backend is split across `internal/game/crawler.go` (state + turn flow + command dispatch), `crawler_sheets.go` (character sheets + dice), `crawler_tiles`/generation (in `crawler.go`), `crawler_combat.go` (attacks, the end-of-round group fight, shields, healing, rewards) and `crawler_view.go` (the per-seat DTOs + `viewFor`). The client is `src/web/src/games/crawler/CrawlerPage.tsx` with the pure, unit-tested helpers (tile-art rotation, walk-sprite direction, effective Armour) in `logic.ts`. The V0 simplifications flagged below are the ones that actually shipped (no fine inner tile walls, no loot items or hazards yet). Several robots can now share a tile (a swarm, each on its own walkable square), and combat is a **group fight** resolved at the end of the round, so the earlier "one monster per tile, single-hero combat" simplifications no longer apply. Movement is **path-constrained**: a hero may only stand on the centre square and the doorway of each open edge (the four corners are off-path), so a straight is a corridor and a bend turns, without needing a full inner-wall model. This document stays the spec; the [changelog](../CHANGELOG.md) records the implementation.
+> [!note] Status: built and verified on DEV
+> The backend is split across `internal/game/crawler.go` (state + turn flow + command dispatch + tile generation), `crawler_sheets.go` (character sheets + dice), `crawler_combat.go` (attacks, the end-of-round group fight, shields, healing, rewards, drops), `crawler_view.go` (the per-seat DTOs + `viewFor`), `crawler_bosses.go` (the boss pool + multi-level progression), `crawler_objects.go` (the loot economy and shop) and `crawler_hazards.go` (hazards + statuses). The client is `src/web/src/games/crawler/CrawlerPage.tsx` with the pure, unit-tested helpers (tile-art rotation, walk-sprite direction, effective Armour) in `logic.ts`. Combat is a **group fight** resolved at the end of the round, several robots share a tile, and movement is **path-constrained** (a hero stands only on the centre and the doorway of each open edge, corners off-path), so a straight is a corridor and a bend turns without a full inner-wall model. The one simplification still standing is no fine inner tile walls. This document is the architecture of record; the [changelog](../CHANGELOG.md) records each step.
 
 ## UML notation
 
 Every diagram is PlantUML, rendered inline by Obsidian, forced monochrome on a white canvas so it stays readable in any theme. Four kinds are used: a **class diagram** for the Go state model, a **state diagram** for one hero's turn, an **activity diagram** for the tile generator, and a **sequence diagram** for combat. Arrows read as in the engine doc: `A ..|> B` "A implements B", `A *-- B` "A owns a B", `A o-- B` "A holds Bs".
 
-## Scope: what V0 builds
+## Scope: what the crawler is
 
-V0 is the first playable build this spec defines. It is a full vertical slice of the real game, not a throwaway, and it includes the random tile generator (the choice made at kickoff).
+A full vertical slice of the real game, built on the random tile generator chosen at kickoff and since grown with the loot economy, the boss pool and multi-level progression, and the hazard/status system. The core build:
 
-**In V0**
+**Core build**
 
 - A new `crawlerGame` on the engine (slug `crawler`), event-driven (`TickHz 0`), co-op, 1 to 6 heroes, one hero per seat.
 - **A round has two phases, each sweeping the party once in seat order.** First the **LAY phase**: every living hero draws one tile and lays it (see below), extending the map before anyone acts. Then the **SPEND phase**: each hero rolls a dice pool and spends each die through the sheet's action menu (Move, Attack, Special, Courage; reroll a die for 1 Courage), then ends their turn. After the last hero spends, a new round opens again at the LAY phase.
@@ -36,17 +36,17 @@ V0 is the first playable build this spec defines. It is a full vertical slice of
 - Random tile generation from a banded stack (easy early, nasty late) with named tile types (straight, bend, tee, cross, dead-end) and the boss shuffled into the final band. Tiles lay on all four sides, and an offered orientation always opens on the side you entered from, so the path always **connects** (you can never lay a tile whose path does not join the one you came from).
 - Combat against static enemies (Armour / Health / Damage): hits land live and a monster's lost Health **persists across turns**, so allies on a tile pool their blows (the **group fight**). Retaliation is at the **end of the round**, after every hero has acted: each monster still alive strikes **every living hero on its tile** for its Damage (minus that hero's Shields). The Beaver's Bulwark can soak an ally's hit.
 - Courage economy (earn on high dice and on kills, spend on rerolls) and Shields. **Shields are a per-round resource** (cleared after end-of-round combat; Thick Hide re-grants its 2 next round). **Specials auto-activate** at their Courage threshold (3, then 5) and switch off again if Courage drops below it: there is no manual unlock. Courage is capped at 10, and the Courage action is unavailable at the cap.
-- Five designed totems (Beaver, Arrow Squid, Treefrog, Raccoon, Comoros Weaver) with their own health, dice count, **weighted die type** (Low/Balanced/High) and menu; other totems fall back to a generic sheet. Both the inherent specials (Brace, Mend, Carry, Guard) and the Courage-tier unlocks are wired to effects (see [Characters and sheets](#characters-and-sheets)), including Spores (the Treefrog's Mend clears statuses) now the hazard/status system exists.
+- Six designed totems (Beaver, Arrow Squid, Wolf, Treefrog, Raccoon, Comoros Weaver) with their own health, dice count, **weighted die type** (Low/Balanced/High) and menu; other totems fall back to a generic sheet. Both the inherent specials (Brace, Mend, Carry, Guard) and the Courage-tier unlocks are wired to effects (see [Characters and sheets](#characters-and-sheets)), including Spores (the Treefrog's Mend clears statuses) now the hazard/status system exists.
 - Win (boss defeated) and lose (party wiped, or the dungeon collapses). Running the tile stack out is **not** an instant loss: it starts a collapse countdown (5 turns) during which the party must reach and defeat the boss (which is already on the map, since every drawn tile was laid) before the run is lost. Plus a per-tile narrated beat.
 - **No dice left auto-ends the turn** (you do not have to click End turn once every die is spent).
 - Client: heroes are drawn from the **Bomberman totem sprite atlas** (not emoji), the player's **character sheet** sits at the top (sprite, health bar, resources, the action menu and the two specials), and hovering a monster shows its stats.
 - A seeded RNG so a whole run reproduces, and a first-class test suite.
 
-**Deferred (V1 and later)**
+**Deferred (later)**
 
-- Group fights (allies contributing reaction dice on another hero's turn, an interrupt mechanic).
-- The other friends' totems as distinct sheets and the scout ability. (The loot system, shop, hazards/statuses and carry-an-ally have since shipped.)
-- Hidden enemy stats (the Wavelength-style reveal), richer story beats, boss mechanics, balancing pass, mobile polish.
+- Reaction dice (allies spending dice on another hero's turn, an interrupt mechanic) — distinct from the shipped end-of-round group fight.
+- The remaining friends' totems as distinct sheets and the scout ability.
+- Hidden enemy stats (the Wavelength-style reveal), richer story beats, a balancing pass, mobile polish, and the pending art (see the [changelog](../CHANGELOG.md) roadmap).
 
 ## Why it fits the engine as-is
 
@@ -74,7 +74,7 @@ note bottom of CG : Event-driven (TickHz 0).\nCo-op: today one shared view is\nb
 @enduml
 ```
 
-The crawler implements the same `Game` interface as the card games: `AddPlayer` seats a hero, `Command` applies a client frame, `viewFor(seat)` renders the view and `broadcastViews()` pushes it on every change, `TickHz()` returns 0. Because the game is co-op with no hidden information in V0, `viewFor` returns the same view for everyone, but the per-seat path is kept so a later private ability does not force a redesign.
+The crawler implements the same `Game` interface as the card games: `AddPlayer` seats a hero, `Command` applies a client frame, `viewFor(seat)` renders the view and `broadcastViews()` pushes it on every change, `TickHz()` returns 0. The game is co-op, but `viewFor` is still per-seat: each hero's own dice pool, action menu and free-reroll state ride only on that seat's view, while the shared map, party and log are the same for all.
 
 ## Core data model
 
@@ -334,7 +334,9 @@ end
 @enduml
 ```
 
-A monster shows Armour (minimum die to land a hit), Health (hits to kill, tracked as a current value that drops live and persists), and Damage (dealt back if it survives). Heroes have no damage stat: output is purely how many Attack dice land, as in Explorers. Shields are consumed one per point of incoming Damage before it reaches Health. Worked example from the brief, which is a test: a Gor is A4 H2 D3; Attack dice 5, 4 land two hits (5 and 4 beat 4), dropping Health to 0, so it dies at once and deals nothing; had only the 5 landed, it survives on 1 Health (kept for next turn) and deals 3 minus Shields at end of turn. Hovering a monster on the board shows its Armour, current Health and Damage. A **boss cannot be sniped from an adjacent tile**: ranged reach (Arrow Squid, or the Scope object) works on ordinary robots, but the boss must be fought from its own tile (`tryAttack` rejects a boss hit when the hero is not on its tile).
+A monster shows Armour (minimum die to land a hit), Health (hits to kill, tracked as a current value that drops live and persists), and Damage (dealt back if it survives). Heroes have no damage stat: output is purely how many Attack dice land, as in Explorers. Shields are consumed one per point of incoming Damage before it reaches Health. Worked example from the brief, which is a test: a Gor is A4 H2 D3; Attack dice 5, 4 land two hits (5 and 4 beat 4), dropping Health to 0, so it dies at once and deals nothing; had only the 5 landed, it survives on 1 Health (kept for next turn) and deals 3 minus Shields at end of turn. Hovering a monster on the board shows its Armour, current Health and Damage. A **boss cannot be sniped from an adjacent tile**: ranged reach (Arrow Squid, or the Scope object) works on ordinary robots, but the boss must be fought from its own tile (`tryAttack` rejects a boss hit when the hero is not on its tile), and the client drops the boss from the ranged target list so it is never even offered.
+
+**Health and healing.** Health is per totem (4 fragile to 8 tank, see [Characters and sheets](#characters-and-sheets)); a hero takes a monster's Damage only on a round it survives, Shields first. The design note's healing routes that are built: the **Treefrog's Mend** (heal 2 to a hero on your tile), the **healing-spring tile** (step onto its centre for full health, free and reusable), the **Medkit** consumable, and the Wolf's passive Group strength. A hero at 0 Health currently **dies** (removed from the fight), and the party loses when all are down; the note's **downed-not-dead revive** (a hero sits at 0 until an ally spends an action to bring them back) and the **spend-2-Courage-to-heal-1** route are design intent not yet implemented (see the roadmap).
 
 ## Bosses and multi-level progression
 
@@ -417,7 +419,7 @@ Clearing: a **spring** (`maybeSpring`) and the **shop** centre (`maybeShop`) was
 
 Tiles are generated in code from a pool of hand-designed **templates** (interior wall layout plus which edges are open), drawn from a banded stack, rotated to fit, then populated with content rolled by band. This hybrid was chosen over pure procedural interiors because templates guarantee every tile is connected and playable and keep the board-game "deck of tiles" feel, while the per-tile content roll and rotation still give a different map every run. Pure procedural generation stays an option if templates feel too samey.
 
-The V0 tile types (named shapes, by their open edges; rotations cover every orientation, so any type can be laid on any of the four sides):
+The base path tile types (named shapes, by their open edges; rotations cover every orientation, so any type can be laid on any of the four sides):
 
 | Type | Open edges | Role |
 | --- | --- | --- |
@@ -479,13 +481,13 @@ A totem is defined entirely by its sheet: dice (count and **weighted face set**)
 | Raccoon (`wasbeer`) | Trickster | 5 | 5 Balanced | 3->4 | Guard (die-special) | Lucky Paws, Big Score |
 | Comoros Weaver (`comorenwever`) | Carrier | 5 | 5 Low | 2 | Carry: give an ally on your tile a 1-square move | Ferry, Flock |
 
-**What is wired in this build.** Health, dice count, weighted die type, loot spots and the menu thresholds are live for all six. Inherent specials wired: **Brace** (Shields, Beaver), **Mend** (heal, Treefrog), **Carry** (Comoros), **Guard** (Raccoon/generic, +1 Shield), and the Wolf's passive **Group strength** (heal 1 at turn start with an ally on your tile). The **Arrow Squid and the Wolf have no die-special**: the Squid's edge is **ranged** attack (hit a monster on an adjacent tile, it does not dash), the Wolf fights up close for its unlocks. Comoros is a **fast mover** (2 squares per Move die, each step directed separately). The Courage-tier specials are wired to effects across all six: Beaver **Thick Hide** (2 Shields at turn start) and **Bulwark** (soak an ally's end-of-round hit); Arrow Squid **Barbed Shot** (ignore 1 Armour) and **Deep Volley** (a 6 lands twice, once a turn); Wolf **Pack Tactics** (+1 hit while an ally shares your tile) and **Frenzy** (a free attack die on each kill, kills chain); Treefrog **Spores** (Mend also clears the target's statuses) and **Bloom** (Mend also heals every other hero on your tile 1); Raccoon **Lucky Paws** (free reroll each turn) and **Big Score** (a 4th object slot + an extra consumable from your kills); Comoros **Ferry** (Carry crosses a tile edge into the next room) and **Flock** (Carry moves two squares); generic totems' **Resolve/Second Wind** give a small start-of-turn Shield/heal. Specials are auto-active by Courage, never bought. The Wolf's totem art is not in the shared atlas yet, so it draws as the compass fallback until added.
+**What is wired in this build.** Health, dice count, weighted die type, loot spots and the menu thresholds are live for all six. Inherent specials wired: **Brace** (Shields, Beaver), **Mend** (heal, Treefrog), **Carry** (Comoros), **Guard** (Raccoon/generic, +1 Shield), and the Wolf's passive **Group strength** (heal 1 at turn start with an ally on your tile). The **Arrow Squid and the Wolf have no die-special**: the Squid's edge is **ranged** attack (hit a monster on an adjacent tile, it does not dash), the Wolf fights up close for its unlocks. Comoros is a **fast mover** (2 squares per Move die, each step directed separately). The Courage-tier specials are wired to effects across all six: Beaver **Thick Hide** (2 Shields at turn start) and **Bulwark** (soak an ally's end-of-round hit); Arrow Squid **Barbed Shot** (ignore 1 Armour) and **Deep Volley** (a 6 lands twice, once a turn); Wolf **Pack Tactics** (+1 hit while an ally shares your tile) and **Frenzy** (a free attack die on each kill, kills chain); Treefrog **Spores** (Mend also clears the target's statuses) and **Bloom** (Mend also heals every other hero on your tile 1); Raccoon **Lucky Paws** (free reroll each turn) and **Big Score** (a 4th object slot + an extra consumable from your kills); Comoros **Ferry** (Carry crosses a tile edge into the next room) and **Flock** (Carry moves two squares); generic totems' **Resolve/Second Wind** give a small start-of-turn Shield/heal. Specials are auto-active by Courage, never bought. The Wolf's art is row 16 of the shared totem atlas (reused from Bomberman), so it draws as its real sprite.
 
-**Generic totem (every other seat in V0).** Health 5, four plain d6, the default menu with a plain Special (tune: a small self-buff), no distinct specials until its real sheet arrives in V1.
+**Generic totem (any seat without a bespoke sheet).** Health 5, four plain d6, the default menu with a plain Guard special, and the placeholder Resolve/Second Wind unlocks until a real sheet is written for that animal.
 
 ## Networking: commands and views
 
-The wire frames are the engine's usual four (`welcome`, `roster`, `state`, `error`); only the command types and the `state` view shape are the crawler's own. The game is co-op, so the `state` view is the full shared picture in V0.
+The wire frames are the engine's usual four (`welcome`, `roster`, `state`, `error`); only the command types and the `state` view shape are the crawler's own. The `state` view carries the shared picture (map, party, log) plus the viewing seat's own dice, menu and reroll state.
 
 **Commands (client to server), all validated server-side on the owner's turn**
 
@@ -520,10 +522,9 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 
 ## Roadmap
 
-- **V0** (this spec): engine `Game`, random banded tile generation with edge-matching and the boss in the final band, the full core turn (dice, menu, Move, Attack, Special, Courage, reroll), Shields, the Beaver plus a generic totem, win and lose, narrated beats, and the test suite.
-- **V1**: downed-not-dead revive and the scout ability. (Group fights, ranged attack, carry and fast movement, the loot system with a shop and floor drops, every designed totem's Courage-tier special, and the hazard/status system with the Level-2 hazard rooms have shipped.)
-- **V2**: hidden enemy stats, richer per-tile story beats, boss mechanics, and a balancing pass once it is played with real people.
-- **V3**: mobile layout and art polish.
+- **Shipped**: the engine `Game` with random banded tile generation and the boss in the final band; the full turn (dice, menu, Move, Attack, Special, Courage, reroll) with Shields; the group fight; six designed totems with their Courage-tier specials; the boss pool and six-level progression across three biomes; the loot economy with a shop and floor drops; the hazard and status system with the Level-2 hazard rooms; ranged attack, carry and fast movement; win and lose; narrated beats; local (same-device) multiplayer; and the test suite.
+- **Next**: downed-not-dead revive, the scout ability, and the remaining friends' totems as bespoke sheets.
+- **Later**: hidden enemy stats, richer per-tile story beats, a balancing pass with real players, mobile layout, and the pending art (boss sheets, a dedicated Sentry, the Level-2+ feature tiles, ruins/machine tilesets).
 
 ## Open numbers to tune (not architecture)
 

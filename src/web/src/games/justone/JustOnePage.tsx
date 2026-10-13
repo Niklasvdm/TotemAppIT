@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 
 interface JoRoster {
   s: number;
@@ -36,14 +37,22 @@ export default function JustOnePage() {
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <JustOneRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          handoff
+          renderSeat={(p, seatKey) => (
+            <JustOneRoom code={session.code} name={p.name} seatKey={seatKey} onLeave={() => setSession(null)} />
+          )}
+        />
       </main>
     );
   }
@@ -51,7 +60,7 @@ export default function JustOnePage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -122,9 +131,9 @@ export default function JustOnePage() {
   );
 }
 
-function JustOneRoom({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
+function JustOneRoom({ code, name, onLeave, seatKey = "" }: { code: string; name: string; onLeave: () => void; seatKey?: string }) {
   const { t } = useTranslation();
-  const g = useRoom<JoView>(code, name);
+  const g = useRoom<JoView>(code, name, "", seatKey);
   const [clue, setClue] = useState("");
   const [guess, setGuess] = useState("");
   const v = g.view;

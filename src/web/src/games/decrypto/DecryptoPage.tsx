@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 
 interface DcHist {
   team: number;
@@ -50,14 +51,22 @@ export default function DecryptoPage() {
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <DecryptoRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          handoff
+          renderSeat={(p, seatKey) => (
+            <DecryptoRoom code={session.code} name={p.name} seatKey={seatKey} onLeave={() => setSession(null)} />
+          )}
+        />
       </main>
     );
   }
@@ -65,7 +74,7 @@ export default function DecryptoPage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -156,9 +165,9 @@ function CodePicker({ value, onChange }: { value: number[]; onChange: (v: number
 }
 const distinctCode = (c: number[]) => c.length === 3 && new Set(c).size === 3 && c.every((d) => d >= 1 && d <= 4);
 
-function DecryptoRoom({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
+function DecryptoRoom({ code, name, onLeave, seatKey = "" }: { code: string; name: string; onLeave: () => void; seatKey?: string }) {
   const { t } = useTranslation();
-  const g = useRoom<DcView>(code, name);
+  const g = useRoom<DcView>(code, name, "", seatKey);
   const [clues, setClues] = useState(["", "", ""]);
   const [myGuess, setMyGuess] = useState([0, 0, 0]);
   const v = g.view;

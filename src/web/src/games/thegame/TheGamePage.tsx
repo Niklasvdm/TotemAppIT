@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 import { Card } from "../Card";
 
 // Mirrors theGameView in internal/game/thegame.go. `hand` is this seat's own
@@ -46,14 +47,24 @@ export default function TheGamePage() {
 
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [focus, setFocus] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <TheGameRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          focusSeatKey={focus}
+          handoff
+          renderSeat={(p, seatKey) => (
+            <TheGameRoom code={session.code} name={p.name} seatKey={seatKey} onMyTurn={() => setFocus(seatKey)} onLeave={() => setSession(null)} />
+          )}
+        />
       </main>
     );
   }
@@ -61,7 +72,7 @@ export default function TheGamePage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -139,13 +150,21 @@ function TheGameRoom({
   code,
   name,
   onLeave,
+  seatKey = "",
+  onMyTurn,
 }: {
   code: string;
   name: string;
   onLeave: () => void;
+  seatKey?: string;
+  onMyTurn?: () => void;
 }) {
   const { t } = useTranslation();
-  const g = useRoom<TgView>(code, name);
+  const g = useRoom<TgView>(code, name, "", seatKey);
+  const tgMyTurn = !!g.view && g.view.you === g.view.turn;
+  useEffect(() => {
+    if (tgMyTurn) onMyTurn?.();
+  }, [tgMyTurn, onMyTurn]);
   const [selected, setSelected] = useState<number | null>(null);
   const [dragCard, setDragCard] = useState<number | null>(null); // card being dragged onto a pile
   const v = g.view;

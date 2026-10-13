@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 import { LossFlash, useLossPulse } from "../LossFlash";
 
 const CARDS: Record<number, { name: string; hint: string }> = {
@@ -53,14 +54,24 @@ export default function LoveLetterPage() {
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [focus, setFocus] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <LoveLetterRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          focusSeatKey={focus}
+          handoff
+          renderSeat={(p, seatKey) => (
+            <LoveLetterRoom code={session.code} name={p.name} seatKey={seatKey} onMyTurn={() => setFocus(seatKey)} onLeave={() => setSession(null)} />
+          )}
+        />
       </main>
     );
   }
@@ -68,7 +79,7 @@ export default function LoveLetterPage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -139,9 +150,13 @@ export default function LoveLetterPage() {
   );
 }
 
-function LoveLetterRoom({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
+function LoveLetterRoom({ code, name, onLeave, seatKey = "", onMyTurn }: { code: string; name: string; onLeave: () => void; seatKey?: string; onMyTurn?: () => void }) {
   const { t } = useTranslation();
-  const g = useRoom<LlView>(code, name);
+  const g = useRoom<LlView>(code, name, "", seatKey);
+  const llMyTurn = g.view?.ph === "play" && g.view?.active === g.view?.you;
+  useEffect(() => {
+    if (llMyTurn) onMyTurn?.();
+  }, [llMyTurn, onMyTurn]);
   const [pick, setPick] = useState<number | null>(null); // card chosen to play
   const [target, setTarget] = useState<number | null>(null);
   const [guess, setGuess] = useState<number>(2);

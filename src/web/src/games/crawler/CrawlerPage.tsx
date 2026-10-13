@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, type LocalPlayer } from "../LocalSeats";
 import { LossFlash, useLossPulse } from "../LossFlash";
 import { useStatsFlag } from "../bomberman/NetHud";
 import {
@@ -39,6 +40,7 @@ const DIR_ARROW = ["↑", "→", "↓", "←"];
 const SPRITE_ROWS = [
   "bever", "wasbeer", "pijlinktvis", "comorenwever", "ezel", "eekhoorn", "hondshaai",
   "franjeschildpad", "wouw", "spinaap", "goudvink", "chimpansee", "havik", "koala", "boomkikker",
+  "wolf",
 ];
 const ATLAS_COLS = 11; // front(3)+back(3)+side(4)+defeated(1)
 const ATLAS_ROWS = SPRITE_ROWS.length;
@@ -433,14 +435,30 @@ export default function CrawlerPage() {
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [totem, setTotem] = useState(() => localStorage.getItem("totem-crawler-totem") ?? "bever");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string; totem: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [focus, setFocus] = useState<string | undefined>(undefined); // seat whose turn it is (auto-switch)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <CrawlerRoom {...session} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <CrawlerAddForm submit={submit} cancel={cancel} />}
+          focusSeatKey={focus}
+          renderSeat={(p, seatKey) => (
+            <CrawlerRoom
+              code={session.code}
+              name={p.name}
+              totem={p.meta ?? "bever"}
+              seatKey={seatKey}
+              onMyTurn={() => setFocus(seatKey)}
+              onLeave={() => setSession(null)}
+            />
+          )}
+        />
       </main>
     );
   }
@@ -449,7 +467,7 @@ export default function CrawlerPage() {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
     localStorage.setItem("totem-crawler-totem", totem);
-    setSession({ code: roomCode, name: nick, totem });
+    setSession({ code: roomCode, players: [{ name: nick, meta: totem }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -528,19 +546,54 @@ export default function CrawlerPage() {
   );
 }
 
+// CrawlerAddForm is the Crawler's local-player selection menu (name + totem), reusing the
+// same TOTEMS picker as the lobby, for adding another player on the shared device.
+function CrawlerAddForm({ submit, cancel }: { submit: (p: LocalPlayer) => void; cancel: () => void }) {
+  const [name, setName] = useState("");
+  const [totem, setTotem] = useState("wolf");
+  const go = () => {
+    const n = name.trim();
+    if (n) submit({ name: n, meta: totem });
+  };
+  return (
+    <div className="local-add-form cr-add-form">
+      <input
+        className="trait-search"
+        autoFocus
+        value={name}
+        maxLength={NICK_MAX}
+        placeholder="Player name"
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+      />
+      <select className="trait-search" value={totem} onChange={(e) => setTotem(e.target.value)}>
+        {TOTEMS.map((x) => (
+          <option key={x.slug} value={x.slug}>{x.label}</option>
+        ))}
+      </select>
+      <button className="game-btn" onClick={go}>Add</button>
+      <button className="game-btn ghost" onClick={cancel}>Cancel</button>
+    </div>
+  );
+}
+
 function CrawlerRoom({
   code,
   name,
   totem,
   onLeave,
+  seatKey = "",
+  onMyTurn,
 }: {
   code: string;
   name: string;
   totem: string;
   onLeave: () => void;
+  seatKey?: string;
+  onMyTurn?: () => void;
 }) {
   const { t } = useTranslation();
-  const g = useRoom<CrView>(code, name, totem);
+  const g = useRoom<CrView>(code, name, totem, seatKey);
   const debug = useStatsFlag(); // F3 toggles a debug overlay (like Bomberman)
   const spriteFor = useHeroSprites(g.view); // walk/facing animation for the board pawns
   const [sel, setSel] = useState<number | null>(null); // selected die index
@@ -550,6 +603,12 @@ function CrawlerRoom({
   useEffect(() => {
     setLayRot(g.view?.pending?.options[0]?.rotation ?? 0);
   }, [v?.step, v?.pending?.kind, v?.pending?.options.length]);
+  // Tell the page when the turn lands on THIS seat so local multiplayer auto-switches to
+  // the player whose turn it is.
+  const myTurnNow = v?.ph === "playing" && v?.turn === v?.you;
+  useEffect(() => {
+    if (myTurnNow) onMyTurn?.();
+  }, [myTurnNow, onMyTurn]);
   // Flash when your health drops (your totem takes damage).
   const myHp = g.view ? g.view.heroes.find((h) => h.s === g.view!.you)?.health : undefined;
   const hpLost = useLossPulse(myHp);
@@ -801,8 +860,8 @@ function CrawlerRoom({
         {me && myTurn && myTile?.kind === "shop" && me.square === 4 && (
           <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} />
         )}
-        {v.lootRoll && <CrawlerLootRoll roll={v.lootRoll} />}
-        {v.statusRoll && <CrawlerStatusRoll roll={v.statusRoll} />}
+        {v.lootRoll && <CrawlerLootRoll key={`lr-${v.lootRoll.roll}-${v.lootRoll.chance}-${v.lootRoll.killer ?? ""}`} roll={v.lootRoll} />}
+        {v.statusRoll && <CrawlerStatusRoll key={`sr-${v.statusRoll.roll}-${v.statusRoll.status}-${v.statusRoll.target ?? ""}`} roll={v.statusRoll} />}
       </div>
 
       {debug && <CrawlerDebug v={v} />}
@@ -1005,7 +1064,9 @@ function CrawlerActions({
     CR_DELTA.forEach(([dx, dy], d) => {
       if (!myTile.edges[d]) return;
       const nt = view.tiles.find((t) => t.x === myTile.x + dx && t.y === myTile.y + dy);
-      nt?.monsters.filter((m) => m.alive).forEach((m) => targets.push({ tileId: nt.id, m, ranged: true }));
+      // The boss can't be sniped from an adjacent tile (the server rejects it), so don't
+      // offer it as a ranged target at all; only ordinary robots next door are hittable.
+      nt?.monsters.filter((m) => m.alive && !m.isBoss).forEach((m) => targets.push({ tileId: nt.id, m, ranged: true }));
     });
   }
   const hittable = targets.filter(({ m }) => die.value >= effArmour(m));
@@ -1164,11 +1225,24 @@ function Die({ value, spent, selected, usedFor, disabled, onClick }: {
   );
 }
 
+// useAutoHide returns true, then false after `ms`, so a transient banner removes itself.
+// Give the component a key tied to the event so a fresh event remounts it and the timer
+// restarts (otherwise the one-shot timer never fires again).
+function useAutoHide(ms: number): boolean {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(false), ms);
+    return () => clearTimeout(t);
+  }, [ms]);
+  return shown;
+}
+
 // CrawlerLootRoll is the visible drop die shown after a kill: the d100 result against
 // the robot's drop chance, and whether an item fell. It overlays the board for the rest
 // of the turn (the server clears it when the next turn begins). Keyed on the roll so a
 // fresh kill re-triggers the tumble.
 function CrawlerLootRoll({ roll }: { roll: NonNullable<CrView["lootRoll"]> }) {
+  if (!useAutoHide(2000)) return null;
   return (
     <div className={`cr-lootroll${roll.hit ? " hit" : " miss"}`} key={`${roll.roll}-${roll.chance}`} role="status">
       <span className="cr-lootroll-die">🎲 {roll.roll}</span>
@@ -1185,6 +1259,7 @@ function CrawlerLootRoll({ roll }: { roll: NonNullable<CrView["lootRoll"]> }) {
 // the roll so a fresh sting re-triggers the tumble. Cleared by the server next turn.
 function CrawlerStatusRoll({ roll }: { roll: NonNullable<CrView["statusRoll"]> }) {
   const meta = STATUSES[roll.status];
+  if (!useAutoHide(2000)) return null;
   return (
     <div className={`cr-statusroll${roll.hit ? " hit" : " miss"}`} key={`${roll.roll}-${roll.status}`} role="status">
       <span className="cr-lootroll-die">🎲 {roll.roll}</span>
@@ -1286,7 +1361,9 @@ function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: { tile:
   // You can grab ground loot only on your own turn, in the spend step, while your hero
   // stands on THIS tile (no sniping loot from the tile next door).
   const you = v.heroes.find((h) => h.s === v.you);
-  const canGrab = !!onPickup && v.ph === "playing" && v.step === "spend" && v.turn === v.you && !!you?.alive && you?.tile === tile.id;
+  // Loot can be grabbed off-turn: any time your hero is alive and standing on this tile
+  // (no need to wait for your turn), so a boss's drops stay reachable after the turn moves on.
+  const canGrab = !!onPickup && v.ph === "playing" && !!you?.alive && you?.tile === tile.id;
   const edgeClass = ["n", "e", "s", "w"].filter((_, d) => tile.edges[d]).map((s) => `open-${s}`).join(" ");
   const art = tileArt(tile.kind, tile.edges, tile.rot);
   return (

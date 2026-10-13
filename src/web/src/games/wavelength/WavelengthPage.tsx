@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 
 // Mirrors wlView in internal/game/wavelength.go. `target` is the hidden spot —
 // sent only to the psychic until the reveal (the private view).
@@ -44,14 +45,22 @@ export default function WavelengthPage() {
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <WavelengthRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          handoff
+          renderSeat={(p, seatKey) => (
+            <WavelengthRoom code={session.code} name={p.name} seatKey={seatKey} onLeave={() => setSession(null)} />
+          )}
+        />
       </main>
     );
   }
@@ -59,7 +68,7 @@ export default function WavelengthPage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -131,9 +140,9 @@ export default function WavelengthPage() {
   );
 }
 
-function WavelengthRoom({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
+function WavelengthRoom({ code, name, onLeave, seatKey = "" }: { code: string; name: string; onLeave: () => void; seatKey?: string }) {
   const { t } = useTranslation();
-  const g = useRoom<WlView>(code, name);
+  const g = useRoom<WlView>(code, name, "", seatKey);
   const v = g.view;
   const bar = <RoomBar code={code} title={t("gameWavelength")} infoSlug="wavelength" gameSlug="wavelength" onLeave={onLeave} />;
   if (g.game && g.game !== "wavelength") {

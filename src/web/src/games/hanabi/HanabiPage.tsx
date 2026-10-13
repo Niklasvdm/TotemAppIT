@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 import { LossFlash, useLossPulse } from "../LossFlash";
 
 // Five Hanabi suits. Index matches the backend's colour ints. "White" gets a
@@ -56,14 +57,30 @@ export default function HanabiPage() {
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [focus, setFocus] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <HanabiRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          focusSeatKey={focus}
+          handoff
+          renderSeat={(p, seatKey) => (
+            <HanabiRoom
+              code={session.code}
+              name={p.name}
+              seatKey={seatKey}
+              onMyTurn={() => setFocus(seatKey)}
+              onLeave={() => setSession(null)}
+            />
+          )}
+        />
       </main>
     );
   }
@@ -71,7 +88,7 @@ export default function HanabiPage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -162,12 +179,17 @@ function CardFace({ c }: { c: HanCard }) {
   );
 }
 
-function HanabiRoom({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
+function HanabiRoom({ code, name, onLeave, seatKey = "", onMyTurn }: { code: string; name: string; onLeave: () => void; seatKey?: string; onMyTurn?: () => void }) {
   const { t } = useTranslation();
-  const g = useRoom<HanView>(code, name);
+  const g = useRoom<HanView>(code, name, "", seatKey);
   const [hintTarget, setHintTarget] = useState<number | null>(null);
   const v = g.view;
   const fuseLost = useLossPulse(v?.fuses); // a fuse blown → flash
+  // Auto-switch local multiplayer to the seat whose turn it is.
+  const myTurnNow = v?.ph === "play" && v?.turn === v?.you;
+  useEffect(() => {
+    if (myTurnNow) onMyTurn?.();
+  }, [myTurnNow, onMyTurn]);
   const bar = <RoomBar code={code} title={t("gameHanabi")} infoSlug="hanabi" gameSlug="hanabi" onLeave={onLeave} />;
   if (g.game && g.game !== "hanabi") {
     return <div className="game-room">{bar}<WrongGameNotice actual={g.game} code={code} onLeave={onLeave} /></div>;

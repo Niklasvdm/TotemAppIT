@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 
 // Mirrors cnView in internal/game/codenames.go. `key` is present only when the
 // server decides this seat is a spymaster — that is the private view.
@@ -38,6 +39,9 @@ interface CnView {
 }
 
 const teamName = (t: number) => (t === 1 ? "Blue" : "Red");
+// Team colours, matching .cn-red / .cn-blue in styles.css. Used to tint a local
+// player's tab so, on a shared device, you see at a glance whose seat each tab is.
+const teamColor = (t: number | undefined) => (t === 1 ? "#4b8fe8" : t === 0 ? "#d1495b" : undefined);
 
 export default function CodenamesPage() {
   const { t } = useTranslation();
@@ -45,14 +49,30 @@ export default function CodenamesPage() {
 
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [teams, setTeams] = useState<Record<string, number>>({}); // seatKey -> team, for tab colours
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <CodenamesRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          handoff
+          tabColor={(_p, seatKey) => teamColor(teams[seatKey])}
+          renderSeat={(p, seatKey) => (
+            <CodenamesRoom
+              code={session.code}
+              name={p.name}
+              seatKey={seatKey}
+              onTeam={(team) => setTeams((m) => (m[seatKey] === team ? m : { ...m, [seatKey]: team }))}
+              onLeave={() => setSession(null)}
+            />
+          )}
+        />
       </main>
     );
   }
@@ -60,7 +80,7 @@ export default function CodenamesPage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -138,14 +158,23 @@ function CodenamesRoom({
   code,
   name,
   onLeave,
+  seatKey = "",
+  onTeam,
 }: {
   code: string;
   name: string;
   onLeave: () => void;
+  seatKey?: string;
+  onTeam?: (team: number) => void;
 }) {
   const { t } = useTranslation();
-  const g = useRoom<CnView>(code, name);
+  const g = useRoom<CnView>(code, name, "", seatKey);
   const v = g.view;
+  // Report this seat's team up to the page so it can tint the local-player tab.
+  const myTeam = v?.you.team;
+  useEffect(() => {
+    if (myTeam !== undefined) onTeam?.(myTeam);
+  }, [myTeam, onTeam]);
 
   const bar = <RoomBar code={code} title={t("gameCodenames")} infoSlug="codenames" gameSlug="codenames" onLeave={onLeave} />;
 
@@ -333,12 +362,14 @@ function Controls({
 
   if (v.ph === "clue") {
     if (myTurn && v.you.spymaster) {
+      const w = word.trim();
+      // Mirror the server's clue rule (codenames.go): a clue is a single word with no
+      // whitespace. Show why it can't be submitted rather than silently doing nothing.
+      const problem = w === "" ? "" : /\s/.test(w) ? "A clue must be a single word (no spaces)." : "";
       const give = () => {
-        const w = word.trim();
-        if (w && !w.includes(" ")) {
-          send({ t: "clue", word: w, count });
-          setWord("");
-        }
+        if (w === "" || problem) return;
+        send({ t: "clue", word: w, count });
+        setWord("");
       };
       return (
         <div className="cn-controls panel">
@@ -346,6 +377,7 @@ function Controls({
             className="trait-search"
             value={word}
             placeholder="One-word clue"
+            aria-invalid={!!problem}
             onChange={(e) => setWord(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && give()}
           />
@@ -356,9 +388,10 @@ function Controls({
               </option>
             ))}
           </select>
-          <button className="game-btn" onClick={give}>
+          <button className="game-btn" onClick={give} disabled={w === "" || !!problem}>
             Give clue
           </button>
+          {problem && <p className="game-error cn-clue-error">{problem}</p>}
         </div>
       );
     }

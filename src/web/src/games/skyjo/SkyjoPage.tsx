@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -6,6 +6,7 @@ import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
+import { LocalSeats, NameAddForm, type LocalPlayer } from "../LocalSeats";
 
 const SK_NONE = -100; // matches skNone on the server ("no card in hand")
 const SK_COLS = 4;
@@ -62,14 +63,23 @@ export default function SkyjoPage() {
   const [params] = useSearchParams();
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; name: string } | null>(null);
+  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [focus, setFocus] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
     return (
       <main className="game-page">
-        <SkyjoRoom code={session.code} name={session.name} onLeave={() => setSession(null)} />
+        <LocalSeats
+          players={session.players}
+          onAddPlayer={(p) => setSession((s) => (s ? { ...s, players: [...s.players, p] } : s))}
+          addMenu={(submit, cancel) => <NameAddForm submit={submit} cancel={cancel} maxLen={NICK_MAX} />}
+          focusSeatKey={focus}
+          renderSeat={(p, seatKey) => (
+            <SkyjoRoom code={session.code} name={p.name} seatKey={seatKey} onMyTurn={() => setFocus(seatKey)} onLeave={() => setSession(null)} />
+          )}
+        />
       </main>
     );
   }
@@ -77,7 +87,7 @@ export default function SkyjoPage() {
   const begin = (roomCode: string) => {
     const nick = name.trim();
     localStorage.setItem("totem-game-name", nick);
-    setSession({ code: roomCode, name: nick });
+    setSession({ code: roomCode, players: [{ name: nick }] });
   };
   const guard = () => {
     if (!validNick(name)) {
@@ -172,10 +182,14 @@ function Grid({ p, onCell, canClick }: { p: SkPlayer; onCell: (cell: number) => 
   );
 }
 
-function SkyjoRoom({ code, name, onLeave }: { code: string; name: string; onLeave: () => void }) {
+function SkyjoRoom({ code, name, onLeave, seatKey = "", onMyTurn }: { code: string; name: string; onLeave: () => void; seatKey?: string; onMyTurn?: () => void }) {
   const { t } = useTranslation();
-  const g = useRoom<SkView>(code, name);
+  const g = useRoom<SkView>(code, name, "", seatKey);
   const v = g.view;
+  const myTurnNow = v?.ph === "play" && v?.turn === v?.you;
+  useEffect(() => {
+    if (myTurnNow) onMyTurn?.();
+  }, [myTurnNow, onMyTurn]);
   const bar = <RoomBar code={code} title={t("gameSkyjo")} infoSlug="skyjo" gameSlug="skyjo" onLeave={onLeave} />;
 
   if (g.game && g.game !== "skyjo") {

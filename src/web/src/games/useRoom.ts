@@ -39,7 +39,10 @@ export interface Room<V> {
   send: (msg: object) => void;
 }
 
-export function useRoom<V = unknown>(code: string, name: string, meta = ""): Room<V> {
+// seatKey distinguishes several LOCAL players sharing one device (local multiplayer):
+// each opens its own socket/seat to the same room, so their reconnect tokens must not
+// collide in sessionStorage. Single-player callers leave it "" (one token per room).
+export function useRoom<V = unknown>(code: string, name: string, meta = "", seatKey = ""): Room<V> {
   const [status, setStatus] = useState<RoomStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
   const [you, setYou] = useState(-1);
@@ -51,7 +54,7 @@ export function useRoom<V = unknown>(code: string, name: string, meta = ""): Roo
 
   const sock = useRef<WebSocket | null>(null);
   const resume = useRef("");
-  const tokenKey = `totem-game-seat:${code}`;
+  const tokenKey = `totem-game-seat:${code}${seatKey ? ":" + seatKey : ""}`;
 
   const send = useCallback((msg: object) => {
     const s = sock.current;

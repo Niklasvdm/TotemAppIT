@@ -1830,3 +1830,17 @@ func TestCrawlerRobotDropChancesMatchNote(t *testing.T) {
 		}
 	}
 }
+
+func TestCrawlerPickupAllowedOffTurn(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	// It is seat 0's turn; seat 1 stands on a tile with loot and should still grab it.
+	g.turn = 0
+	h := g.players[1]
+	t0 := g.tiles[h.tileID]
+	h.objects = nil
+	g.dropGround(t0, h.square, "medkit")
+	g.pickup(1, h.square)
+	if !heroHas(h, "medkit") || len(t0.loot) != 0 {
+		t.Fatalf("a hero on the tile should pick up loot even off-turn: objs=%v floor=%d", h.objects, len(t0.loot))
+	}
+}

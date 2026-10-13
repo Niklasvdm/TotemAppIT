@@ -304,10 +304,16 @@ func (g *crawlerGame) autoPickup(t *crawlerTile, h *crawlerHero) {
 // pickup lets a hero take one ground item from the tile it STANDS on (never an adjacent
 // tile), identified by its square. Fails if the pack is full or nothing is there.
 func (g *crawlerGame) pickup(seat, square int) {
-	if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
+	// Picking up floor loot is free and does NOT need to be your turn: any living hero
+	// standing on the tile may grab what is lying there (so loot a boss dropped is still
+	// reachable once the turn has moved on). It costs no die and never ends a turn.
+	if g.phase != crPlaying {
 		return
 	}
 	h := g.players[seat]
+	if h == nil || !h.alive {
+		return
+	}
 	t := g.tiles[h.tileID]
 	if t == nil {
 		return

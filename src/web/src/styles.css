@@ -201,6 +201,22 @@ header {
 .game-card-blurb { color: var(--muted); font-weight: 700; font-size: .78rem; }
 
 .game-room { display: flex; flex-direction: column; gap: .75rem; }
+/* Local multiplayer: a tab per local player sharing the device (see LocalSeats). */
+.local-seats { display: flex; flex-direction: column; gap: .6rem; }
+.local-tabs { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.local-tab { padding: .35rem .8rem; border-radius: 999px; border: 1px solid rgba(201,162,39,.5); background: rgba(20,15,9,.4); color: inherit; cursor: pointer; font-weight: 600; }
+.local-tab.active { background: var(--gold, #c9a227); color: #140f09; border-color: var(--gold, #c9a227); }
+.local-tab.add { border-style: dashed; opacity: .85; }
+/* A team-tinted tab (Codenames): the colour comes inline; the active one gets a ring. */
+.local-tab.teamed { font-weight: 700; }
+.local-tab.teamed.active { box-shadow: 0 0 0 2px #fff inset, 0 0 0 1px rgba(0,0,0,.3); filter: brightness(1.08); }
+.local-tab:hover { filter: brightness(1.1); }
+.local-add { padding: .6rem .8rem; }
+.local-add-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.local-seat[hidden] { display: none; }
+/* Pass-the-device cover for hidden-information local multiplayer (Codenames, Hanabi). */
+.local-handoff { display: flex; flex-direction: column; align-items: center; gap: .6rem; text-align: center; padding: 2rem 1rem; min-height: 40vh; justify-content: center; }
+.local-handoff-name { font-size: 1.6rem; font-weight: 800; color: var(--gold, #c9a227); }
 .game-bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; padding: .6rem .9rem; }
 .game-code { display: flex; flex-direction: column; line-height: 1.1; }
 .game-code small { color: var(--muted); font-weight: 800; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; }
