@@ -96,6 +96,8 @@ const (
 	crMsgPickup  = "pickup" // {square} take a ground object on your tile
 	crMsgDrop    = "drop"   // {obj} drop an object onto your square
 	crMsgTotem   = "totem"  // {totem} pick/change your animal while in the lobby
+	crMsgRevive  = "revive" // {ally} spend a die to revive a downed ally on your tile
+	crMsgHeal    = "heal"   // spend 2 Courage to heal 1 (always available on your turn)
 )
 
 // Special (non-combat) tile kinds placed into the deck. They carry no monster; their
@@ -183,6 +185,7 @@ type crawlerHero struct {
 	tileID       int
 	square       int
 	alive        bool
+	downed       bool // at 0 Health but not dead: out of the fight until an ally revives them
 	volleyUsed   bool // Arrow Squid: Deep Volley spent this turn (once-a-turn, reset in beginTurn)
 	electrified  bool // status: loses 1 health each round until cleared (boss Overload, fire)
 	electrocuted bool // status: -1 to each die value until cleared (Scrapling sting, live wiring)
@@ -517,6 +520,16 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 		g.pickup(seat, c.Square)
 	case crMsgDrop:
 		g.dropObject(seat, c.Obj)
+	case crMsgRevive:
+		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
+			return
+		}
+		g.revive(seat, c.Ally)
+	case crMsgHeal:
+		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
+			return
+		}
+		g.courageHeal(seat)
 	case crMsgEndTurn:
 		if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
 			return
@@ -617,10 +630,26 @@ func (g *crawlerGame) startLevel(n int) {
 	g.beginLayPhase()
 }
 
-// firstAlive is the first living hero in seat order (the hero each phase opens on).
+// canAct reports whether a hero can take a turn and fight: alive and not downed. A downed
+// hero stays on the map (alive) but is skipped by turns and combat until an ally revives.
+func canAct(h *crawlerHero) bool { return h.alive && !h.downed }
+
+// actingHeroes counts the heroes who can still act (not downed, not dead); the party is
+// lost only when this hits 0 (everyone is down at once, with nobody left to revive).
+func (g *crawlerGame) actingHeroes() int {
+	n := 0
+	for _, s := range g.order {
+		if canAct(g.players[s]) {
+			n++
+		}
+	}
+	return n
+}
+
+// firstAlive is the first hero who can act, in seat order (the hero each phase opens on).
 func (g *crawlerGame) firstAlive() int {
 	for _, s := range g.order {
-		if g.players[s].alive {
+		if canAct(g.players[s]) {
 			return s
 		}
 	}
@@ -639,7 +668,7 @@ func (g *crawlerGame) nextInOrder(from int) int {
 		}
 	}
 	for i := fi + 1; i < len(g.order); i++ {
-		if g.players[g.order[i]].alive {
+		if canAct(g.players[g.order[i]]) {
 			return g.order[i]
 		}
 	}
@@ -1036,6 +1065,48 @@ func (g *crawlerGame) carryStep(a *crawlerHero, dir int, crossTiles bool) bool {
 
 // maybeAutoEnd ends the turn automatically once every die is spent (and the hero is
 // not paused mid-lay), so a player with no dice left does not have to click End turn.
+// firstUnspentDie returns the index of the first unspent die in the pool, or -1.
+func (g *crawlerGame) firstUnspentDie() int {
+	for i := range g.dice {
+		if !g.dice[i].Spent {
+			return i
+		}
+	}
+	return -1
+}
+
+// revive spends one of the active hero's dice to bring a downed ally back on 1 Health. The
+// ally must be downed and on the reviver's own tile (you pick them up where they lie).
+func (g *crawlerGame) revive(seat, allySeat int) {
+	h := g.players[seat]
+	a, ok := g.players[allySeat]
+	if !ok || a == h || !a.downed || a.tileID != h.tileID {
+		return
+	}
+	di := g.firstUnspentDie()
+	if di < 0 {
+		return // reviving costs an action: an unspent die
+	}
+	g.dice[di].Spent = true
+	g.dice[di].UsedFor = "revive"
+	a.downed = false
+	a.health = 1
+	g.log = append(g.log, h.name+" revives "+a.name+", back on their feet (1 Health).")
+	g.maybeAutoEnd(seat)
+}
+
+// courageHeal spends 2 Courage to heal 1, available to any hero on their turn (not role-
+// gated, no die cost). Refused at full Health or below 2 Courage.
+func (g *crawlerGame) courageHeal(seat int) {
+	h := g.players[seat]
+	if !canAct(h) || h.courage < 2 || h.health >= h.sheet.maxHP {
+		return
+	}
+	h.courage -= 2
+	h.health++
+	g.log = append(g.log, h.name+" spends 2 Courage to patch up 1 Health.")
+}
+
 func (g *crawlerGame) maybeAutoEnd(seat int) {
 	if g.phase != crPlaying || g.step != crStepSpend || g.pending != nil || seat != g.turn {
 		return

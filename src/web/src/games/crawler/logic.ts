@@ -32,7 +32,7 @@ export const TILE_ART: Record<string, { file: string | string[]; base: Edges }> 
   coolant: { file: "tile-13", base: [T, T, T, T] }, //    coolant-flood hazard room (L2+)
   fog: { file: "tile-14", base: [T, T, T, T] }, //        sensor-fog hazard room (L2+)
   rust: { file: "tile-15", base: [T, T, T, T] }, //       rust hazard room, open crossroads (Ruins L3+)
-  trap: { file: "tile-16", base: [T, F, T, F] }, //       trap/mine hazard room, a straight corridor (Ruins L3+)
+  trap: { file: ["tile-16", "tile-16b", "tile-16c"], base: [T, F, T, F] }, // trap/mine room, a corridor; 3 interchangeable Ruins looks (ruins-only kind)
   overheat: { file: "tile-17", base: [T, T, T, T] }, //   overheat/fire hazard room (Machine L5+)
   descent: { file: "tile-18", base: [F, F, T, F] }, //    stairwell down to the machine rooms: L4 boss lair
 };

@@ -22,6 +22,7 @@ export interface CrHero {
   square: number;
   unlocked: [boolean, boolean];
   alive: boolean;
+  downed?: boolean; // at 0 Health, out of the fight until an ally revives them
   special: string;
   menu?: { action: string; min: number }[]; // only on your own hero
   unlock0?: string;

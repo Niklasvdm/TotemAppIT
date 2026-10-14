@@ -76,9 +76,9 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: 
               )}
               {here.map((h) => {
                 const a = spriteFor(h.s);
-                const dead = !h.alive || lost;
+                const dead = h.downed || !h.alive || lost;
                 return (
-                  <span key={h.s} className={`cr-pawn${h.s === v.turn ? " active" : ""}${h.s === v.you ? " you" : ""}${dead ? " dead" : ""}`} title={h.n + (h.alive ? "" : " (down)")}>
+                  <span key={h.s} className={`cr-pawn${h.s === v.turn ? " active" : ""}${h.s === v.you ? " you" : ""}${dead ? " dead" : ""}`} title={h.n + (h.downed ? " (down — revive me)" : "")}>
                     <TotemSprite slug={h.totem} size={40} pose={a.pose} frame={a.frame} flip={a.flip} dead={dead} />
                   </span>
                 );

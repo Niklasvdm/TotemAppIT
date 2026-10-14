@@ -21,7 +21,7 @@ export function CharacterSheet({ me, lost, view, myTurn, selDie, onSend }: {
   // Whether a held object can be used right now (from its slot), and the message to send:
   // both come from the shared useItemMsg so the sheet and the keyboard shortcuts agree.
   const itemMsg = (slug: string) => useItemMsg(view, me, slug, selDie);
-  const usable = (slug: string): boolean => myTurn && me.alive && itemMsg(slug) != null;
+  const usable = (slug: string): boolean => myTurn && !me.downed && itemMsg(slug) != null;
   const useSlot = (slug: string) => {
     const msg = itemMsg(slug);
     if (msg) onSend(msg);
@@ -33,10 +33,10 @@ export function CharacterSheet({ me, lost, view, myTurn, selDie, onSend }: {
   return (
     <div className="panel cr-sheet">
       <div className="cr-sheet-head">
-        <TotemSprite slug={me.totem} size={56} dead={!me.alive || lost} />
+        <TotemSprite slug={me.totem} size={56} dead={me.downed || lost} />
         <div className="cr-sheet-id">
           <strong>{me.n}</strong>
-          <span className="muted-note">{me.totem}{me.alive ? "" : " · down"}</span>
+          <span className="muted-note">{me.totem}{me.downed ? " · down" : ""}</span>
         </div>
         <div className="cr-sheet-stats">
           <div className="cr-bar-row">
@@ -91,7 +91,7 @@ export function CharacterSheet({ me, lost, view, myTurn, selDie, onSend }: {
               ) : (
                 <ObjIcon slug={slug} size={26} />
               )}
-              {myTurn && me.alive && (
+              {myTurn && !me.downed && (
                 <button className="cr-slot-drop" title={`Drop ${info.name} on your square`} onClick={() => onSend({ t: "drop", obj: slug })}>⤓</button>
               )}
               <InfoDot text={tip} />

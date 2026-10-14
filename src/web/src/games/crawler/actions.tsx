@@ -18,7 +18,7 @@ export function CrawlerActions({
 }) {
   const mins = menuMins(me);
   const can = (action: string) => die.value >= (mins[action] ?? 99);
-  const allies = view.heroes.filter((h) => h.alive && h.tile === me.tile);
+  const allies = view.heroes.filter((h) => h.alive && !h.downed && h.tile === me.tile);
   const others = allies.filter((a) => a.s !== me.s);
   const specLabel = specialInfo(me.special).name;
   const di = dieIdx(view, die);

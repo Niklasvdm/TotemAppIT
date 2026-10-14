@@ -223,7 +223,7 @@ function CrawlerRoom({
       if (tag === "input" || tag === "select" || tag === "textarea") return;
       if (v.ph !== "playing" || v.step !== "spend" || v.turn !== v.you) return;
       const me = v.heroes.find((h) => h.s === v.you);
-      if (!me?.alive) return;
+      if (!me || me.downed) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       const mins = menuMins(me);
       // Move: arrows / WASD.
@@ -525,6 +525,27 @@ function CrawlerRoom({
                   onReroll={() => { g.send({ t: "reroll", die: sel }); }}
                 />
               )}
+              {(() => {
+                const hasDie = v.dice.some((d) => !d.spent);
+                const downedAllies = v.heroes.filter((h) => h.downed && h.tile === me.tile && h.s !== me.s);
+                const canHeal = me.courage >= 2 && me.health < me.maxHP;
+                if (!canHeal && downedAllies.length === 0) return null;
+                return (
+                  <div className="cr-actions">
+                    {canHeal && (
+                      <div className="cr-action-row">
+                        <button className="game-btn" title="Always available: trade 2 Courage for 1 Health" onClick={() => g.send({ t: "heal" })}>🩹 Patch up (2✊ → 1❤)</button>
+                      </div>
+                    )}
+                    {downedAllies.map((a) => (
+                      <div className="cr-action-row" key={a.s}>
+                        <span>⛑ {a.n} is down:</span>
+                        <button className="game-btn" disabled={!hasDie} title={hasDie ? "Spend a die to revive this ally" : "needs an unspent die"} onClick={() => { g.send({ t: "revive", ally: a.s }); setSel(null); }}>revive (1 die)</button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               <div className="cr-turn-actions">
                 <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>End turn</button>
               </div>
@@ -538,8 +559,8 @@ function CrawlerRoom({
       {/* party */}
       <div className="cr-party">
         {v.heroes.map((h) => (
-          <div key={h.s} className={`cr-hero${h.s === v.turn ? " active" : ""}${!h.alive ? " down" : ""}`}>
-            <strong>{h.n}{h.s === v.you ? " (you)" : ""}</strong>
+          <div key={h.s} className={`cr-hero${h.s === v.turn ? " active" : ""}${h.downed || !h.alive ? " down" : ""}`}>
+            <strong>{h.n}{h.s === v.you ? " (you)" : ""}{h.downed ? " ⛑ DOWN" : ""}</strong>
             <span>❤ {h.health}/{h.maxHP} · ✊ {h.courage} · 🛡 {h.shields}</span>
             {heroStatuses(h).length > 0 && (
               <span className="cr-status-row">

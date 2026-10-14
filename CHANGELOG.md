@@ -10,6 +10,13 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.16.0 — 2026-10-13
+- `[FEATURE]` **Crawler: downed-not-dead revive.** A hero at 0 Health is now *downed* (still on the map, out of the fight, statuses cleared) instead of dead. An ally on their tile spends one die to **revive** them back on 1 Health (the `revive` command, a ⛑ button). The party loses only when *every* hero is down at once (`actingHeroes() == 0`). Downed heroes are skipped by turns and combat and can't be passively healed (revive is the only way up).
+- `[FEATURE]` **Crawler: spend-2-Courage self-heal.** Any hero can trade 2 Courage for 1 Health on their turn (the `heal` command, a 🩹 button) — always available, un-gated by role, no die cost.
+- `[ENHANCEMENT]` **Crawler: trap rooms vary their art.** `TILE_ART.trap` now lists `tile-16`/`tile-16b`/`tile-16c` (a ruins-only kind, so safe), so the trap corridor isn't the same drawing every time.
+- `[CHANGE]` The scout ability is dropped from the roadmap (per design).
+- `[CHORE]` New tests: downed-not-dead + revive, party-lost-only-when-all-down, courage-heal.
+
 ### 0.15.0 — 2026-10-13
 - `[FEATURE]` **Crawler: archetype→animal mapping (17 playable totems).** Each sheet now carries a `role` (Guardian / Striker-melee / Striker-ranged / Healer / Trickster / Carrier), and every special keys on the role instead of the animal slug, so multiple animals share one archetype with no duplicated logic: Guardian (Beaver, Donkey), Striker-melee (Wolf, Houndshark, Swordfish), Striker-ranged (Arrow Squid, Kite, Hawk), Healer (Treefrog, Fringed turtle), Trickster (Raccoon, Squirrel, Spider Monkey, Chimpanzee, Koala), Carrier (Comoros Weaver, Bullfinch). The lobby picker lists them grouped by archetype; unmapped totems still fall back to the generic sheet. No stat changes to the existing six leads.
 

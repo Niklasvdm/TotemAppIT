@@ -2359,3 +2359,53 @@ func TestCrawlerArchetypeAnimalMapping(t *testing.T) {
 		t.Fatal("an unmapped animal should fall back to the generic sheet")
 	}
 }
+
+func TestCrawlerDownedNotDeadAndRevive(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	h0, h1 := g.players[0], g.players[1]
+	h1.tileID, h1.square = h0.tileID, h0.square // same tile, so h1 can revive h0
+	g.hurt(h0, h0.health+5)                     // lethal
+	if !h0.downed || !h0.alive {
+		t.Fatalf("a hero at 0 should be downed, not dead: downed=%v alive=%v", h0.downed, h0.alive)
+	}
+	if g.actingHeroes() != 1 {
+		t.Fatalf("one down, one up: actingHeroes=%d", g.actingHeroes())
+	}
+	g.turn, g.step, g.dice = 1, crStepSpend, []crawlerDie{{Value: 3}, {Value: 3}} // two dice: don't auto-end
+	g.revive(1, 0)
+	if h0.downed || h0.health != 1 {
+		t.Fatalf("revive should bring the ally back on 1 Health: downed=%v health=%d", h0.downed, h0.health)
+	}
+	if !g.dice[0].Spent || g.dice[1].Spent {
+		t.Fatalf("revive should spend exactly one die: %+v", g.dice)
+	}
+}
+
+func TestCrawlerPartyLostOnlyWhenAllDown(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	g.hurt(g.players[0], 99)
+	if g.actingHeroes() == 0 {
+		t.Fatal("one hero still up: the party is not lost yet")
+	}
+	g.hurt(g.players[1], 99)
+	if g.actingHeroes() != 0 {
+		t.Fatal("both down: no hero can act")
+	}
+}
+
+func TestCrawlerCourageHeal(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.health, h.courage = 1, 5
+	g.turn, g.step = 0, crStepSpend
+	g.courageHeal(0)
+	if h.health != 2 || h.courage != 3 {
+		t.Fatalf("courage-heal should trade 2 Courage for 1 Health: health=%d courage=%d", h.health, h.courage)
+	}
+	h.health = h.sheet.maxHP
+	c := h.courage
+	g.courageHeal(0)
+	if h.courage != c {
+		t.Fatal("courage-heal at full Health should be refused")
+	}
+}

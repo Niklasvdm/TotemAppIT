@@ -22,6 +22,7 @@ type crawlerHeroView struct {
 	Square       int               `json:"square"`
 	Unlocked     [2]bool           `json:"unlocked"` // specials currently ACTIVE (auto, by Courage)
 	Alive        bool              `json:"alive"`
+	Downed       bool              `json:"downed,omitempty"` // at 0 Health, out of the fight until an ally revives
 	Special      string            `json:"special"`
 	Menu         []crawlerMenuView `json:"menu,omitempty"`         // sheet's action menu (only on your own hero)
 	Unlock0      string            `json:"unlock0,omitempty"`      // first special's name
@@ -214,7 +215,7 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 		hv := crawlerHeroView{
 			S: s, N: h.name, Totem: h.sheet.totem, Health: h.health, MaxHP: h.sheet.maxHP,
 			Courage: h.courage, Shields: h.shields, TileID: h.tileID, Square: h.square,
-			Unlocked: [2]bool{h.specialActive(0), h.specialActive(1)}, Alive: h.alive, Special: h.sheet.special, Gone: !connected[s],
+			Unlocked: [2]bool{h.specialActive(0), h.specialActive(1)}, Alive: h.alive, Downed: h.downed, Special: h.sheet.special, Gone: !connected[s],
 			Objects: append([]string{}, h.objects...), Slots: heroSlots(h),
 			Electrified: h.electrified, Electrocuted: h.electrocuted, Snared: h.snared, Drained: h.drained, Rusted: h.rusted,
 		}

@@ -252,7 +252,7 @@ func (g *crawlerGame) electrifyRandom(name string) {
 	var cand []*crawlerHero
 	for _, s := range g.order {
 		h := g.players[s]
-		if h.alive && !h.electrified && !heroHas(h, "grounding-boots") {
+		if canAct(h) && !h.electrified && !heroHas(h, "grounding-boots") {
 			cand = append(cand, h)
 		}
 	}
@@ -271,7 +271,7 @@ func (g *crawlerGame) electrifyRandom(name string) {
 func (g *crawlerGame) maybeSpring(seat int) {
 	h := g.players[seat]
 	t := g.tiles[h.tileID]
-	if t == nil || t.kind != crKindHealing || h.square != 4 || !h.alive {
+	if t == nil || t.kind != crKindHealing || h.square != 4 || !canAct(h) {
 		return
 	}
 	if h.health >= h.sheet.maxHP && !heroHasStatus(h) {
@@ -326,7 +326,7 @@ func (g *crawlerGame) grantShields(seat, ally, n int) bool {
 	tgt := src
 	if ally != seat {
 		a, ok := g.players[ally]
-		if !ok || !a.alive || a.tileID != src.tileID {
+		if !ok || !canAct(a) || a.tileID != src.tileID {
 			return false
 		}
 		tgt = a
@@ -365,7 +365,7 @@ func (g *crawlerGame) bloomHeal(src *crawlerHero) {
 	n := 0
 	for _, s := range g.order {
 		a := g.players[s]
-		if a == src || !a.alive || a.tileID != src.tileID || a.health >= a.sheet.maxHP {
+		if a == src || !canAct(a) || a.tileID != src.tileID || a.health >= a.sheet.maxHP {
 			continue
 		}
 		a.health++
@@ -394,7 +394,7 @@ func (g *crawlerGame) resolveRound() {
 			struck := false
 			for _, s := range g.order {
 				h := g.players[s]
-				if !h.alive || h.tileID != t.id {
+				if !canAct(h) || h.tileID != t.id {
 					continue
 				}
 				g.strike(m, h)
@@ -415,7 +415,7 @@ func (g *crawlerGame) resolveRound() {
 			// Shockwave: an extra 1 to every hero on its tile.
 			if hasSpecial(m, bsShockwave) {
 				for _, s := range g.order {
-					if h := g.players[s]; h.alive && h.tileID == t.id {
+					if h := g.players[s]; canAct(h) && h.tileID == t.id {
 						g.hurt(h, 1)
 					}
 				}
@@ -435,14 +435,14 @@ func (g *crawlerGame) resolveRound() {
 	}
 	// Electrified ticks for 1 on each afflicted hero.
 	for _, s := range g.order {
-		if h := g.players[s]; h.alive && h.electrified {
+		if h := g.players[s]; canAct(h) && h.electrified {
 			g.hurt(h, 1)
 		}
 	}
 	for _, s := range g.order {
 		g.players[s].shields = 0
 	}
-	if g.aliveHeroes() == 0 {
+	if g.actingHeroes() == 0 {
 		g.phase = crLost
 		g.log = append(g.log, "The party has fallen. The dungeon wins.")
 		return
@@ -471,10 +471,21 @@ func (g *crawlerGame) hurt(h *crawlerHero, dmg int) {
 	h.shields = 0
 	h.health -= dmg
 	if h.health <= 0 {
-		h.health = 0
-		h.alive = false
-		g.log = append(g.log, h.name+" falls.")
+		g.downHero(h)
 	}
+}
+
+// downHero puts a hero at 0 Health into the downed state (not dead): out of the fight,
+// statuses cleared, until an ally revives them. A no-op if already downed.
+func (g *crawlerGame) downHero(h *crawlerHero) {
+	h.health = 0
+	if h.downed {
+		return
+	}
+	h.downed = true
+	h.shields = 0
+	heroClearStatuses(h)
+	g.log = append(g.log, h.name+" is downed! An ally on their tile can revive them.")
 }
 
 // strike applies one monster's Damage to one hero, routing it to the Beaver's Bulwark
@@ -497,9 +508,7 @@ func (g *crawlerGame) strike(m *crawlerMonster, h *crawlerHero) {
 		g.log = append(g.log, tgt.name+" takes "+strconv.Itoa(dmg)+" damage.")
 	}
 	if tgt.health <= 0 {
-		tgt.health = 0
-		tgt.alive = false
-		g.log = append(g.log, tgt.name+" falls.")
+		g.downHero(tgt)
 		return
 	}
 	// The robot's sting rolls its status die (Level 2+): a Scrapling can Electrocute
@@ -511,7 +520,7 @@ func (g *crawlerGame) strike(m *crawlerMonster, h *crawlerHero) {
 func (g *crawlerGame) allyOnTile(h *crawlerHero) bool {
 	for _, s := range g.order {
 		a := g.players[s]
-		if a != h && a.alive && a.tileID == h.tileID {
+		if a != h && canAct(a) && a.tileID == h.tileID {
 			return true
 		}
 	}
@@ -523,7 +532,7 @@ func (g *crawlerGame) allyOnTile(h *crawlerHero) bool {
 func (g *crawlerGame) bulwarkFor(h *crawlerHero) *crawlerHero {
 	for _, s := range g.order {
 		b := g.players[s]
-		if b == h || !b.alive || b.tileID != h.tileID {
+		if b == h || !canAct(b) || b.tileID != h.tileID {
 			continue
 		}
 		if b.sheet.role == roleGuardian && b.specialActive(1) {

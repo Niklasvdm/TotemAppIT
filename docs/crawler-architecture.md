@@ -45,8 +45,7 @@ A full vertical slice of the real game, built on the random tile generator chose
 **Deferred (later)**
 
 - Reaction dice (allies spending dice on another hero's turn, an interrupt mechanic) — distinct from the shipped end-of-round group fight.
-- The scout ability (the friends' totems are now mapped onto the six archetypes and playable).
-- Hidden enemy stats (the Wavelength-style reveal), richer story beats, a balancing pass, mobile polish, and the pending art (see the [changelog](../CHANGELOG.md) roadmap).
+- Hidden enemy stats (the Wavelength-style reveal), richer story beats, a balancing pass, mobile polish, and the pending art (see the [changelog](../CHANGELOG.md) roadmap). (The scout ability was dropped; the friends' totems are mapped onto the six archetypes and playable.)
 
 ## Why it fits the engine as-is
 
@@ -70,7 +69,7 @@ Room *-- CG
 CG ..|> Game
 CG ..> Outbox : broadcastViews()
 
-note bottom of CG : Event-driven (TickHz 0).\nCo-op: today one shared view is\nbroadcast; viewFor(seat) is kept\nso future private info (scout peek,\nhidden enemy stats) is a small step.
+note bottom of CG : Event-driven (TickHz 0).\nCo-op: today one shared view is\nbroadcast; viewFor(seat) is kept\nso future private info\n(hidden enemy stats) is a small step.
 @enduml
 ```
 
@@ -334,7 +333,7 @@ end
 
 A monster shows Armour (minimum die to land a hit), Health (hits to kill, tracked as a current value that drops live and persists), and Damage (dealt back if it survives). Heroes have no damage stat: output is purely how many Attack dice land, as in Explorers. Shields are consumed one per point of incoming Damage before it reaches Health. Worked example from the brief, which is a test: a Gor is A4 H2 D3; Attack dice 5, 4 land two hits (5 and 4 beat 4), dropping Health to 0, so it dies at once and deals nothing; had only the 5 landed, it survives on 1 Health (kept for next turn) and deals 3 minus Shields at end of turn. Hovering a monster on the board shows its Armour, current Health and Damage. A **boss cannot be sniped from an adjacent tile**: ranged reach (Arrow Squid, or the Scope object) works on ordinary robots, but the boss must be fought from its own tile (`tryAttack` rejects a boss hit when the hero is not on its tile), and the client drops the boss from the ranged target list so it is never even offered.
 
-**Health and healing.** Health is per totem (4 fragile to 8 tank, see [Characters and sheets](#characters-and-sheets)); a hero takes a monster's Damage only on a round it survives, Shields first. The design note's healing routes that are built: the **Treefrog's Mend** (heal 2 to a hero on your tile), the **healing-spring tile** (step onto its centre for full health, free and reusable), the **Medkit** consumable, and the Wolf's passive Group strength. A hero at 0 Health currently **dies** (removed from the fight), and the party loses when all are down; the note's **downed-not-dead revive** (a hero sits at 0 until an ally spends an action to bring them back) and the **spend-2-Courage-to-heal-1** route are design intent not yet implemented (see the roadmap).
+**Health and healing.** Health is per totem (4 fragile to 8 tank, see [Characters and sheets](#characters-and-sheets)); a hero takes a monster's Damage only on a round it survives, Shields first. The design note's healing routes that are built: the **Treefrog's Mend** (heal 2 to a hero on your tile), the **healing-spring tile** (step onto its centre for full health, free and reusable), the **Medkit** consumable, and the Wolf's passive Group strength. A hero at 0 Health is **downed, not dead** (`downHero`): still on the map but out of the fight (skipped by turns and combat, statuses cleared), until an ally on their tile **revives** them (`revive`, the `revive` command, spends one die to bring them back on 1 Health). The party loses only when **every** hero is down at once (`actingHeroes() == 0`), with nobody left to revive. The **spend-2-Courage-to-heal-1** self-patch (`courageHeal`, the `heal` command) is always available on your turn, un-gated by role. Downed heroes are not valid targets for Mend/Bloom/spring/Medkit (revive is the only way back up).
 
 ## Bosses and multi-level progression
 
@@ -497,9 +496,11 @@ The wire frames are the engine's usual four (`welcome`, `roster`, `state`, `erro
 | `reroll` | `die` | costs 1 Courage |
 | `endTurn` | | applies monster damage on your tile, clears your (per-turn) Shields, then advances to the next hero |
 | `totem` | `totem` | lobby only: pick/change your animal (rebuilds your sheet); locked once the run starts |
+| `revive` | `ally` | your turn: spend one die to revive a downed ally on your tile (back on 1 Health) |
+| `heal` | | your turn: spend 2 Courage to heal 1 (always available, any role, no die) |
 | `restart` | | host only, from won or lost |
 
-**View (`state`) fields**: `phase`, `turn`, `step`, the active hero's `dice` (value, spent, usedFor), any `pending` tile lay (the drawn tile plus the list of legal `(coord, rotation)` options for the client to render as choices), every `hero` (totem, health, pos, courage, shields, loot, unlocked, alive), the `map` (placed tiles with their 3x3 grids, edges, enemies with A/H/D and remaining Health, loot and hazard squares), the `frontiers`, the `deck` count with the current band and a `bossNear` flag once the final band is reached, the recent `log` beats, `won` / `lost`, and (only on a run started in debug) a `debug` block with the seed, run state, the deck peek (upcoming tiles and their robots) and per-band spawn odds that the client's F3 overlay reads. Every slice is built with `append([]T{}, ...)` so none serialises as `null` (the engine's standing rule).
+**View (`state`) fields**: `phase`, `turn`, `step`, the active hero's `dice` (value, spent, usedFor), any `pending` tile lay (the drawn tile plus the list of legal `(coord, rotation)` options for the client to render as choices), every `hero` (totem, health, pos, courage, shields, loot, unlocked, alive, downed), the `map` (placed tiles with their 3x3 grids, edges, enemies with A/H/D and remaining Health, loot and hazard squares), the `frontiers`, the `deck` count with the current band and a `bossNear` flag once the final band is reached, the recent `log` beats, `won` / `lost`, and (only on a run started in debug) a `debug` block with the seed, run state, the deck peek (upcoming tiles and their robots) and per-band spawn odds that the client's F3 overlay reads. Every slice is built with `append([]T{}, ...)` so none serialises as `null` (the engine's standing rule).
 
 The **F3 debug overlay** (`CrawlerDebug`, gated on a run started with F3 active) surfaces that `debug` block plus connection stats; the **animal is chosen in the lobby** (the `totem` command) rather than at the name screen, and an **acquired attack die** (Spare Die, Frenzy) is flagged `bonus` and drawn blue.
 
@@ -525,8 +526,8 @@ Testing is first-class and written alongside the logic, driving `Command` throug
 
 ## Roadmap
 
-- **Shipped**: the engine `Game` with random banded tile generation and the boss in the final band; the full turn (dice, menu, Move, Attack, Special, Courage, reroll) with Shields; the group fight; six designed totems with their Courage-tier specials; the boss pool and six-level progression across three biomes; the loot economy with a shop and floor drops; the hazard and status system with the Level-2 hazard rooms; ranged attack, carry and fast movement; win and lose; narrated beats; local (same-device) multiplayer; and the test suite.
-- **Next**: downed-not-dead revive and the scout ability. (The friends' totems are now mapped onto the six archetypes, so they are playable; a per-animal bespoke twist is optional later.)
+- **Shipped**: the engine `Game` with random banded tile generation and the boss in the final band; the full turn (dice, menu, Move, Attack, Special, Courage, reroll) with Shields; the group fight; the six archetypes with 17 mapped animals and their Courage-tier specials; the boss pool and six-level progression across three biomes; the loot economy with a shop and floor drops; the hazard and status system with the Level-2 hazard rooms; ranged attack, carry and fast movement; **downed-not-dead revive and the spend-2-Courage self-heal**; win and lose; narrated beats; local (same-device) multiplayer; and the test suite.
+- **Next**: a balancing pass with real players, and the optional per-animal bespoke twists on top of the shared archetypes.
 - **Later**: hidden enemy stats, richer per-tile story beats, a balancing pass with real players, mobile layout, and the pending art (boss sheets, a dedicated Sentry, the Level-2+ feature tiles, ruins/machine tilesets).
 
 ## Open numbers to tune (not architecture)
