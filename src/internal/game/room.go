@@ -20,8 +20,10 @@ import (
 // queue bounds staleness; the room must never block on a slow socket.
 const sendQueue = 8
 
-// reconnectGrace is how long a seat is held for a player whose socket dropped.
-const reconnectGrace = 30 * time.Second
+// reconnectGrace is how long a seat is held for a player whose socket dropped. Generous
+// (2 minutes) so a phone that dims, locks, or has its tab discarded and reloaded can walk
+// back into the same seat; the client restores its session + resume token across the reload.
+const reconnectGrace = 2 * time.Minute
 
 var (
 	// ErrRoomFull is returned when the game has no free seat.
@@ -265,10 +267,14 @@ func (r *Room) resumeSeat(token string) (int, bool) {
 	}
 	now := time.Now()
 	for slot, h := range r.held {
-		if _, taken := r.conns[slot]; taken {
-			continue // that seat is live; this token is stale
-		}
-		if h.until.IsZero() || now.After(h.until) {
+		// A seat is reclaimable while its grace holds, AND while it is still live:
+		// `until` is zero on a connected seat and only set to a deadline on drop, so a
+		// live seat is "the same player reconnecting before the server noticed the old
+		// socket die". The caller supersedes that stale connection. Only a dropped seat
+		// whose grace has run out is off-limits. Matching the token is what authorises
+		// the reclaim either way (it is the client's own secret from its last welcome).
+		_, live := r.conns[slot]
+		if !live && !h.until.IsZero() && now.After(h.until) {
 			continue
 		}
 		if subtle.ConstantTimeCompare([]byte(h.token), []byte(token)) == 1 {
@@ -331,6 +337,18 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 				return
 			}
 		}
+		// If a stale connection still holds this seat (a reconnect that beat the old
+		// socket's teardown — common on a Mac where App Nap / a backgrounded tab freezes
+		// the socket and the server only learns it died on the next ping ~20s later),
+		// supersede it: closing its queue unwinds its write pump, which cancels its
+		// context and stops its read pump, so it can no longer apply commands. Its own
+		// teardown then no-ops because it is no longer this slot's connection (see Leave).
+		// Without this, the reclaim above could not take a live seat and the client would
+		// be re-seated as a brand-new player (a fresh hero at the start tile: the "teleport").
+		if old, held := r.conns[slot]; held {
+			close(old.send)
+			delete(r.conns, slot)
+		}
 		conn = &Conn{slot: slot, token: newToken(), send: make(chan []byte, sendQueue)}
 		r.conns[slot] = conn
 		r.held[slot] = heldSeat{token: conn.token} // claim for the NEXT drop
@@ -354,16 +372,30 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 
 // Quit removes a player who is leaving deliberately, releasing their seat
 // immediately. A dropped socket goes through Leave instead, which holds the seat.
-func (r *Room) Quit(slot int) {
-	r.do(func() { delete(r.held, slot) })
-	r.Leave(slot)
+// It no-ops for a connection that a reconnect has already superseded, so a stale
+// socket's goodbye can never drop the new occupant's held claim.
+func (r *Room) Quit(c *Conn) {
+	r.do(func() {
+		if cur, ok := r.conns[c.slot]; ok && cur != c {
+			return
+		}
+		delete(r.held, c.slot)
+	})
+	r.Leave(c)
 }
 
 // Leave disconnects a player, holding their seat for a grace period so they can
-// reconnect into it, and reassigns the host if it was theirs.
-func (r *Room) Leave(slot int) {
+// reconnect into it, and reassigns the host if it was theirs. If a newer connection
+// has already taken this seat (we were superseded on a reconnect), this is a no-op:
+// our teardown must never close or evict the connection that replaced us.
+func (r *Room) Leave(c *Conn) {
+	slot := c.slot
 	r.do(func() {
-		if c, ok := r.conns[slot]; ok {
+		cur, ok := r.conns[slot]
+		if ok && cur != c {
+			return // superseded: the current connection is someone else's, leave it be
+		}
+		if ok {
 			close(c.send)
 			delete(r.conns, slot)
 		}
@@ -401,13 +433,22 @@ func (r *Room) Leave(slot int) {
 // at the single trust boundary where every client frame enters the game.
 const maxCommandBytes = 8 << 10 // 8 KiB
 
-func (r *Room) Command(seat int, raw []byte) {
+func (r *Room) Command(c *Conn, raw []byte) {
 	if len(raw) > maxCommandBytes {
 		return // oversized frame: never hand untrusted bulk to game parsing
 	}
 	cp := append([]byte(nil), raw...)
 	select {
-	case r.acts <- func() { r.game.Command(seat, seat == r.host, cp) }:
+	case r.acts <- func() {
+		// Ignore frames from a connection that has been superseded (an old socket that a
+		// reconnect took over): it no longer owns the seat, so a late/in-flight command
+		// from it must not mutate the live game. Checked on the room goroutine, where
+		// r.conns is owned, so the comparison races nothing.
+		if r.conns[c.slot] != c {
+			return
+		}
+		r.game.Command(c.slot, c.slot == r.host, cp)
+	}:
 	case <-r.quit:
 	default:
 	}

@@ -133,14 +133,16 @@ func (g *crawlerGame) rollBossMonsters() []*crawlerMonster {
 		kind: d.slug, alive: true, isBoss: true, reward: d.reward,
 		bossName: d.name, specials: append([]string{}, d.specials...),
 	}
-	out := []*crawlerMonster{boss}
-	// Hardened Core fights behind a separate weak-point that must be destroyed first.
-	if hasSpecial(boss, bsHardcore) {
-		out = append(out, &crawlerMonster{
-			armour: 3, health: 2, maxHealth: 2, damage: 0, kind: "weakpoint", alive: true, weakPoint: true,
-		})
-	}
-	return out
+	// Hardened Core fights behind a separate weak-point that must be destroyed first; it
+	// is NOT on the boss tile but placed elsewhere on the map when the lair is laid (see
+	// placeWeakPoint), so the party has to hunt it down.
+	return []*crawlerMonster{boss}
+}
+
+// newWeakPoint builds a Hardened-Core weak-point: a small, immobile, no-damage target the
+// party must destroy before the boss (Hauler) takes any damage.
+func newWeakPoint() *crawlerMonster {
+	return &crawlerMonster{armour: 3, health: 2, maxHealth: 2, damage: 0, kind: "weakpoint", alive: true, weakPoint: true}
 }
 
 // hasSpecial reports whether a monster carries a given signature special.

@@ -165,6 +165,13 @@ const crSnareMoveDice = 2 // Snared: most dice a hero may spend on Move in a tur
 // longer an instant loss.
 const crGraceTurns = 5
 
+// crMaxDieFace is the highest value any die can roll (every faces table tops out at 6).
+// Effective Armour is capped at it so a 6 can ALWAYS land: without the cap a boss whose
+// Armour climbs (Mossback's Adaptive Plating) or is buffed (Pylon's Jammer Field) could
+// reach 7+, which no die can meet, making it permanently unkillable. Armour is never a
+// full damage gate; the weak-point/immunity specials are the only hard gate.
+const crMaxDieFace = 6
+
 // Courage needed to unlock the two specials. Unlocking does NOT spend it; you just
 // need to have earned this much (the "ready" threshold).
 const (
@@ -243,13 +250,13 @@ type crawlerMonster struct {
 }
 
 type crawlerTile struct {
-	id       int
-	band     int
-	kind     string // straight / bend / tee / cross / dead-end / boss
-	x, y     int
-	rot      int // quarter-turns the chosen placement rotated the base shape (for art)
-	edges    [4]bool
-	monsters []*crawlerMonster
+	id          int
+	band        int
+	kind        string // straight / bend / tee / cross / dead-end / boss
+	x, y        int
+	rot         int // quarter-turns the chosen placement rotated the base shape (for art)
+	edges       [4]bool
+	monsters    []*crawlerMonster
 	isBoss      bool
 	loot        []crawlerGroundItem // objects lying on the floor of this tile, by square
 	hazards     []crawlerHazard     // hazards on this tile's squares (see crawler_hazards.go)
@@ -621,6 +628,7 @@ func (g *crawlerGame) startLevel(n int) {
 		h.courage = 0
 		h.shields = 0
 		h.alive = true
+		h.downed = false // a downed hero is back on their feet at the next level
 		h.volleyUsed = false
 		heroClearStatuses(h)
 		h.tileID = start.id
@@ -690,7 +698,7 @@ func (g *crawlerGame) beginLayPhase() {
 	g.beginLayTurn(g.firstAlive())
 }
 
-// startGrace begins the "dungeon collapse" countdown: the party now has crGraceTurns
+// startGrace begins the "dungeon collapse" countdown: the party now has graceTurns()
 // turns to reach and defeat the boss (on the map by then) before the run is lost, and no
 // further tiles are laid. It fires the moment the boss lair is laid, or (as a fallback)
 // when the tile stack runs out. A no-op if already counting down.
@@ -698,8 +706,43 @@ func (g *crawlerGame) startGrace() {
 	if g.grace >= 0 {
 		return
 	}
-	g.grace = crGraceTurns
-	g.log = append(g.log, "The boss lair is open! The dungeon starts to collapse: "+strconv.Itoa(crGraceTurns)+" turns to reach and defeat the boss.")
+	g.grace = g.graceTurns()
+	g.log = append(g.log, "The boss lair is open! The dungeon starts to collapse: "+strconv.Itoa(g.grace)+" turns to reach and defeat the boss.")
+}
+
+// graceTurns is the collapse countdown length. A weak-point boss (Hauler, bsHardcore)
+// must have its hidden weak-point hunted down and destroyed before it can be hurt at all,
+// which burns turns, so it gets a longer countdown that scales DOWN with party size (more
+// heroes clear the weak-point and close the distance faster): 10 solo, 7 at two, 6 at
+// three, 5 at four or more. Every other boss uses the flat crGraceTurns.
+func (g *crawlerGame) graceTurns() int {
+	if !g.bossHasSpecial(bsHardcore) {
+		return crGraceTurns
+	}
+	players := len(g.order)
+	switch {
+	case players <= 1:
+		return 10
+	case players == 2:
+		return 7
+	case players == 3:
+		return 6
+	default:
+		return 5
+	}
+}
+
+// bossHasSpecial reports whether a boss currently on the map carries the given signature
+// special. Used to size the collapse countdown to the boss that was just laid.
+func (g *crawlerGame) bossHasSpecial(s string) bool {
+	for _, t := range g.tiles {
+		for _, m := range t.monsters {
+			if hasSpecial(m, s) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // beginLayTurn hands the LAY phase to `seat`: it draws the next tile and offers
@@ -719,10 +762,12 @@ func (g *crawlerGame) beginLayTurn(seat int) {
 		g.advanceLay(seat)
 		return
 	}
-	spec := g.deck[g.deckPos]
-	opts := g.allLayOptions(spec)
-	if len(opts) == 0 {
-		g.advanceLay(seat) // nowhere legal to lay: pass to the next hero
+	spec, opts, ok := g.drawLayable(func(s tileSpec) []crawlerLayOption { return g.allLayOptions(s) })
+	if !ok || len(opts) == 0 {
+		// Nothing in the stack can be laid (every remaining forest tile was buried, or the
+		// boss lair itself has no frontier): stop laying and run the collapse countdown.
+		g.startGrace()
+		g.advanceLay(seat)
 		return
 	}
 	g.deckPos++
@@ -763,6 +808,69 @@ func (g *crawlerGame) connects(x, y int, e [4]bool) bool {
 	return false
 }
 
+// keepsForestOpen reports whether laying a tile with edges e at (x,y) would leave at
+// least one open edge still facing an empty cell, i.e. a frontier for future tiles.
+// It is the guard behind Mapmaking Rule 4: a non-boss tile is never laid in the one
+// position that would seal the map shut (close the last opening). (x,y) is treated as
+// already filled by this tile.
+func (g *crawlerGame) keepsForestOpen(x, y int, e [4]bool) bool {
+	// The new tile's own open edges onto an empty neighbour are fresh frontier.
+	for d := 0; d < 4; d++ {
+		if !e[d] {
+			continue
+		}
+		ox, oy := x+crawlerDelta[d][0], y+crawlerDelta[d][1]
+		if _, occupied := g.at[[2]int{ox, oy}]; !occupied {
+			return true
+		}
+	}
+	// Any already-placed tile's open edge onto a still-empty cell keeps the map open,
+	// unless that cell is (x,y) itself (which this tile now fills).
+	for _, t := range g.tiles {
+		for d := 0; d < 4; d++ {
+			if !t.edges[d] {
+				continue
+			}
+			ox, oy := t.x+crawlerDelta[d][0], t.y+crawlerDelta[d][1]
+			if ox == x && oy == y {
+				continue
+			}
+			if _, occupied := g.at[[2]int{ox, oy}]; !occupied {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// buryTileAt removes the tile at deck position pos and drops it to the bottom of the
+// stack (Mapmaking Rules 3 and 4: a tile that can't legally connect, or whose only
+// placements would seal the map, is discarded to the bottom and redrawn past). deckPos
+// is left unchanged, so the next tile shifts into pos for the following draw.
+func (g *crawlerGame) buryTileAt(pos int) {
+	s := g.deck[pos]
+	g.deck = append(g.deck[:pos], g.deck[pos+1:]...)
+	g.deck = append(g.deck, s)
+}
+
+// drawLayable scans the stack from deckPos for the next tile that can actually be laid
+// under `gen` (the placement generator for the current situation, which already drops
+// map-sealing placements via keepsForestOpen). Forest tiles with no legal placement are
+// buried and the scan continues; a boss tile is returned as-is (it is meant to end the
+// forest). It does NOT advance deckPos: the caller does that once it commits the draw.
+// ok is false when nothing in the remaining stack can be laid.
+func (g *crawlerGame) drawLayable(gen func(tileSpec) []crawlerLayOption) (tileSpec, []crawlerLayOption, bool) {
+	for tries := len(g.deck) - g.deckPos; tries > 0 && g.deckPos < len(g.deck); tries-- {
+		spec := g.deck[g.deckPos]
+		opts := gen(spec)
+		if spec.isBoss || len(opts) > 0 {
+			return spec, opts, true
+		}
+		g.buryTileAt(g.deckPos)
+	}
+	return tileSpec{}, nil, false
+}
+
 // allLayOptions is the proactive (LAY-phase) placement set: every frontier cell and
 // every rotation of spec that fits the neighbours (edgesFit) and joins the map
 // (connects). The player picks the cell and the rotation, so a tile can be laid
@@ -774,6 +882,9 @@ func (g *crawlerGame) allLayOptions(spec tileSpec) []crawlerLayOption {
 			e := rotateEdges(spec.base, r)
 			if !g.edgesFit(f[0], f[1], e) || !g.connects(f[0], f[1], e) {
 				continue
+			}
+			if !spec.isBoss && !g.keepsForestOpen(f[0], f[1], e) {
+				continue // Mapmaking Rule 4: never lay the tile that seals the map (only the boss lair may end it)
 			}
 			out = append(out, crawlerLayOption{X: f[0], Y: f[1], Rotation: r, Edges: e})
 		}
@@ -792,10 +903,17 @@ func (g *crawlerGame) beginLay(seat, dir, nx, ny int) bool {
 		g.startGrace()
 		return false
 	}
+	// A move-triggered lay draws ONE tile for the specific doorway stepped through; it is
+	// NOT the place for the bury-and-redraw of Mapmaking Rules 3/4 (those belong to the
+	// proactive lay phase, which weighs the whole frontier). Burying here would silently
+	// discard tiles that simply don't fit this one cell but would fit elsewhere, thinning
+	// the level out. So: draw one, offer its fitting rotations; if none fit (including the
+	// anti-seal filter in layOptions), just block the move and leave the tile on top for
+	// the proactive phase to place where it belongs.
 	spec := g.deck[g.deckPos]
 	opts := g.layOptions(spec, dir, nx, ny)
 	if len(opts) == 0 {
-		return false // no legal placement at this frontier: the move is blocked
+		return false // no legal (non-sealing) placement at this frontier: the move is blocked
 	}
 	g.deckPos++
 	g.pending = &crawlerPending{spec: spec, entryDir: dir, options: opts}
@@ -816,6 +934,9 @@ func (g *crawlerGame) layOptions(spec tileSpec, dir, nx, ny int) []crawlerLayOpt
 		}
 		if !g.edgesFit(nx, ny, e) {
 			continue
+		}
+		if !spec.isBoss && !g.keepsForestOpen(nx, ny, e) {
+			continue // Mapmaking Rule 4: never lay the tile that seals the map (only the boss lair may end it)
 		}
 		out = append(out, crawlerLayOption{X: nx, Y: ny, Rotation: r, Edges: e})
 	}
@@ -1294,6 +1415,12 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 	}
 	if spec.isBoss {
 		g.startGrace() // the boss lair is on the map: no more tiles are laid, the countdown begins
+		for _, m := range mons {
+			if hasSpecial(m, bsHardcore) { // Hauler: expose the weak-point on a different tile
+				g.placeWeakPoint(t.id)
+				break
+			}
+		}
 	}
 	h := g.players[seat]
 	g.pending = nil
@@ -1427,6 +1554,7 @@ func (g *crawlerGame) resetToLobby() {
 		h.courage = 0
 		h.shields = 0
 		h.alive = true
+		h.downed = false
 		h.volleyUsed = false
 		heroClearStatuses(h)
 		h.objects = nil

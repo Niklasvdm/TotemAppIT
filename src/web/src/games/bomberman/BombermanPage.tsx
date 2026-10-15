@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { usePersistedSession } from "../session";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -22,7 +23,7 @@ export default function BombermanPage({ emoji }: { emoji: Record<string, string>
   const [animal, setAnimal] = useState(() => localStorage.getItem("totem-game-animal") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
   const [search, setSearch] = useState("");
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = usePersistedSession<Session>("totem-bomberman-session");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

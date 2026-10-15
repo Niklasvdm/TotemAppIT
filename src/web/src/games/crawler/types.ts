@@ -67,6 +67,7 @@ export interface CrTile {
   rot: number;
   edges: [boolean, boolean, boolean, boolean];
   isBoss: boolean;
+  weakPoint?: boolean; // a live Hardened-Core weak-point hides on this tile (highlighted)
   monsters: CrMonster[];
   loot?: { square: number; slug: string }[]; // objects lying on the floor
   hazards?: { square: number; kind: string }[]; // hazards on squares (square -1 = whole tile)

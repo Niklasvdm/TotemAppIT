@@ -60,17 +60,18 @@ type crawlerMonsterView struct {
 }
 
 type crawlerTileView struct {
-	ID       int                  `json:"id"`
-	X        int                  `json:"x"`
-	Y        int                  `json:"y"`
-	Kind     string               `json:"kind"`
-	Rot      int                  `json:"rot"`
-	Edges    [4]bool              `json:"edges"`
-	IsBoss   bool                 `json:"isBoss"`
-	Monsters []crawlerMonsterView `json:"monsters"`
-	Loot     []crawlerGroundView  `json:"loot,omitempty"`    // objects lying on the floor
-	Hazards  []crawlerHazardView  `json:"hazards,omitempty"` // hazards on this tile's squares
-	Fogged   bool                 `json:"fogged,omitempty"`  // sensor fog hides this tile until a hero is on/adjacent
+	ID        int                  `json:"id"`
+	X         int                  `json:"x"`
+	Y         int                  `json:"y"`
+	Kind      string               `json:"kind"`
+	Rot       int                  `json:"rot"`
+	Edges     [4]bool              `json:"edges"`
+	IsBoss    bool                 `json:"isBoss"`
+	WeakPoint bool                 `json:"weakPoint,omitempty"` // a live Hardened-Core weak-point hides here (highlighted, shown through fog)
+	Monsters  []crawlerMonsterView `json:"monsters"`
+	Loot      []crawlerGroundView  `json:"loot,omitempty"`    // objects lying on the floor
+	Hazards   []crawlerHazardView  `json:"hazards,omitempty"` // hazards on this tile's squares
+	Fogged    bool                 `json:"fogged,omitempty"`  // sensor fog hides this tile until a hero is on/adjacent
 }
 
 type crawlerGroundView struct {
@@ -239,6 +240,12 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 	}
 	for _, t := range g.tiles {
 		tv := crawlerTileView{ID: t.id, X: t.x, Y: t.y, Kind: t.kind, Rot: t.rot, Edges: t.edges, IsBoss: t.isBoss, Monsters: []crawlerMonsterView{}}
+		for _, m := range t.monsters { // the weak-point's TILE is always flagged (highlight shows through fog)
+			if m.alive && m.weakPoint {
+				tv.WeakPoint = true
+				break
+			}
+		}
 		for _, hz := range t.hazards {
 			if hz.spent {
 				continue

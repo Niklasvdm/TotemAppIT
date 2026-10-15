@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.1
+version: 0.17.3
 relate to:
   - "[[TotemApp-IT]]"
 ---
@@ -263,7 +263,7 @@ note bottom of Reg : No state is shared between rooms.\nA command on A4K9 can on
 | `maxRooms` | 200 | `registry.go` | process-wide room cap |
 | `roomIdleTimeout` | 2 min | `registry.go` | empty-room grace before reaping |
 | `reapInterval` | 30 s | `registry.go` | how often the reaper runs |
-| `reconnectGrace` | 30 s | `room.go` | how long a dropped seat is held |
+| `reconnectGrace` | 2 min | `room.go` | how long a dropped seat is held (generous so a phone reload resumes) |
 | resume token | 16 bytes (128-bit) | `room.go` | per-seat reconnect secret, base64url |
 | `maxGameFrame` | 512 B | `api/games.go` | inbound frame size cap |
 | `maxClientMsgRate` | 4 × TickHz | `api/games.go` | per-second inbound frame budget |
@@ -312,7 +312,7 @@ end
 
 == drop & resume ==
 Client -x Room : socket drops
-Room -> Room : hold seat for reconnectGrace (30s)
+Room -> Room : hold seat for reconnectGrace (2 min)
 Client -> API : GET …/ws?resume=<token>
 Room --> Client : welcome (same seat, state intact)
 @enduml
@@ -325,6 +325,50 @@ Three cross-cutting guards live at the room boundary, so no game repeats them:
 - **Game-slug check (client).** A room is bound to one game at creation, and the welcome now carries that slug. Each client page compares it to its own and, on a mismatch (a shared or mistyped code for another game), shows a "this is a <Game> room, join it?" notice instead of rendering frames meant for a different UI. The slug is untrusted input: the client only looks it up in a fixed allowlist (`games/WrongGameNotice.tsx`), never building a route from the raw string.
 - **Command size cap (server).** `Room.Command` drops any client frame over `maxCommandBytes` (8 KiB) before it reaches game parsing. Commands decode through the shared `decodeCmd[T]` helper (`command.go`), the one place to harden parsing.
 - **Identical-frame skip (server).** `sendTo` does not re-send a per-seat view byte-identical to the last one sent to that connection (the UI renders latest state, so it carries nothing). It is reconnect-safe: a reclaimed seat gets a fresh `Conn` and a full frame via `Joined`. Bomberman is unaffected (it broadcasts).
+- **Reconnect supersedes the stale connection (server).** A seat is reclaimed by its resume token, but a silently-dropped socket (macOS App Nap, a backgrounded tab, a lid-sleep) can linger seated for up to a ping interval (~25s) before the server notices. A reconnect inside that window used to fail the reclaim and seat the client as a **new** player (in the crawler, a fresh hero on the start tile: a "teleport"). Now `Join` reclaims the live seat on a valid token and **supersedes** the old connection: it closes the old send queue (unwinding its pumps, so it stops issuing commands), and connections carry identity so `Command` ignores a superseded socket's frames and its delayed `Leave`/`Quit` no-ops instead of evicting the connection that replaced it. Trade-off: the token now lets a client take over its seat even while connected (not only after a drop); the token is the single per-seat secret, minted fresh each seating.
+- **Room-gone close code (server + client).** A missing or closed room must be told apart from a flaky connection, or a client would reconnect-spam a room that no longer exists (a phone that re-opens a dead room is the common case). A failed HTTP upgrade cannot carry that distinction: a browser surfaces it as close code 1006, the same as any network drop. So the server **accepts** the socket and then closes with a dedicated application code `wsCloseRoomGone` (`4404`, in the browser-readable 4000-4999 range), both for an unknown code at join (`gameWS`) and for a room that closes mid-session (`gameWritePump`). The shared transport (`useRoom`) treats `4404` as terminal: it stops reconnecting at once, drops the stale resume token, and surfaces "This room is no longer available." Any other close still retries with backoff (up to `MAX_RETRIES`).
+
+## Logging & observability
+
+> Status: strategy, not yet wired. The server today logs almost nothing (process lifecycle plus per-room panic recovery, via the stdlib `log`). This section is the plan for structured logging across the engine and the Totem Crawler, to be built before it is relied on. It exists because a recent "a hero teleported mid-game" report could not be traced at all.
+
+The aim is enough signal to reconstruct an incident without drowning the journal or the 60 Hz tick loop. Four principles: structured key/value records, one line per meaningful event, strict level discipline, and nothing on the hot path or near a secret.
+
+**Library.** Go's stdlib `log/slog` (no new dependency, keeping with the minimal-imports rule). `main` builds one handler from config and installs it as the default; packages log through package-level `slog` helpers, so no `*slog.Logger` has to be threaded through every call. Output stays on stderr, captured by the systemd journal as now.
+
+**Levels.**
+
+| Level | Meaning | Examples |
+| --- | --- | --- |
+| `error` | broke, needs a human | panic recovery, store/migrate/listen failure, a frame that would not marshal |
+| `warn` | recoverable anomaly or client misbehaviour | rate-limit trip, oversized or malformed frame, origin rejected, resume with an expired/invalid token, a queue-full dropped frame |
+| `info` | lifecycle milestone, low frequency | server up/down, room created/reaped, player join / leave / drop / **supersede**, host reassign, game start, crawler level + boss laid, game over |
+| `debug` | per-command / per-turn detail, off by default | each command dispatched, crawler dice roll, tile lay, attack resolution, **portal / teleport**, downed / revive, per-seat view send |
+
+**Field conventions.** A small, low-cardinality, stable key set, so records grep cleanly and ship as JSON: `event` (a verb), `room` (code), `game` (slug), `seat` (int), `conn` (a short id minted when the socket is accepted, so one connection's whole life traces end to end: accept, join or resume, supersede or leave, close), `close` (the WS close code). The crawler adds, at `debug` only, `level`, `turn`, `cmd`, `boss`. Typical calls:
+
+```go
+slog.Info("player joined", "event", "join", "room", r.code, "game", r.slug, "seat", slot, "conn", connID, "resumed", resumed)
+slog.Warn("resume rejected", "event", "resume_fail", "room", r.code, "conn", connID, "reason", "expired")
+slog.Debug("crawler command", "event", "cmd", "room", r.code, "seat", seat, "cmd", kind) // never above debug: turn games are chatty, Bomberman is 60 Hz
+```
+
+**Where it hooks.**
+- Transport (`api/games.go`): accept, origin reject (`warn`), room-not-found / room-gone close (`info`), rate-limit (`warn`), exit with its close code (`info`). The `conn` id is minted here.
+- Room (`room.go`): created / reaped, join / resume, leave (held vs removed), **supersede**, host reassign. All `info`.
+- Engine (`engine.go` / `Command`): each command dispatched and whether it was accepted or ignored (e.g. a superseded connection). `debug`.
+- Crawler (`crawler*.go`): level start, boss laid (slug + grace turns), win / lose at `info`; tile lay, dice, attack, **portal / teleport**, downed / revive at `debug`. The portal/teleport line is exactly what the earlier incident needed.
+
+**Hot-path discipline.** Bomberman ticks 60 times a second, so nothing per-tick goes above `debug`, and even `debug` is guarded by `slog.Default().Enabled(ctx, slog.LevelDebug)` (or a sampled counter) so no record is built when it would only be discarded. Turn-based games change state rarely, so their per-command lines sit at `debug` and stay silent at the default level.
+
+**Config (env-only, per house rule).** `TOTEM_LOG_LEVEL` (`debug|info|warn|error`, default `info`) and `TOTEM_LOG_FORMAT` (`text|json`, default `text` in dev, `json` in prod for the journal and any shipping). Both read in `internal/config`, alongside the existing env config.
+
+This is distinct from the **client** debug overlays (Bomberman's `F3`, the crawler's debug HUD): those are per-player, in-browser, and show live view state. Server logs are the operator's view and never reach a client.
+
+**Design Decision / Risk / Mitigation.**
+- **Decision:** stdlib `slog`, leveled and structured, env-configured, default `info`, `debug` gated off the hot path.
+- **Risk:** log volume at 60 Hz; leaking the DB key or player data; per-record cost on the tick loop.
+- **Mitigation:** no per-tick logging above `debug`, and `debug` is `Enabled`-gated; the DB key is never handed to a logger (it stays env-only, see the root README security section); only already client-visible data is logged (nickname, seat, room code), with client IPs at `debug`/`warn` only for abuse triage and only the trusted-proxy-resolved address, never a spoofable header.
 
 ## Client structure
 

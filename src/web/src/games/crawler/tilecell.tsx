@@ -5,7 +5,7 @@ import type { CrTile, CrView, SpriteFor } from "./types";
 import { HAZARDS, objInfo, specialLabel, tileKind } from "./data";
 import { TotemSprite, MonsterSprite, ObjIcon } from "./sprites";
 
-export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: { tile: CrTile; v: CrView; focus?: boolean; debug?: boolean; spriteFor: SpriteFor; onPickup?: (square: number) => void }) {
+export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup, onReopenShop }: { tile: CrTile; v: CrView; focus?: boolean; debug?: boolean; spriteFor: SpriteFor; onPickup?: (square: number) => void; onReopenShop?: () => void }) {
   const heroesHere = v.heroes.filter((h) => h.tile === tile.id); // includes the fallen (death stance)
   const lost = v.ph === "lost"; // a party wipe or collapse: everyone drops to the defeated frame
   const you = v.heroes.find((h) => h.s === v.you);
@@ -16,8 +16,10 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: 
   const art = tileArt(tile.kind, tile.edges, tile.rot, tile.id); // id picks the art variant
   return (
     <div
-      className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}`}
+      className={`cr-cell cr-tile ${edgeClass}${tile.isBoss ? " boss" : ""}${tile.weakPoint ? " weakpoint" : ""}${onReopenShop ? " reopen-shop" : ""}`}
+      title={tile.weakPoint ? "Hauler's weak-point is in this room — destroy it to drop the boss's immunity" : onReopenShop ? "Click the stall to re-open the kangaroo shop" : undefined}
       data-focus={focus ? "1" : undefined}
+      onClick={onReopenShop}
     >
       {art && (
         <div
@@ -49,7 +51,7 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup }: 
                     type="button"
                     className="cr-loot grab"
                     title={title}
-                    onClick={() => onPickup!(sq)}
+                    onClick={(e) => { e.stopPropagation(); onPickup!(sq); }}
                   >
                     <ObjIcon slug={l.slug} size={18} />
                   </button>

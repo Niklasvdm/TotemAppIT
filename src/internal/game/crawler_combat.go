@@ -1,6 +1,9 @@
 package game
 
-import "strconv"
+import (
+	"sort"
+	"strconv"
+)
 
 // Combat for Totem Crawler (see crawler.go): attacks, the end-of-round group fight,
 // shields, healing and the Courage rewards.
@@ -34,8 +37,9 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 	if m.isBoss && t.id != h.tileID {
 		return false
 	}
-	// Hardened Core (boss special): immune while its weak-point still stands on the tile.
-	if hasSpecial(m, bsHardcore) && g.weakPointAlive(t) {
+	// Hardened Core (boss special): immune while its weak-point still stands anywhere on
+	// the map (it is hidden on a different tile; find and destroy it first).
+	if hasSpecial(m, bsHardcore) && g.weakPointAlive() {
 		return false
 	}
 	// A die below the monster's (effective) Armour cannot land, so it is not a legal
@@ -148,6 +152,12 @@ func (g *crawlerGame) effectiveArmour(h *crawlerHero, m *crawlerMonster) int {
 	if a < 1 {
 		a = 1
 	}
+	// Never above the max die face: a 6 must always be able to land, or a climbing/buffed
+	// Armour would make a monster permanently unkillable (see crMaxDieFace). This also keeps
+	// Adaptive Plating's "a landed 6 cracks the plating" reachable: the 6 lands, then resets.
+	if a > crMaxDieFace {
+		a = crMaxDieFace
+	}
 	return a
 }
 
@@ -175,14 +185,116 @@ func (g *crawlerGame) tileJammerBonus(m *crawlerMonster) int {
 	return 0
 }
 
-// weakPointAlive reports whether tile t still holds a live Hardened-Core weak-point.
-func (g *crawlerGame) weakPointAlive(t *crawlerTile) bool {
-	for _, m := range t.monsters {
-		if m.alive && m.weakPoint {
-			return true
+// weakPointAlive reports whether a live Hardened-Core weak-point still stands ANYWHERE on
+// the map (it is placed on a tile away from the boss lair, so the check is map-wide).
+func (g *crawlerGame) weakPointAlive() bool {
+	for _, t := range g.tiles {
+		for _, m := range t.monsters {
+			if m.alive && m.weakPoint {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+// freeWalkable returns a free walkable square on tile t (centre first, then doorways),
+// skipping squares already holding a monster or a blocked centre, or -1 if none is free.
+func (g *crawlerGame) freeWalkable(t *crawlerTile) int {
+	w := crawlerWalkable(t.edges)
+	for _, sq := range crawlerSquareOrder {
+		if !w[sq] || centreBlocked(t, sq) {
+			continue
+		}
+		taken := false
+		for _, m := range t.monsters {
+			if m.alive && m.square == sq {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			return sq
+		}
+	}
+	return -1
+}
+
+// hazardForWeakPoint reports whether a tile is a hazard room suitable for hiding the
+// weak-point: you have to brave the hazard to reach it. Rust/wiring/coolant/fog/overheat
+// qualify always; a trap room only while its mine is still live (unspent) -- a sprung trap
+// is just an empty corridor.
+func hazardForWeakPoint(t *crawlerTile) bool {
+	switch t.kind {
+	case crKindRust, crKindWiring, crKindCoolant, crKindFog, crKindOverheat:
+		return true
+	case crKindTrap:
+		for i := range t.hazards {
+			if t.hazards[i].kind == hzMine && !t.hazards[i].spent {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// placeWeakPoint hides Hauler's Hardened-Core weak-point on a HAZARD ROOM elsewhere on the
+// map (rust/trap preferred, else any hazard room), so the party must brave the hazard to
+// destroy it before the boss can be hurt. The tile is highlighted for the client. Falls
+// back to any other placed tile, then the boss tile, if no hazard room is available.
+func (g *crawlerGame) placeWeakPoint(bossTileID int) {
+	ids := make([]int, 0, len(g.tiles)) // sort for determinism (map order is randomised)
+	for id := range g.tiles {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	var prime, hazard, anyTile []*crawlerTile // prime = rust/trap; hazard = other hazard rooms
+	for _, id := range ids {
+		t := g.tiles[id]
+		if id == bossTileID || t.isBoss || g.freeWalkable(t) < 0 {
+			continue
+		}
+		anyTile = append(anyTile, t)
+		if !hazardForWeakPoint(t) {
+			continue
+		}
+		if t.kind == crKindRust || t.kind == crKindTrap {
+			prime = append(prime, t)
+		} else {
+			hazard = append(hazard, t)
+		}
+	}
+	pool := prime
+	if len(pool) == 0 {
+		pool = hazard
+	}
+	if len(pool) == 0 {
+		pool = anyTile
+	}
+	wp := newWeakPoint()
+	t := g.tiles[bossTileID]
+	if len(pool) > 0 {
+		t = pool[g.rng.IntN(len(pool))]
+	}
+	if sq := g.freeWalkable(t); sq >= 0 {
+		wp.square = sq
+	} else {
+		wp.square = 4
+	}
+	t.monsters = append(t.monsters, wp)
+	g.log = append(g.log, bossNameOnTile(g, bossTileID)+"'s weak-point is exposed in a hazard room (marked on the map). Destroy it before the boss can be harmed.")
+}
+
+// bossNameOnTile returns the boss's name for a log line, or a generic word.
+func bossNameOnTile(g *crawlerGame, tileID int) string {
+	if t := g.tiles[tileID]; t != nil {
+		for _, m := range t.monsters {
+			if m.isBoss && m.bossName != "" {
+				return m.bossName
+			}
+		}
+	}
+	return "the boss"
 }
 
 // jammerActive reports whether a live Jammer-Field boss (Pylon) is on the board.

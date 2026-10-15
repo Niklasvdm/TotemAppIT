@@ -10,6 +10,58 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.17.16 — 2026-10-15
+- `[BUG]` **Games: a reconnect could re-seat you as a new player (the "teleported halfway the map" bug).** A seat was only reclaimable once the old socket had fully torn down, but a silent drop (macOS App Nap, a backgrounded tab, a lid-sleep, a Wi-Fi handoff) leaves the old socket seated for up to ~25s. A client reconnecting inside that window failed the token reclaim and was added as a brand-new player: in the crawler that hero spawns on the start tile, so your pawn appeared to teleport to the entrance while your real hero was abandoned. Affected every game, desktop and phone. A reconnect with the correct token now **supersedes** the stale connection and reclaims the same seat and hero.
+- `[BUG]` **Games: a superseded connection could still affect the room.** The old socket's in-flight commands used to keep applying to the live game (a late move/portal), and its delayed teardown could kick the connection that had replaced it. Commands are now fenced by connection identity, and a stale connection's teardown no-ops once it has been superseded.
+- `[SECURITY]` As a consequence, possession of a seat's resume token now lets a client take over that seat **even while it is connected** (previously only after a drop). The token stays the single secret gating a seat, is minted fresh on every seating, and is only ever sent to that client over wss; this is the necessary trade-off for correct reconnection.
+- `[TEST]` Added room-level coverage: a reconnect supersedes the stale connection and keeps the same seat/hero; a superseded connection's commands are ignored; a stale teardown cannot evict the new connection.
+
+### 0.17.15 — 2026-10-15
+- `[CHANGE]` **Crawler: Hauler's collapse countdown now scales with party size.** The weak-point boss needs its hidden core hunted down before it can be hurt, so a small party gets more time: 10 turns solo (double the usual), 7 at two, 6 at three, 5 at four or more. Every other boss keeps the flat 5-turn countdown.
+- `[TEST]` Added coverage for the party-size-scaled Hauler countdown (and that a plain boss keeps `crGraceTurns`).
+- `[DOCS]` Added an **observability / logging** item to the roadmap: the server logs almost nothing today (no access log, no WebSocket lifecycle, no game-event trail), which is why reports like the mid-game teleport can't be traced.
+
+### 0.17.14 — 2026-10-15
+- `[BUG]` **Crawler: Level 1 (and every level) had too few tiles.** 0.17.12's mapmaking fix wrongly applied the bury-and-redraw to the move-triggered lay as well, so a tile that merely didn't fit the one doorway you stepped through was discarded to the bottom of the stack (past the boss, i.e. lost) instead of being left for the proactive lay phase to place elsewhere. The move-triggered lay now draws one tile and simply blocks the step if it doesn't fit; Rules 3/4 (bury/redraw) stay where they belong, in the proactive lay phase that weighs the whole frontier.
+- `[BUG]` **Crawler: a boss could become permanently unkillable (Mossback).** Effective Armour had no ceiling, so Mossback's Adaptive Plating (+1 Armour per round) climbed past 6; once it hit 7 no die could land, and the "a landed 6 cracks the plating" reset was unreachable, so it never came back down. Armour is now capped at the max die face (6), so a 6 always lands and always cracks the plating. Note: a boss's Armour never scaled with player count (only its Health does, `baseHP + hpPerHero*(players-1)`); the longer fight just gave the plating more rounds to run away.
+- `[TEST]` Added coverage that a runaway/buffed Armour is capped so a 6 lands and cracks Adaptive Plating.
+
+### 0.17.13 — 2026-10-15
+- `[BUG]` **Games: re-opening a dead room reconnect-spammed instead of giving up.** A missing or closed room failed the WebSocket upgrade with a plain 404, which a browser can't tell apart from a network blip (both are close code 1006), so a phone that re-opened a room that was already gone retried it six times. The server now accepts the socket and closes with a dedicated application code (`4404`); the client recognises it, stops reconnecting at once, drops the stale resume token, and shows "This room is no longer available."
+- `[TEST]` Added an API test that dialing the socket for an unknown room closes with the `4404` room-gone code.
+
+### 0.17.12 — 2026-10-15
+- `[BUG]` **Crawler: you could seal the map shut and stall the run.** Laying a tile that closed the last opening (a loop or a dead-end on the final frontier) left no cell for future tiles, so no more could be laid and the boss never appeared. Mapmaking Rules 3 and 4 now hold: a drawn tile that cannot legally connect, or whose only placements would seal the map, is buried to the bottom of the stack and the next is drawn until one fits; the one placement that would close the last opening is never offered. Only the boss lair is allowed to end the forest.
+- `[TEST]` Added coverage: sealing placements are never offered (Rule 4), unconnectable tiles are buried (Rule 3), and a 40-seed sweep proves the map always keeps a frontier open until the boss is laid.
+
+### 0.17.11 — 2026-10-15
+- `[ENHANCEMENT]` **Crawler: the kangaroo shop can be dismissed and re-opened.** A ✕ in the callout header closes it; clicking anywhere on the stall tile (except a loot object on the floor) brings it back.
+- `[BUG]` **Crawler: could not lay a tile while standing in the shop on mobile.** The shop overlay covered the lay cells, so you could neither place the tile nor buy. The shop now steps aside automatically whenever a tile lay is in progress and returns once it is placed.
+
+### 0.17.10 — 2026-10-15
+- `[ENHANCEMENT]` **Crawler: toned the mobile action buttons down to ~75%** of 0.17.9. Still comfortable tap targets, no longer huge.
+
+### 0.17.9 — 2026-10-15
+- `[ENHANCEMENT]` **Crawler: bigger action buttons on phones.** The action buttons you tap after picking a die (the Move arrows, Attack, Carry, Courage, End turn, etc.) get larger touch targets under 640px. Reverted the earlier dice-size bump (the dice were fine; it was the buttons that were small).
+
+### 0.17.8 — 2026-10-15
+- `[CHANGE]` **Reconnect grace raised to 2 minutes** (was 30s). A phone that dims, locks, or has its tab discarded and reloaded can walk back into the same seat within two minutes.
+- `[ENHANCEMENT]` **Reload-resume ported to every game.** The sessionStorage session-persistence from the crawler is now a shared hook (`games/session.ts`, `usePersistedSession`) used by all 11 game pages, so a mobile tab reload resumes any game (not just the crawler). This also de-duplicates the per-page session boilerplate.
+
+### 0.17.7 — 2026-10-15
+- `[FIX]` **Crawler: a mobile tab reload no longer loses the game.** When a phone dims/locks or the OS discards a backgrounded tab, the page reloads; the active game (room code + local players) is now persisted in `sessionStorage`, so the reload drops you straight back in and `useRoom`'s resume token reclaims the held seat within the 30s grace (instead of landing on the join screen). Cleared on Leave and on tab close.
+- `[ENHANCEMENT]` **Crawler: bigger dice on phones.** The dice buttons (and their pips) are enlarged under 640px for easier tapping.
+
+### 0.17.6 — 2026-10-15
+- `[FIX]` **Crawler: the Ruins live-wiring tile is a straight again.** `ruins/tile-12` had been sliced from a 4-way crossroads cell, but wiring is a 2-edge straight, so it read as a cross with doorways into walls. Replaced with a regenerated straight corridor (rotated to the horizontal wiring base). Ruins-only; woodland/machine wiring untouched.
+
+### 0.17.5 — 2026-10-15
+- `[CHANGE]` **Crawler: Hauler's weak-point now hides in a hazard room, highlighted.** The Hardened-Core weak-point used to spawn in the boss's own cell; it's now placed on a hazard room elsewhere on the map when the lair is laid (`placeWeakPoint`: rust/trap preferred, else wiring/coolant/fog/overheat; a trap only while its mine is still live; falls back to any other tile), so the party must brave the hazard to destroy it. The tile pulses orange on the board (shown through fog), and the boss's immunity check is map-wide (`weakPointAlive()`).
+- `[FIX]` **Crawler: a downed hero's sprite resets on the next level.** `startLevel` / `resetToLobby` refilled health and set `alive` but left `downed` set, so a hero who was down when a level ended stayed drawn in the defeated pose (and couldn't act). They now come back on their feet.
+
+### 0.17.4 — 2026-10-15
+- `[FIX]` **Games: idle turn-based sockets no longer get dropped by a proxy.** A turn-based game (crawler, the card games) sends nothing while nobody acts, so the WebSocket went fully silent and an intermediary's idle read timeout (NGINX/WAF, a dev proxy) could reap it — making a player who just sat still appear to "time out" and reconnect. The server now sends a protocol-level WebSocket **keepalive ping** every 20s per game socket (invisible to the client, no protocol change). Bomberman was never affected (60Hz snapshots keep it busy). There is still **no game-rule turn timer**: a turn waits for the player indefinitely.
+
 ### 0.17.3 — 2026-10-15
 - `[DATA]` **All 472 animals now have images.** The final 27 (ambiguous common names that resolved to Wikipedia disambiguation pages) were scraped by overriding each with its specific species taxon (`scrape_images.py` pipeline: Wikidata P18 -> Commons, free licences only, author + licence recorded in `attributions.json`). Load with `totem-seed --attributions` on deploy.
 - `[FIX]` **Crawler: machine wiring and bend tiles were drawn 90° off their `TILE_ART` base**, so the client rotated the art perpendicular to the real doorways (the live-wiring room read as a crossroads). Both PNGs rotated to match. Flagged for regeneration: the machine **dead-end** (generated as a 2-edge corridor), **tee** (generated as a 4-way cross) and **shop** (door faces the wrong edge) all came out with the wrong open-edge count/orientation and render with a stray doorway until re-rolled.

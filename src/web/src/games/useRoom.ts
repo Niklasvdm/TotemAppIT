@@ -18,6 +18,12 @@ export interface RoomRosterEntry {
 const MAX_RETRIES = 6;
 const backoff = (attempt: number) => Math.min(500 * 2 ** (attempt - 1), 8000);
 
+// The server closes with this application code (browsers expose 4000-4999 on the close
+// event) when the room no longer exists or has closed. It means "stop reconnecting":
+// a transient drop surfaces as 1006, so without this a phone that re-opens a dead room
+// would retry it six times over before giving up.
+const WS_CLOSE_ROOM_GONE = 4404;
+
 function socketURL(code: string, name: string, meta: string, resume: string): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   // The server reads the meta channel as the "animal" param (Bomberman's totem);
@@ -115,8 +121,21 @@ export function useRoom<V = unknown>(code: string, name: string, meta = "", seat
             setView(m as V);
         }
       };
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         if (closedByUs) {
+          setStatus("closed");
+          return;
+        }
+        if (ev.code === WS_CLOSE_ROOM_GONE) {
+          // The room is gone for good: don't reconnect, and drop the stale resume token
+          // so a later join (even to a recreated code) starts clean.
+          try {
+            sessionStorage.removeItem(tokenKey);
+          } catch {
+            /* ignore */
+          }
+          resume.current = "";
+          setError("This room is no longer available.");
           setStatus("closed");
           return;
         }

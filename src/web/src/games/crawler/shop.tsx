@@ -4,16 +4,20 @@ import type { CrHero } from "./types";
 import { objInfo, OBJECT_CAP } from "./data";
 import { ObjIcon } from "./sprites";
 
-export function CrawlerShopCallout({ me, shop, onSend }: {
+export function CrawlerShopCallout({ me, shop, onSend, onClose }: {
   me: CrHero;
   shop: { slug: string; name: string; cost: number }[];
   onSend: (msg: object) => void;
+  onClose?: () => void;
 }) {
   const packFull = me.objects.length >= (me.slots || OBJECT_CAP);
   return (
     <div className="cr-shop-callout">
       <div className="cr-shop-callout-head">
-        🛒 Kangaroo shop <span className="muted-note">({me.courage}✊ · {me.objects.length}/{me.slots || OBJECT_CAP} slots)</span>
+        <span>🛒 Kangaroo shop <span className="muted-note">({me.courage}✊ · {me.objects.length}/{me.slots || OBJECT_CAP} slots)</span></span>
+        {onClose && (
+          <button type="button" className="cr-shop-close" title="Close the shop (click the stall to re-open)" onClick={onClose}>✕</button>
+        )}
       </div>
       {packFull && <div className="cr-shop-note">Pack full: use or drop something first.</div>}
       {shop.length === 0 && <div className="cr-shop-note">Sold out this level.</div>}

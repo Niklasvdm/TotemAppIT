@@ -32,11 +32,11 @@ func mustCreate(t *testing.T, reg *Registry) *Room {
 
 // begin and sendInput drive the room through the generic Command path (the old
 // r.Begin / r.Input helpers are gone now that Room is game-agnostic).
-func begin(r *Room, seat int) { r.Command(seat, []byte(`{"t":"`+MsgStart+`"}`)) }
+func begin(r *Room, c *Conn) { r.Command(c, []byte(`{"t":"`+MsgStart+`"}`)) }
 
-func sendInput(r *Room, seat int, in Input) {
+func sendInput(r *Room, c *Conn, in Input) {
 	b, _ := json.Marshal(ClientMsg{T: MsgInput, DX: in.DX, DY: in.DY, Bomb: in.Bomb, Seq: pushSeq()})
-	r.Command(seat, b)
+	r.Command(c, b)
 }
 
 // bomb returns the room's Bomberman match for tests that poke at player state.
@@ -187,7 +187,7 @@ func TestLeaveReassignsHostAndHoldsTheSeat(t *testing.T) {
 	c0, _ := mustJoin(t, r, "aap")
 	_, _ = mustJoin(t, r, "beer")
 
-	r.Leave(c0.Slot())
+	r.Leave(c0)
 
 	// The remaining player takes over as host, and the vacated seat is NOT
 	// handed to a stranger: it is being kept warm for whoever just dropped.
@@ -209,7 +209,7 @@ func TestDroppedPlayerReclaimsTheirSeat(t *testing.T) {
 	// Win tallies and totem live on the Player, so they must survive the drop.
 	r.do(func() { bomb(r).Players[c0.Slot()].Wins = 3 })
 
-	r.Leave(c0.Slot())
+	r.Leave(c0)
 
 	conn, w1, err := r.Join("aap", "vos", w0.Token)
 	if err != nil {
@@ -228,21 +228,15 @@ func TestDroppedPlayerReclaimsTheirSeat(t *testing.T) {
 	}
 }
 
-func TestStaleOrWrongTokenDoesNotStealASeat(t *testing.T) {
+func TestWrongTokenDoesNotStealASeat(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
-	c0, w0 := mustJoin(t, r, "aap")
+	c0, _ := mustJoin(t, r, "aap")
 
-	// While the original holder is still connected, their token must not seat
-	// anyone else into that slot.
-	conn, _, err := r.Join("imposter", "vos", w0.Token)
-	if err != nil {
-		t.Fatalf("join: %v", err)
-	}
-	if conn.Slot() == c0.Slot() {
-		t.Fatal("a live player's seat was taken by replaying their token")
-	}
-
-	// And a garbage token is simply a normal join.
+	// A garbage token is simply a normal join into a fresh seat; it never resumes
+	// someone else's. (A CORRECT token DOES reclaim its slot even while that seat is
+	// still live — that is the reconnect-supersede path, covered by
+	// TestReconnectSupersedesTheStaleConnection. The token is the secret that
+	// distinguishes the two.)
 	other, _, err := r.Join("stranger", "vos", "not-a-real-token")
 	if err != nil {
 		t.Fatalf("join: %v", err)
@@ -258,7 +252,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 	c1, _ := mustJoin(t, r, "beer")
 
 	// A non-host pressing start must not begin the match.
-	begin(r, c1.Slot())
+	begin(r, c1)
 	select {
 	case b, ok := <-c1.Out():
 		var m map[string]any
@@ -272,7 +266,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 		// Nothing came, which is the expected outcome.
 	}
 
-	begin(r, c0.Slot())
+	begin(r, c0)
 	state := recvPlaying(t, c0)
 	if state["c"] == nil {
 		t.Fatal("first snapshot of a round omitted the crate layer")
@@ -282,7 +276,7 @@ func TestOnlyHostCanStartTheRound(t *testing.T) {
 func TestRoomTicksAndAppliesInput(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
-	begin(r, c0.Slot())
+	begin(r, c0)
 
 	first := recvTyped(t, c0, MsgState)
 	startX := playerX(t, first, 0)
@@ -290,7 +284,7 @@ func TestRoomTicksAndAppliesInput(t *testing.T) {
 	// Hold right for a while; the room's own tick loop should move the player.
 	deadline := time.After(frameWait)
 	for {
-		sendInput(r, c0.Slot(), Input{DX: 1})
+		sendInput(r, c0, Input{DX: 1})
 		select {
 		case <-deadline:
 			t.Fatal("player never moved under held input")
@@ -308,7 +302,7 @@ func TestRoomTicksAndAppliesInput(t *testing.T) {
 func TestMidRoundJoinerGetsTheCrateLayer(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
-	begin(r, c0.Slot())
+	begin(r, c0)
 
 	// Let the round settle past the first snapshot, so the layer counts as
 	// "unchanged" by the time the second player arrives.
@@ -327,7 +321,7 @@ func TestMidRoundJoinerGetsTheCrateLayer(t *testing.T) {
 func TestTickSnapshotsOmitUnchangedCrateLayer(t *testing.T) {
 	r := mustCreate(t, testRegistry(t))
 	c0, _ := mustJoin(t, r, "aap")
-	begin(r, c0.Slot())
+	begin(r, c0)
 
 	if first := recvPlaying(t, c0); first["c"] == nil {
 		t.Fatal("first snapshot of a round omitted the crate layer")
@@ -417,4 +411,101 @@ func playerX(t *testing.T, frame map[string]any, slot int) float64 {
 	}
 	t.Fatalf("slot %d missing from snapshot", slot)
 	return 0
+}
+
+// drainClosed reads a connection's queue until it is closed, failing if it stays open.
+// A superseded connection's send channel is closed by the room, which is how its pumps
+// unwind and it stops controlling the seat.
+func drainClosed(t *testing.T, c *Conn) {
+	t.Helper()
+	deadline := time.After(frameWait)
+	for {
+		select {
+		case _, ok := <-c.Out():
+			if !ok {
+				return
+			}
+		case <-deadline:
+			t.Fatal("the superseded connection's queue was never closed")
+		}
+	}
+}
+
+func TestReconnectSupersedesTheStaleConnection(t *testing.T) {
+	// The reconnect bug: a client that reconnects before the server has noticed its old
+	// socket die (macOS App Nap, a backgrounded tab, a lid-sleep) must reclaim its SAME
+	// seat and hero, not be re-seated as a brand-new player (whose crawler hero would
+	// spawn at the start tile: the "teleport halfway the map"). The correct resume token
+	// reclaims the live seat and supersedes the stale connection.
+	r := mustCreate(t, testRegistry(t))
+	c0, w0 := mustJoin(t, r, "aap")
+	r.do(func() { bomb(r).Players[c0.Slot()].Wins = 2 }) // seat state must survive
+
+	c1, w1, err := r.Join("aap", "vos", w0.Token) // reconnect while c0 is still live
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if c1.Slot() != c0.Slot() {
+		t.Fatalf("reconnect landed in slot %d, want the original %d (a new seat is the teleport bug)", c1.Slot(), c0.Slot())
+	}
+	if w1.Token == w0.Token {
+		t.Fatal("a reseat should mint a fresh resume token")
+	}
+	drainClosed(t, c0) // the stale connection is superseded (queue closed)
+
+	var wins int
+	r.do(func() { wins = bomb(r).Players[c1.Slot()].Wins })
+	if wins != 2 {
+		t.Fatalf("win tally = %d after supersede, want 2 (the same hero was kept)", wins)
+	}
+}
+
+func TestSupersededConnectionCannotCommand(t *testing.T) {
+	// A superseded connection must not mutate the game: a late/in-flight command from the
+	// old socket (e.g. a move or portal that was in flight when it dropped) is ignored.
+	r := mustCreate(t, testRegistry(t))
+	c0, w0 := mustJoin(t, r, "aap") // host, slot 0
+	c1, _, err := r.Join("aap", "vos", w0.Token)
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	drainClosed(t, c0)
+
+	begin(r, c0)    // the superseded (old) host connection presses Start: must be ignored
+	r.do(func() {}) // flush: a prior act would have run by the time this returns
+	var ph Phase
+	r.do(func() { ph = bomb(r).Phase })
+	if ph == PhasePlay {
+		t.Fatal("a superseded connection started the round")
+	}
+
+	begin(r, c1) // the live connection drives the game as normal
+	r.do(func() {})
+	r.do(func() { ph = bomb(r).Phase })
+	if ph != PhasePlay {
+		t.Fatalf("the live host could not start the round; phase %v", ph)
+	}
+}
+
+func TestStaleTeardownDoesNotEvictNewConnection(t *testing.T) {
+	// When the old socket finally tears down, its Leave/Quit must not touch the seat the
+	// reconnect has since taken over, or it would kick the client that just reconnected.
+	r := mustCreate(t, testRegistry(t))
+	c0, w0 := mustJoin(t, r, "aap")
+	c1, _, err := r.Join("aap", "vos", w0.Token)
+	if err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	drainClosed(t, c0)
+
+	r.Leave(c0) // the stale connection's delayed teardown
+
+	var cur *Conn
+	r.do(func() { cur = r.conns[c1.Slot()] })
+	if cur != c1 {
+		t.Fatal("the stale teardown evicted the new connection from the seat")
+	}
+	// And the new connection is still live: a roster broadcast reaches it.
+	r.BroadcastRoster()
+	recvTyped(t, c1, MsgRoster)
 }

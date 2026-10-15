@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePersistedSession } from "../session";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -49,7 +50,7 @@ export default function CodenamesPage() {
 
   const [name, setName] = useState(() => localStorage.getItem("totem-game-name") ?? "");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  const [session, setSession] = usePersistedSession<{ code: string; players: LocalPlayer[] }>("totem-codenames-session");
   const [teams, setTeams] = useState<Record<string, number>>({}); // seatKey -> team, for tab colours
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

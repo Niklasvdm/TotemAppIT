@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.4.16
+version: 0.4.17
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.17.3`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
+**Build `0.17.16`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -414,7 +414,7 @@ Over a real link some correction always survives. Applying it straight to the dr
 
 ### Reconnecting
 
-A dropped socket used to end the session permanently, which is a harsh penalty for a VPN re-keying or a laptop waking up. Now the server issues a **resume token** in every welcome frame and, when a socket drops, holds that seat — slot, name, totem and win tally — for 30 seconds, freezing the player in place rather than deleting them. The client reconnects on its own with a backoff, presents the token, and walks back into the same seat; the UI says it is reconnecting instead of offering a dead end. Tokens are compared in constant time, since the token is the only thing between a stranger and someone else's seat.
+A dropped socket used to end the session permanently, which is a harsh penalty for a VPN re-keying or a laptop waking up. Now the server issues a **resume token** in every welcome frame and, when a socket drops, holds that seat — slot, name, totem and win tally — for 2 minutes, freezing the player in place rather than deleting them. The client reconnects on its own with a backoff, presents the token, and walks back into the same seat; the UI says it is reconnecting instead of offering a dead end. Tokens are compared in constant time, since the token is the only thing between a stranger and someone else's seat.
 
 A dropped player is **frozen, not deleted**, and the round they were in is not reset while their seat is held — handing someone back a dead game is a strange reward for reconnecting in time. The lobby also keeps a slow one-per-second pulse rather than going silent, because a link that dies without closing fires no event at all: the only evidence is an absence of traffic, so the client needs something to miss. A client that hears nothing for a few seconds retires the socket **itself** and reconnects, rather than waiting for a close that will never come — calling `close()` on a dead link leaves the socket in CLOSING indefinitely.
 
@@ -1166,6 +1166,7 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[FEATURE]` **Request adding a trait/adjective**: animal requests shipped (0.3.0); trait requests, and scaffolding a draft row from an accepted suggestion, remain.
 
 **Infra & security**
+- `[FEATURE]` **Observability / logging is minimal.** The server logs only lifecycle (listen, migrate, shutdown) and per-room panic recovery via the stdlib `log` package to the systemd journal; there is **no HTTP access log, no WebSocket join/leave/reconnect log, and no game-event trail**. This makes live incidents hard to diagnose (e.g. the "a hero teleported mid-game" report could not be traced). Add structured logging (`log/slog`): per-request access lines, WS connection lifecycle with seat + room code + close code, and optionally a game-command audit line; keep it off the hot path and out of the DB-key surface.
 - `[ENHANCEMENT]` **Prod `:8683` is reachable directly on the LAN**: `totemd` binds `0.0.0.0` and the WAF is on a separate host, so the API can be hit without TLS/ModSecurity/edge rate-limiting. Restrict prod `:8683` to the ReverseProxy-WAF only (host firewall or a tunnel). Deferred 2026-10-03.
 - `[ENHANCEMENT]` **CI/CD + vuln scanning** designed but not yet wired: GitHub Actions build/test/scan, see [CI/CD](#cicd-testing--supply-chain).
 - `[LEGAL]` **Descriptions** kept as-is for now (non-commercial, source credited: see [Data provenance](#data-provenance--licensing)); revisit (SGV permission or an original rewrite) before any commercial/wide release.

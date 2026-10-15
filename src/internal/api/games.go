@@ -26,6 +26,14 @@ const (
 	maxClientMsgRate = game.TickHz * 4
 
 	gameWriteTimeout = 5 * time.Second
+	gamePingInterval = 20 * time.Second // keepalive so idle turn-based sockets survive proxy idle timeouts
+
+	// wsCloseRoomGone is an application close code (the 4000-4999 private range, which
+	// browsers expose on the close event) meaning "this room no longer exists, stop
+	// reconnecting". A plain HTTP 404 on the upgrade is indistinguishable from a network
+	// blip (both surface as close code 1006), so a mobile client that re-opens a dead
+	// room would reconnect-spam it. We accept the upgrade and close with this instead.
+	wsCloseRoomGone = websocket.StatusCode(4404)
 )
 
 // createRoom opens a game room and returns its join code. The ?game= slug picks
@@ -51,23 +59,6 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 // their room for the life of the connection.
 func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-
-	room, ok := s.games.Get(game.NormalizeCode(q.Get("code")))
-	if !ok {
-		writeErr(w, http.StatusNotFound, "unknown room code")
-		return
-	}
-	name, ok := cleanNick(q.Get("name"))
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "invalid player name")
-		return
-	}
-	// The animal is a catalog slug the client renders a sprite for; an
-	// unrecognised shape is dropped rather than refused.
-	animal := q.Get("animal")
-	if !slugRe.MatchString(animal) {
-		animal = ""
-	}
 
 	// A WebSocket long outlives the 10s read/write timeouts http.Server put on
 	// this connection, and hijacking does not clear them — so clear them here,
@@ -97,6 +88,28 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
+	// Validate over the open socket (not as a pre-upgrade HTTP error) so the client
+	// learns WHY it was refused from the close code and can act on it. A missing room
+	// gets wsCloseRoomGone so the client stops retrying a room that no longer exists.
+	room, ok := s.games.Get(game.NormalizeCode(q.Get("code")))
+	if !ok {
+		_ = writeWSJSON(ctx, conn, game.ErrorMsg{T: game.MsgError, Err: "room not found"})
+		_ = conn.Close(wsCloseRoomGone, "room not found")
+		return
+	}
+	name, ok := cleanNick(q.Get("name"))
+	if !ok {
+		_ = writeWSJSON(ctx, conn, game.ErrorMsg{T: game.MsgError, Err: "invalid player name"})
+		_ = conn.Close(websocket.StatusPolicyViolation, "invalid player name")
+		return
+	}
+	// The animal is a catalog slug the client renders a sprite for; an
+	// unrecognised shape is dropped rather than refused.
+	animal := q.Get("animal")
+	if !slugRe.MatchString(animal) {
+		animal = ""
+	}
+
 	// A resume token reclaims the seat this client held before its socket
 	// dropped. It is the player's own secret, issued in their last welcome.
 	seat, welcome, err := room.Join(name, animal, q.Get("resume"))
@@ -113,10 +126,10 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	var deliberate, spoke bool
 	defer func() {
 		if deliberate || !spoke {
-			room.Quit(seat.Slot())
+			room.Quit(seat)
 			return
 		}
-		room.Leave(seat.Slot())
+		room.Leave(seat)
 	}()
 
 	if err := writeWSJSON(ctx, conn, welcome); err != nil {
@@ -129,7 +142,34 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		gameWritePump(ctx, conn, seat)
 	}()
-	deliberate, spoke = gameReadPump(ctx, conn, room, seat.Slot())
+	// Keep the socket from going fully idle between turns. A turn-based game sends
+	// nothing while nobody acts, so a proxy's idle read timeout (NGINX/WAF, a dev
+	// proxy) would reap the connection and the client would appear to "time out"
+	// just for sitting still. A periodic WebSocket ping (protocol-level, invisible
+	// to the client) keeps intermediaries from dropping it. Bomberman never idles.
+	go gamePingPump(ctx, conn)
+	deliberate, spoke = gameReadPump(ctx, conn, room, seat)
+}
+
+// gamePingPump sends a WebSocket keepalive ping every gamePingInterval so an idle
+// turn-based socket stays alive through any proxy. A failed ping (dead link) cancels
+// the context via the read/write pumps, so this just returns.
+func gamePingPump(ctx context.Context, conn *websocket.Conn) {
+	t := time.NewTicker(gamePingInterval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			pctx, cancel := context.WithTimeout(ctx, gameWriteTimeout)
+			err := conn.Ping(pctx)
+			cancel()
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 // gameWritePump forwards the room's frames to the socket until the room hangs
@@ -141,8 +181,9 @@ func gameWritePump(ctx context.Context, conn *websocket.Conn, seat *game.Conn) {
 			return
 		case b, ok := <-seat.Out():
 			if !ok {
-				// The room closed; tell the client so it can stop reconnecting.
-				_ = conn.Close(websocket.StatusGoingAway, "room closed")
+				// The room closed (game over / everyone left); tell the client with the
+				// terminal code so it stops reconnecting instead of spamming a dead room.
+				_ = conn.Close(wsCloseRoomGone, "room closed")
 				return
 			}
 			wctx, cancel := context.WithTimeout(ctx, gameWriteTimeout)
@@ -163,7 +204,7 @@ func gameReadPump(
 	ctx context.Context,
 	conn *websocket.Conn,
 	room *game.Room,
-	slot int,
+	seat *game.Conn,
 ) (deliberate, spoke bool) {
 	var lim msgLimiter
 	for {
@@ -188,7 +229,7 @@ func gameReadPump(
 		if msg.T == game.MsgBye {
 			return true, spoke
 		}
-		room.Command(slot, data)
+		room.Command(seat, data)
 	}
 }
 

@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
 import { CODE_LEN, NICK_MAX, validNick } from "../validate";
 import { useRoom } from "../useRoom";
+import { usePersistedSession } from "../session";
 import { WrongGameNotice } from "../WrongGameNotice";
 import { RoomBar } from "../RoomBar";
 import { LocalSeats, type LocalPlayer } from "../LocalSeats";
@@ -30,7 +31,8 @@ export default function CrawlerPage() {
   // join (the last pick, or a default), which the lobby picker can then change.
   const [totem] = useState(() => localStorage.getItem("totem-crawler-totem") ?? "bever");
   const [code, setCode] = useState(() => (params.get("code") ?? "").toUpperCase());
-  const [session, setSession] = useState<{ code: string; players: LocalPlayer[] } | null>(null);
+  // Persisted so a mobile tab reload resumes the game (see usePersistedSession).
+  const [session, setSession] = usePersistedSession<{ code: string; players: LocalPlayer[] }>("totem-crawler-session");
   const [focus, setFocus] = useState<string | undefined>(undefined); // seat whose turn it is (auto-switch)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +191,7 @@ function CrawlerRoom({
   const [startLevel, setStartLevel] = useState(1); // lobby: which level to begin at
   const [devBoss, setDevBoss] = useState(""); // F3 dev: forced boss slug ("" = random)
   const [devLoot, setDevLoot] = useState<string[]>([]); // F3 dev: starting loot slugs
+  const [shopDismissedTile, setShopDismissedTile] = useState<number | null>(null); // shop closed by hand; click the stall (its tile id) to re-open
   const v = g.view;
   // Reset the orientation to the first legal one whenever a fresh tile is drawn.
   useEffect(() => {
@@ -642,10 +645,14 @@ function CrawlerRoom({
           debug={debug}
           spriteFor={spriteFor}
           onPickup={(sq) => g.send({ t: "pickup", square: sq })}
+          onReopenShop={(id) => setShopDismissedTile((d) => (d === id ? null : d))}
           lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt, rotate: rotateLayBy } : null}
         />
-        {me && myTurn && myTile?.kind === "shop" && (
-          <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} />
+        {/* The shop is an overlay over the board, so it must step aside while you lay a tile
+            (otherwise, on a phone, it covers the lay cells and you can neither place nor buy).
+            It comes back on its own once the tile is down; or click the stall to re-open sooner. */}
+        {me && myTurn && !layActive && myTile?.kind === "shop" && shopDismissedTile !== myTile.id && (
+          <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} onClose={() => setShopDismissedTile(myTile.id)} />
         )}
         {v.lootRoll && <CrawlerLootRoll key={`lr-${v.lootRoll.roll}-${v.lootRoll.chance}-${v.lootRoll.killer ?? ""}`} roll={v.lootRoll} />}
         {v.statusRoll && <CrawlerStatusRoll key={`sr-${v.statusRoll.roll}-${v.statusRoll.status}-${v.statusRoll.target ?? ""}`} roll={v.statusRoll} />}

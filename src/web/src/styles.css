@@ -487,11 +487,20 @@ header {
 .cr-map-scroll { overflow: auto; max-height: 70vh; border-radius: 10px; background: var(--cream, #0000); }
 .cr-map { display: grid; gap: 5px; justify-content: center; margin: .3rem auto; width: max-content; }
 .cr-cell { width: var(--cr-cell); height: var(--cr-cell); box-sizing: border-box; }
-@media (max-width: 640px) { .cr-room { --cr-cell: 118px; } }
+@media (max-width: 640px) {
+  .cr-room { --cr-cell: 118px; }
+  /* Bigger touch targets for the crawler ACTION buttons (Move arrows, Attack, Carry, etc.)
+     on phones. The dice keep their size; this is the buttons you tap after picking a die. */
+  .cr-actions .game-btn, .cr-turn-actions .game-btn { padding: .6rem .83rem; font-size: .8rem; min-height: 2.2rem; min-width: 2.25rem; }
+  .cr-action-row { gap: .5rem; }
+}
 .cr-empty { background: transparent; }
 .cr-frontier { display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line, rgba(0,0,0,.3)); border-radius: 8px; color: var(--line, rgba(0,0,0,.4)); font-weight: 800; }
 .cr-tile { position: relative; border: 2px solid var(--ink, #333); border-radius: 6px; background: var(--surface-2, #efe7d8); }
 .cr-tile.boss { border-color: var(--red, #c0392b); box-shadow: 0 0 0 2px var(--red, #c0392b) inset; }
+/* The tile hiding Hauler's weak-point: a pulsing orange highlight so the party can hunt it down. */
+.cr-tile.weakpoint { border-color: #ff8c1a; box-shadow: 0 0 0 2px #ff8c1a inset, 0 0 10px 1px rgba(255,140,26,.7); animation: cr-weakpoint 1.3s ease-in-out infinite; }
+@keyframes cr-weakpoint { 0%,100% { box-shadow: 0 0 0 2px #ff8c1a inset, 0 0 6px 1px rgba(255,140,26,.5); } 50% { box-shadow: 0 0 0 2px #ff8c1a inset, 0 0 14px 3px rgba(255,140,26,.9); } }
 /* doorway notches: a light gap on each open edge */
 .cr-tile.open-n::before, .cr-tile.open-s::after { content: ""; position: absolute; left: 40%; width: 20%; height: 3px; background: var(--gold, #c9a227); }
 .cr-tile.open-n::before { top: -2px; }
@@ -820,7 +829,10 @@ button.gcard:disabled { cursor: default; opacity: .9; }
   background: #140f09; color: #fdf6e8; border: 1px solid rgba(201,162,39,.8);
   border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.6); padding: .6rem .7rem;
 }
-.cr-shop-callout-head { font-weight: 800; color: var(--gold, #c9a227); margin-bottom: .4rem; }
+.cr-shop-callout-head { font-weight: 800; color: var(--gold, #c9a227); margin-bottom: .4rem; display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+.cr-shop-close { flex: none; background: transparent; border: 1px solid rgba(201,162,39,.5); color: #fdf6e8; border-radius: 6px; cursor: pointer; line-height: 1; padding: .15rem .35rem; font-size: .9rem; }
+.cr-shop-close:hover { background: rgba(201,162,39,.2); }
+.cr-tile.reopen-shop { cursor: pointer; }
 .cr-shop-note { font-size: .78rem; color: #e1a; margin-bottom: .35rem; }
 .cr-shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
 .cr-shop-item { display: flex; align-items: center; gap: .5rem; }

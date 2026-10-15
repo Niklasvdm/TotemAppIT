@@ -2419,3 +2419,178 @@ func TestCrawlerCourageHeal(t *testing.T) {
 		t.Fatal("courage-heal at full Health should be refused")
 	}
 }
+
+func TestCrawlerWeakPointOnHazardTile(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.placeTile(1, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // a plain tile (not preferred)
+	rust := g.placeTile(0, 1, crSpecialBase[crKindRust], 0, crKindRust, false, nil)
+	boss := &crawlerMonster{armour: 5, health: 6, maxHealth: 6, damage: 4, square: 4, alive: true, isBoss: true, bossName: "Hauler", specials: []string{bsHardcore}}
+	bt := g.placeTile(2, 0, crSpecialBase[crKindGate], 0, "boss", true, []*crawlerMonster{boss})
+	g.placeWeakPoint(bt.id)
+	// It must land on the rust (hazard) room, never the boss tile.
+	var host int = -1
+	for _, tl := range g.tiles {
+		for _, m := range tl.monsters {
+			if m.weakPoint && m.alive {
+				host = tl.id
+			}
+		}
+	}
+	if host != rust.id {
+		t.Fatalf("the weak-point should prefer the hazard (rust) room %d, got tile %d", rust.id, host)
+	}
+	if host == bt.id || !g.weakPointAlive() {
+		t.Fatalf("weak-point must be off the boss tile and visible map-wide (host=%d)", host)
+	}
+}
+
+func TestCrawlerLayNeverSealsTheMap(t *testing.T) {
+	// Mapmaking Rule 4: a tile whose only placements would seal the map (leave no open
+	// edge for any future tile) is never laid. Here the sole frontier is one cell and a
+	// dead-end drawn on top would close it; the engine buries the dead-end and lays the
+	// straight instead, which keeps an exit open.
+	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+	g.AddPlayer("beaver", "bever")
+	g.phase = crPlaying
+	g.bands = 3
+	g.grace = -1
+	// A dead-end start tile opening only East: the lone frontier is (1,0).
+	a := g.placeTile(0, 0, [4]bool{false, true, false, false}, 0, "dead-end", false, nil)
+	g.players[0].tileID = a.id
+	g.players[0].square = 4
+	deadEnd := tileSpec{band: 0, kind: "dead-end", base: [4]bool{false, true, false, false}}
+	straight := tileSpec{band: 0, kind: "straight", base: [4]bool{false, true, false, true}}
+	g.deck = []tileSpec{deadEnd, straight}
+	g.deckPos = 0
+	g.turn = 0
+	g.beginLayPhase()
+	if g.pending == nil || len(g.pending.options) == 0 {
+		t.Fatalf("a non-sealing tile should be offered; pending=%v", g.pending)
+	}
+	if g.pending.spec.kind != "straight" {
+		t.Fatalf("the sealing dead-end must be buried, the straight laid; got %q", g.pending.spec.kind)
+	}
+	for _, o := range g.pending.options {
+		if !g.keepsForestOpen(o.X, o.Y, o.Edges) {
+			t.Fatalf("offered a map-sealing placement at (%d,%d)", o.X, o.Y)
+		}
+	}
+	if g.deck[len(g.deck)-1].kind != "dead-end" {
+		t.Fatalf("the buried dead-end should sit at the bottom of the stack; deck=%v", g.deck)
+	}
+}
+
+func TestCrawlerLayBuriesUnconnectableTile(t *testing.T) {
+	// Mapmaking Rule 3: a drawn tile that cannot legally connect anywhere goes to the
+	// bottom of the stack and the next is drawn until one fits. A tile with no openings
+	// can never join the map, so it is buried in favour of the straight behind it.
+	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+	g.AddPlayer("beaver", "bever")
+	g.phase = crPlaying
+	g.bands = 3
+	g.grace = -1
+	a := g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // open all sides
+	g.players[0].tileID = a.id
+	g.players[0].square = 4
+	blank := tileSpec{band: 0, kind: "blank", base: [4]bool{}} // no openings: never connects
+	straight := tileSpec{band: 0, kind: "straight", base: [4]bool{false, true, false, true}}
+	g.deck = []tileSpec{blank, straight}
+	g.deckPos = 0
+	g.turn = 0
+	g.beginLayPhase()
+	if g.pending == nil || g.pending.spec.kind != "straight" {
+		t.Fatalf("the unconnectable blank must be buried and the straight laid; pending=%v", g.pending)
+	}
+	if g.deck[len(g.deck)-1].kind != "blank" {
+		t.Fatalf("the buried blank should sit at the bottom of the stack; deck=%v", g.deck)
+	}
+}
+
+func TestCrawlerLayKeepsMapOpenUntilBoss(t *testing.T) {
+	// Across many seeds, proactively laying every tile never seals the map while forest
+	// tiles remain: there is always a frontier for the next tile until the boss lair
+	// (which alone is allowed to end the forest) is placed.
+	for seed := uint64(1); seed <= 40; seed++ {
+		g := newCrawlerGame(newFakeOutbox(0), seed).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		crCmd(t, g, 0, true, map[string]any{"t": crMsgStart}) // opens in the LAY phase
+		for i := 0; i < 200; i++ {
+			g.step = crStepLay
+			g.pending = nil
+			g.grace = -1 // keep laying (ignore the collapse clock for this placement sweep)
+			g.beginLayTurn(0)
+			if g.pending == nil || len(g.pending.options) == 0 {
+				break // nothing left the stack can lay
+			}
+			o := g.pending.options[0]
+			boss := g.pending.spec.isBoss
+			g.layTile(0, o.X, o.Y, o.Rotation)
+			if boss {
+				break // the boss lair may seal; stop checking once it is down
+			}
+			if len(g.frontierCoords()) == 0 {
+				t.Fatalf("seed %d, step %d: the map sealed shut before the boss with tiles still to lay", seed, i)
+			}
+		}
+	}
+}
+
+func TestCrawlerArmourCappedSoASixAlwaysLands(t *testing.T) {
+	// Regression (the "can't hurt Mossback even with a 6" bug): a boss whose Armour climbs
+	// (Adaptive Plating) or is buffed must never exceed the max die face, or a 6 could not
+	// land and the boss would be permanently unkillable. Here the plating has run away to
+	// +5 (effective Armour 10 uncapped); a 6 must still land and crack the plating.
+	g, _ := startedCrawler(t, 1)
+	m := setupFight(g, 5, 3, 0)
+	m.specials = []string{bsAdaptive}
+	m.plating = 5
+	m.bossName = "Mossback"
+	if ea := g.effectiveArmour(g.players[0], m); ea != crMaxDieFace {
+		t.Fatalf("effective Armour must cap at %d (a 6 can always land), got %d", crMaxDieFace, ea)
+	}
+	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if !g.dice[0].Spent {
+		t.Fatal("a 6 must land against capped Armour")
+	}
+	if m.health != 2 {
+		t.Fatalf("the landed 6 should have dealt its hit (3 -> 2), got Health %d", m.health)
+	}
+	if m.plating != 0 {
+		t.Fatalf("a landed 6 must crack Adaptive Plating back to 0, got %d", m.plating)
+	}
+}
+
+func TestCrawlerHaulerGraceScalesWithParty(t *testing.T) {
+	// Hauler (the weak-point boss) gets a longer collapse countdown that scales down with
+	// party size: 10 solo, 7 at two, 6 at three, 5 at four or more. A boss without the
+	// weak-point special keeps the flat crGraceTurns.
+	hardcore := []struct {
+		players, want int
+	}{{1, 10}, {2, 7}, {3, 6}, {4, 5}, {5, 5}}
+	for _, tc := range hardcore {
+		g := newCrawlerGame(newFakeOutbox(0, 1, 2, 3, 4), 7).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		for i := 1; i < tc.players; i++ {
+			g.AddPlayer("ally", "")
+		}
+		g.grace = -1
+		g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, "boss", true,
+			[]*crawlerMonster{{armour: 5, health: 6, maxHealth: 6, alive: true, specials: []string{bsHardcore}}})
+		g.startGrace()
+		if g.grace != tc.want {
+			t.Fatalf("Hauler with %d player(s): want grace %d, got %d", tc.players, tc.want, g.grace)
+		}
+	}
+
+	// A plain boss (no weak-point) uses crGraceTurns regardless of party size.
+	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+	g.AddPlayer("beaver", "bever")
+	g.grace = -1
+	g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, "boss", true,
+		[]*crawlerMonster{{armour: 5, health: 6, maxHealth: 6, alive: true, specials: []string{bsAdaptive}}})
+	g.startGrace()
+	if g.grace != crGraceTurns {
+		t.Fatalf("a plain boss should use crGraceTurns (%d), got %d", crGraceTurns, g.grace)
+	}
+}
