@@ -8,7 +8,8 @@
 #
 # Builds static linux/amd64 binaries (pure Go, no CGO), ships them + the emoji
 # map and images, then restarts totemd (which applies pending DB migrations on
-# startup). The SPA/front-end is deployed separately (binary embed is pending).
+# startup). The SPA is built (npm run build) and embedded into the binary via
+# `go build -tags embed`, so the single binary serves both the API and the UI.
 #
 # Go is only needed where the BUILD happens: locally by default, or on --builder
 # (e.g. the dev LXC, which already has Go) so your workstation needs nothing.

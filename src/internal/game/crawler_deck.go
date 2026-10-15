@@ -57,10 +57,11 @@ func (g *crawlerGame) buildDeck() {
 		// effect. Edge shapes: portal = crossroads, healing = T-junction, shop = dead-end.
 		spec := func(kind string) tileSpec { return tileSpec{band: b, kind: kind, base: crSpecialBase[kind]} }
 		// The healing spring is a 3-way T-junction in the Woodland, but a 4-way cross in the
-		// Ruins (its fountain art reads as a crossroads). Same kind, biome-dependent shape.
+		// Ruins and Machine (their fountain/pad art reads as a crossroads). Same kind,
+		// biome-dependent shape.
 		heal := func() tileSpec {
 			s := spec(crKindHealing)
-			if biomeForLevel(g.level) == crRuins {
+			if biomeForLevel(g.level) != crWoodland {
 				s.base = ttCross.base
 			}
 			return s

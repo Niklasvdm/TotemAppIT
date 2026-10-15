@@ -245,9 +245,10 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 			}
 			tv.Hazards = append(tv.Hazards, crawlerHazardView{Square: hz.square, Kind: hz.kind})
 		}
-		// Sensor fog hides a tile's robots and loot until a hero stands on its CENTRE
-		// (you have to push into the middle of the room to see what it holds).
-		fogged := tileHasFog(t) && !g.heroOnTileCentre(t)
+		// Sensor fog hides a tile's robots and loot until a hero has stood on its CENTRE
+		// (you push into the middle of the room to uncover it); once uncovered it stays
+		// revealed (fogRevealed, set on landing) rather than re-hiding when heroes leave.
+		fogged := tileHasFog(t) && !t.fogRevealed
 		tv.Fogged = fogged
 		if !fogged {
 			for _, l := range t.loot {

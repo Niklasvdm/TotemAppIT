@@ -91,10 +91,10 @@ export function effectiveArmour(armour: number, barbed: boolean): number {
   return Math.max(1, armour - (barbed ? 1 : 0));
 }
 
-// Tile art is organised per biome (sprites/crawler/tiles/<biome>/tile-N.png). Woodland and
-// ruins sets exist; machine falls back to woodland until its sheet lands. Add a biome here
-// the moment its tiles/<biome>/ folder is populated with every tile kind it uses.
-const HAVE_TILES = new Set(["woodland", "ruins"]);
+// Tile art is organised per biome (sprites/crawler/tiles/<biome>/tile-N.png). Woodland,
+// ruins and machine sets all exist. Add a biome here the moment its tiles/<biome>/ folder
+// is populated with every tile kind it uses.
+const HAVE_TILES = new Set(["woodland", "ruins", "machine"]);
 export function biomeTileDir(biome: string): string {
   const s = (biome || "woodland").toLowerCase();
   return HAVE_TILES.has(s) ? s : "woodland";

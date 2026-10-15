@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.16.0`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
+**Build `0.17.3`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -1155,14 +1155,13 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[FEATURE]` **2D totem sprites in Bomberman**: the atlas pipeline shipped (0.3.9) with a growing roster; what remains is art for more animals and, optionally, real 4-direction walk cycles. Adding one is art-only: cut `front`/`side`/`defeated` frames, append a row to `totems.png`, add the slug's rects to `totems.json`. Pick 8-12 camp favourites rather than the whole catalogue (a board mixing sprites and discs reads as "these are special", not "the rest are broken").
 - `[ENHANCEMENT]` **Bomberman mobile controls**: the on-screen d-pad is cramped on a phone; scale the board down on small screens, enlarge the touch targets, offer a landscape layout.
 - `[ENHANCEMENT]` **Bomberman lag feel**: tune the prediction glide and teleport threshold (`decayOffset` in `net.ts`) so a laggy link reads as smooth motion, not jumps.
-- `[FEATURE]` **Remaining crawler art**: the art-pending boss sheets (Thornstag, Ramhead, The Core, drawn as the generic boss until then; Mossback reuses the existing bear, Vespex, Pylon, the Ruins trio Hauler/Vultrix/Teslacrane and Widowframe are done), a dedicated **Sentry** sprite (it borrows the old bruiser sheet for now; Scrapling, Hulk, Jammer and Grappler are done; the Wolf totem reuses its Bomberman atlas row), a **weak-point** sprite (Hauler's Hardened-Core target, drawn as a bare 👹/💀 emoji until then; prompt in the design note), the Level-2+ feature tiles `tile-10..17` (shrine, city gate, the hazard rooms), and the ruins and machine tilesets. The sprite template and tileset prompts live in the [[TotemApp-IT-Crawler]] Project Logs.
+- `[DONE]` **Crawler art is complete.** Every boss (Mossback via the bear; Vespex, Pylon, Thornstag, Hauler, Vultrix, Teslacrane, Widowframe, Ramhead, The Core) has a sprite, plus the Hardened-Core **weak-point**; the robots (Scrapling, Hulk, Jammer, Grappler, and the **Sentry** reusing the bruiser sheet by choice) and all totems are done; and all three biome tilesets (woodland, ruins, machine) are in. The sprite template and tileset prompts live in the [[TotemApp-IT-Crawler]] Project Logs.
 
 **Finder & data**
-- `[FEATURE]` **Embed the built SPA into `totemd`** via `embed.FS` + SPA-fallback routing for a single-binary production (finishes Phase 3).
+- `[DONE]` **Embed the built SPA into `totemd`** via `embed.FS` + SPA-fallback routing: wired (`go build -tags embed`, `internal/web/embed_on.go`), and `deploy.sh` builds the SPA then the embedding binary, so prod is a single binary serving API + UI. (Phase 3 complete.)
 - `[FEATURE]` **27 animals have no image** (names that are disambiguation pages in both nl+en): manual sourcing, see `data/images/review.md`.
 - `[ENHANCEMENT]` **Emoji refinement**: paw fallbacks are 0; the ~316 family-level "category" emoji could still be refined from `data/emoji-review.md`.
 - `[FEATURE]` **"Which animal are you?" quiz**: v1 built (finder pop-up, 10 EN dilemmas). TODO: morally-grey **exclude** questions; translate prompts to it/nl; move questions to `data/quiz.json` + a `/api/v1/quiz` endpoint; a mobile entry point; more questions covering `loyal`/`brave`/`deft`/`enduring`. Gates the German translation; profiles & friends later (auth via [[AuthenticationServer]]).
-- `[ENHANCEMENT]` **Free-text search** (`q`) matches names only; consider matching descriptions too.
 - `[FEATURE]` **German (DE) translation**: a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the quiz ships.
 - `[FEATURE]` **Group mode**: a second, open flow where a *group* chooses someone's totem together (mark adjectives that fit / don't): see [the design](#a-second-open-mode--a-group-chooses-someones-totem-design).
 - `[FEATURE]` **Suggest a voortotem** (adjective) for your matched animal, as a nod to the tradition.

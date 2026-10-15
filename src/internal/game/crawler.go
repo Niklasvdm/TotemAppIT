@@ -250,9 +250,10 @@ type crawlerTile struct {
 	rot      int // quarter-turns the chosen placement rotated the base shape (for art)
 	edges    [4]bool
 	monsters []*crawlerMonster
-	isBoss   bool
-	loot     []crawlerGroundItem // objects lying on the floor of this tile, by square
-	hazards  []crawlerHazard     // hazards on this tile's squares (see crawler_hazards.go)
+	isBoss      bool
+	loot        []crawlerGroundItem // objects lying on the floor of this tile, by square
+	hazards     []crawlerHazard     // hazards on this tile's squares (see crawler_hazards.go)
+	fogRevealed bool                // a sensor-fog tile whose contents a hero has uncovered (stays revealed)
 }
 
 // crawlerGroundItem is an object dropped on a tile's square (from a kill or a hero
@@ -1031,6 +1032,7 @@ func (g *crawlerGame) tryCarry(seat, ally, dir int) bool {
 	g.maybeSpring(ally)
 	g.maybeShop(ally)
 	g.enterHazard(a)
+	g.revealFog(a)
 	g.log = append(g.log, src.name+" carries "+a.name+".")
 	return true
 }
@@ -1145,6 +1147,7 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 		g.maybeSpring(seat) // landed: a spring centre heals (the vault's loot sits on the floor, grabbed like any drop)
 		g.maybeShop(seat)   // stepping onto a shop tile opens it (and repairs statuses)
 		g.enterHazard(h)    // a hazard square bites on entry (wiring/mine)
+		g.revealFog(h)      // reaching a fog tile's centre uncovers it for good
 		return true
 	}
 	// Crossing the tile edge: must be at that side's doorway and the edge open.

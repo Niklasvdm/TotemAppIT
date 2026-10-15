@@ -213,15 +213,13 @@ func tileHasFog(t *crawlerTile) bool {
 	return false
 }
 
-// heroOnTileCentre reports whether a living hero stands on tile t's centre square (so a
-// fog tile's contents are revealed only once someone pushes into the middle of the room).
-func (g *crawlerGame) heroOnTileCentre(t *crawlerTile) bool {
-	for _, h := range g.players {
-		if h.alive && h.tileID == t.id && h.square == 4 {
-			return true
-		}
+// revealFog permanently lifts a sensor-fog tile's veil once a hero reaches its centre
+// square. The reveal sticks: the tile stays uncovered after everyone leaves.
+func (g *crawlerGame) revealFog(h *crawlerHero) {
+	t := g.tiles[h.tileID]
+	if t != nil && h.square == 4 && tileHasFog(t) {
+		t.fogRevealed = true
 	}
-	return false
 }
 
 // coolantBlocks reports whether a hero may NOT step onto this square yet: a coolant

@@ -221,10 +221,34 @@ function CrawlerRoom({
     const onKey = (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName ?? "").toLowerCase();
       if (tag === "input" || tag === "select" || tag === "textarea") return;
-      if (v.ph !== "playing" || v.step !== "spend" || v.turn !== v.you) return;
+      if (v.ph !== "playing" || v.turn !== v.you) return;
       const me = v.heroes.find((h) => h.s === v.you);
       if (!me || me.downed) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      // LAY phase: Enter confirms the previewed placement, r rotates the tile.
+      if (v.step === "lay" && v.pending) {
+        const opts = v.pending.options;
+        const rots = Array.from(new Set(opts.map((o) => o.rotation))).sort((a, b) => a - b);
+        if (key === "Enter") {
+          e.preventDefault();
+          const chosen = opts.find((o) => o.rotation === layRot) ?? opts[0];
+          if (chosen) g.send({ t: "layTile", x: chosen.x, y: chosen.y, rotation: chosen.rotation });
+        } else if (key === "r" && rots.length > 1) {
+          e.preventDefault();
+          const i = rots.indexOf(layRot);
+          setLayRot(rots[(i + 1) % rots.length]);
+        }
+        return;
+      }
+      if (v.step !== "spend") return;
+      // End turn (e), clear the selected die (Escape), revive a downed ally on your tile (v).
+      if (key === "e") { e.preventDefault(); g.send({ t: "endTurn" }); setSel(null); return; }
+      if (key === "Escape") { setSel(null); return; }
+      if (key === "v") {
+        const downed = v.heroes.find((h) => h.downed && h.tile === me.tile && h.s !== me.s);
+        if (downed && v.dice.some((d) => !d.spent)) { e.preventDefault(); g.send({ t: "revive", ally: downed.s }); }
+        return;
+      }
       const mins = menuMins(me);
       // Move: arrows / WASD.
       const dir = DIR[key];
@@ -269,7 +293,7 @@ function CrawlerRoom({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [v, g, sel]);
+  }, [v, g, sel, layRot]);
   // Flash when your health drops (your totem takes damage).
   const myHp = g.view ? g.view.heroes.find((h) => h.s === g.view!.you)?.health : undefined;
   const hpLost = useLossPulse(myHp);
@@ -317,10 +341,13 @@ function CrawlerRoom({
     const chosen = at.find((o) => o.rotation === layRot) ?? at[0];
     g.send({ t: "layTile", x: chosen.x, y: chosen.y, rotation: chosen.rotation });
   };
-  const rotateLay = () => {
+  const rotateLay = () => rotateLayBy(1);
+  // rotateLayBy steps the chosen orientation forward (+1) or back (-1) through the legal
+  // rotations. Used by the Rotate button, the scroll wheel, and the r key.
+  const rotateLayBy = (delta: number) => {
     if (layRots.length <= 1) return;
-    const i = layRots.indexOf(layRot);
-    setLayRot(layRots[(i + 1) % layRots.length]);
+    const i = Math.max(0, layRots.indexOf(layRot));
+    setLayRot(layRots[(i + delta + layRots.length) % layRots.length]);
   };
   // Where to keep the board scrolled: a move-triggered lay centres the one cell you
   // stepped onto; a proactive LAY-phase lay and a normal turn centre on your own tile.
@@ -463,16 +490,17 @@ function CrawlerRoom({
                   className="cr-lay-tile"
                   draggable
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", "tile")}
-                  title={isPhaseLay ? "Rotate me, then drop me on any glowing cell" : "Rotate me, then drop me on the glowing cell"}
+                  onWheel={(e) => { if (layRots.length > 1) { e.preventDefault(); rotateLayBy(e.deltaY > 0 ? 1 : -1); } }}
+                  title={isPhaseLay ? "Scroll to rotate me, then drop me on any glowing cell" : "Scroll to rotate me, then drop me on the glowing cell"}
                 >
                   <TilePreview kind={v.pending!.kind} edges={layPreview.edges} rot={layPreview.rotation} size={92} dir={biomeTileDir(v.biome)} />
                 </div>
                 <div className="cr-lay-ctl">
-                  {layRots.length > 1 && <button className="game-btn ghost" onClick={rotateLay}>⟳ Rotate</button>}
+                  {layRots.length > 1 && <button className="game-btn ghost" onClick={rotateLay}>⟳ Rotate (r / scroll)</button>}
                   <span className="muted-note">
                     {isPhaseLay
-                      ? "Rotate the tile, then drag it onto any glowing cell (or click one) to lay it so the paths line up. You move on your own turn."
-                      : "The spot is fixed (where you stepped): rotate the tile, then click the glowing cell to step through."}
+                      ? "Rotate the tile (scroll over it, the ⟳ button, or r), then drag it onto a glowing cell, click one, or press Enter to lay it at the first spot. You move on your own turn."
+                      : "The spot is fixed (where you stepped): rotate the tile (scroll / ⟳ / r), then click the glowing cell or press Enter to step through."}
                   </span>
                 </div>
               </>
@@ -540,7 +568,7 @@ function CrawlerRoom({
                     {downedAllies.map((a) => (
                       <div className="cr-action-row" key={a.s}>
                         <span>⛑ {a.n} is down:</span>
-                        <button className="game-btn" disabled={!hasDie} title={hasDie ? "Spend a die to revive this ally" : "needs an unspent die"} onClick={() => { g.send({ t: "revive", ally: a.s }); setSel(null); }}>revive (1 die)</button>
+                        <button className="game-btn" disabled={!hasDie} title={hasDie ? "Spend a die to revive this ally (shortcut: v)" : "needs an unspent die"} onClick={() => { g.send({ t: "revive", ally: a.s }); setSel(null); }}>revive (1 die · v)</button>
                       </div>
                     ))}
                   </div>
@@ -599,6 +627,9 @@ function CrawlerRoom({
           <span><kbd>C</kbd> Courage</span>
           <span><kbd>F</kbd> Fight</span>
           <span><kbd>1</kbd>–<kbd>9</kbd> use item</span>
+          <span><kbd>E</kbd> end turn</span>
+          <span><kbd>V</kbd> revive a downed ally</span>
+          <span className="cr-kbd-hint-sub">laying: <kbd>scroll</kbd>/<kbd>R</kbd> rotate · <kbd>Enter</kbd> place</span>
           <span className="muted-note">each spends your lowest usable die — or click a die / your items as usual</span>
         </div>
       )}
@@ -611,7 +642,7 @@ function CrawlerRoom({
           debug={debug}
           spriteFor={spriteFor}
           onPickup={(sq) => g.send({ t: "pickup", square: sq })}
-          lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt } : null}
+          lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt, rotate: rotateLayBy } : null}
         />
         {me && myTurn && myTile?.kind === "shop" && (
           <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} />

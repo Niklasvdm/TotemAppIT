@@ -54,7 +54,8 @@ export function CrawlerMap({ v, focus, lay, debug, spriteFor, onPickup }: { v: C
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); lay.place(x, y); }}
             onClick={() => lay.place(x, y)}
-            title={hasRot ? "Drop or click to place here (your rotation)" : "Drop or click to place here (this cell's rotation)"}
+            onWheel={(e) => { e.preventDefault(); lay.rotate(e.deltaY > 0 ? 1 : -1); }}
+            title={hasRot ? "Scroll to rotate · drop or click to place here (your rotation)" : "Scroll to rotate · drop or click to place here (this cell's rotation)"}
           >
             {art ? (
               <div className="cr-tile-art" style={{ backgroundImage: `url(/sprites/crawler/tiles/${biomeTileDir(v.biome)}/${art.file}.png)`, transform: `rotate(${art.deg}deg)` }} />

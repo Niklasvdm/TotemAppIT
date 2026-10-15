@@ -132,4 +132,5 @@ export type LayState = {
   rot: number; // the orientation the player has chosen (0..3)
   options: CrLayOption[];
   place: (x: number, y: number) => void;
+  rotate: (delta: number) => void; // scroll-to-rotate over a drop cell (+1 / -1)
 };

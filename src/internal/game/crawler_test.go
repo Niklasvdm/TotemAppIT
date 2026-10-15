@@ -1631,13 +1631,23 @@ func TestCrawlerFogHidesTileContents(t *testing.T) {
 			t.Fatalf("an adjacent hero should NOT reveal the fog tile (centre-only), got monsters=%d", len(v.Tiles[i].Monsters))
 		}
 	}
-	// Push a hero onto the fog tile's centre: the contents reveal.
+	// Push a hero onto the fog tile's centre: revealFog (fired on landing) uncovers it.
 	g.players[0].tileID = far.id
 	g.players[0].square = 4
+	g.revealFog(g.players[0])
 	v = g.viewFor(0)
 	for i := range v.Tiles {
 		if v.Tiles[i].ID == far.id && len(v.Tiles[i].Monsters) != 1 {
 			t.Fatalf("a hero on the fog tile's centre should reveal its monster, got %d", len(v.Tiles[i].Monsters))
+		}
+	}
+	// The reveal STICKS: everyone leaves, the tile stays uncovered.
+	g.players[0].tileID = g.placeTile(9, 8, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	g.players[0].square = 4
+	v = g.viewFor(0)
+	for i := range v.Tiles {
+		if v.Tiles[i].ID == far.id && (v.Tiles[i].Fogged || len(v.Tiles[i].Monsters) != 1) {
+			t.Fatalf("an uncovered fog tile should stay revealed after heroes leave: fogged=%v monsters=%d", v.Tiles[i].Fogged, len(v.Tiles[i].Monsters))
 		}
 	}
 }
@@ -2307,8 +2317,8 @@ func TestCrawlerSpareDieIsBonus(t *testing.T) {
 }
 
 func TestCrawlerRuinsHealingIsCross(t *testing.T) {
-	// Woodland (L1-2) healing is a 3-way T-junction; Ruins (L3-4) healing is a 4-way cross.
-	for _, tc := range []struct{ level, want int }{{1, 3}, {2, 3}, {3, 4}, {4, 4}} {
+	// Woodland (L1-2) healing is a 3-way T-junction; Ruins (L3-4) and Machine (L5-6) are crosses.
+	for _, tc := range []struct{ level, want int }{{1, 3}, {2, 3}, {3, 4}, {4, 4}, {5, 4}, {6, 4}} {
 		g, _ := rawCrawler(t, 1)
 		g.level = tc.level
 		g.biome = biomeForLevel(tc.level)

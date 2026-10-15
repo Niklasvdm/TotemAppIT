@@ -10,6 +10,26 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.17.3 — 2026-10-15
+- `[FIX]` **Crawler: machine wiring and bend tiles were drawn 90° off their `TILE_ART` base**, so the client rotated the art perpendicular to the real doorways (the live-wiring room read as a crossroads). Both PNGs rotated to match. Flagged for regeneration: the machine **dead-end** (generated as a 2-edge corridor), **tee** (generated as a 4-way cross) and **shop** (door faces the wrong edge) all came out with the wrong open-edge count/orientation and render with a stray doorway until re-rolled.
+
+### 0.17.2 — 2026-10-15
+- `[CHANGE]` **Crawler: an uncovered fog room stays revealed.** A sensor-fog tile used to re-hide its contents when heroes left its centre; now reaching the centre uncovers it permanently (`fogRevealed` on the tile, set on landing).
+- `[ENHANCEMENT]` **Crawler: lay-phase shortcuts.** While placing a tile you can **scroll over it (or a glowing cell), or press `r`, to rotate**, and **press `Enter` to place it** at the previewed spot. The Rotate button and drag/click still work.
+- `[ENHANCEMENT]` **Crawler: more keyboard parity.** `e` ends your turn, `Escape` clears a selected die, and `v` revives a downed ally on your tile; the shortcut hint lists the new keys.
+
+### 0.17.1 — 2026-10-14
+- `[FEATURE]` **Crawler: Thornstag has a sprite, completing the boss roster.** The L2 Shockwave boss sheet is ingested (slug `thornstag`) and wired into `ENEMY_ART`; every boss now draws its own art.
+- `[FIX]` **Crawler: the machine vault tile is fixed.** Re-sliced from a proper single-door nook (the earlier one had an extra doorway).
+- `[DOCS]` The dedicated Sentry sprite is no longer "pending" — it reuses the bruiser sheet by choice. Crawler art is now complete.
+
+### 0.17.0 — 2026-10-14
+- `[FEATURE]` **Crawler: the Machine biome tileset (L5-6) is in.** Sliced from three machine sheets into `tiles/machine/` and enabled in `HAVE_TILES`: base paths, healing, portal, shop, the Core lair (boss), vault, wiring, coolant, fog, rust, trap and overheat (tile-17) — the full set the biome uses. Machine healing is a 4-way cross like the Ruins (its pad art is a crossroads); `heal()` now makes healing a cross for every non-Woodland biome. L5-6 no longer fall back to woodland art. Known rough tile: the machine **vault** came out with an extra doorway (2 edges instead of a 1-edge nook) and is flagged for regeneration.
+- `[TEST]` Extended the healing-shape test to cover L5-6 (cross).
+
+### 0.16.1 — 2026-10-14
+- `[FEATURE]` **Crawler: Ramhead, The Core and the weak-point have sprites.** The L5-6 bosses Ramhead (Enrage) and The Core (Summoner III + Overload) sheets are ingested, and Hauler's Hardened-Core **weak-point** now draws its own sprite (slug `weakpoint`) instead of a bare 👹/💀 emoji. All wired into `ENEMY_ART`. Only Thornstag (generic boss) and a dedicated Sentry remain art-pending; the machine tileset is still to be mapped.
+
 ### 0.16.0 — 2026-10-13
 - `[FEATURE]` **Crawler: downed-not-dead revive.** A hero at 0 Health is now *downed* (still on the map, out of the fight, statuses cleared) instead of dead. An ally on their tile spends one die to **revive** them back on 1 Health (the `revive` command, a ⛑ button). The party loses only when *every* hero is down at once (`actingHeroes() == 0`). Downed heroes are skipped by turns and combat and can't be passively healed (revive is the only way up).
 - `[FEATURE]` **Crawler: spend-2-Courage self-heal.** Any hero can trade 2 Courage for 1 Health on their turn (the `heal` command, a 🩹 button) — always available, un-gated by role, no die cost.
