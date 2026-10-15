@@ -11,6 +11,7 @@ relate to:
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
 ### 0.17.3 — 2026-10-15
+- `[DATA]` **All 472 animals now have images.** The final 27 (ambiguous common names that resolved to Wikipedia disambiguation pages) were scraped by overriding each with its specific species taxon (`scrape_images.py` pipeline: Wikidata P18 -> Commons, free licences only, author + licence recorded in `attributions.json`). Load with `totem-seed --attributions` on deploy.
 - `[FIX]` **Crawler: machine wiring and bend tiles were drawn 90° off their `TILE_ART` base**, so the client rotated the art perpendicular to the real doorways (the live-wiring room read as a crossroads). Both PNGs rotated to match. Flagged for regeneration: the machine **dead-end** (generated as a 2-edge corridor), **tee** (generated as a 4-way cross) and **shop** (door faces the wrong edge) all came out with the wrong open-edge count/orientation and render with a stray doorway until re-rolled.
 
 ### 0.17.2 — 2026-10-15

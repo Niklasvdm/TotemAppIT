@@ -603,7 +603,7 @@ The database is a single SQLite file, **encrypted at rest** with the Adiantum VF
 
 ## Images
 
-A picture per animal — **implemented** (445/472 with images; smoke-tested live).
+A picture per animal — **implemented** (472/472 with images; smoke-tested live).
 
 - **Schema:** migration `0002_add_images.sql` adds `image_path` + credit columns (`image_author`, `image_license`, `image_source`) to `animal` — the first use of the migration system beyond the initial schema.
 - **Serving:** `GET /api/v1/animals/{slug}/image` streams `<slug>.webp` from `TOTEM_IMAGE_DIR` (`404` when absent; slug validated against `^[a-z0-9-]+$` to block path traversal; `Cache-Control` set so the WAF can cache it). The animal-detail payload carries an `image` object with the URL **and** the attribution to display.
@@ -1153,13 +1153,11 @@ Lightweight tracker. `[BUG]` broken · `[FEATURE]` new capability · `[ENHANCEME
 - `[I18N]` **In-game copy is English-only** for the nine party games and the Totem Crawler. Titles and blurbs exist in it/en/nl, but the in-room strings do not; translate them.
 - `[PLAYTEST]` **Real multi-player playtests** are still pending for the party games and the crawler.
 - `[FEATURE]` **2D totem sprites in Bomberman**: the atlas pipeline shipped (0.3.9) with a growing roster; what remains is art for more animals and, optionally, real 4-direction walk cycles. Adding one is art-only: cut `front`/`side`/`defeated` frames, append a row to `totems.png`, add the slug's rects to `totems.json`. Pick 8-12 camp favourites rather than the whole catalogue (a board mixing sprites and discs reads as "these are special", not "the rest are broken").
-- `[ENHANCEMENT]` **Bomberman mobile controls**: the on-screen d-pad is cramped on a phone; scale the board down on small screens, enlarge the touch targets, offer a landscape layout.
-- `[ENHANCEMENT]` **Bomberman lag feel**: tune the prediction glide and teleport threshold (`decayOffset` in `net.ts`) so a laggy link reads as smooth motion, not jumps.
 - `[DONE]` **Crawler art is complete.** Every boss (Mossback via the bear; Vespex, Pylon, Thornstag, Hauler, Vultrix, Teslacrane, Widowframe, Ramhead, The Core) has a sprite, plus the Hardened-Core **weak-point**; the robots (Scrapling, Hulk, Jammer, Grappler, and the **Sentry** reusing the bruiser sheet by choice) and all totems are done; and all three biome tilesets (woodland, ruins, machine) are in. The sprite template and tileset prompts live in the [[TotemApp-IT-Crawler]] Project Logs.
 
 **Finder & data**
 - `[DONE]` **Embed the built SPA into `totemd`** via `embed.FS` + SPA-fallback routing: wired (`go build -tags embed`, `internal/web/embed_on.go`), and `deploy.sh` builds the SPA then the embedding binary, so prod is a single binary serving API + UI. (Phase 3 complete.)
-- `[FEATURE]` **27 animals have no image** (names that are disambiguation pages in both nl+en): manual sourcing, see `data/images/review.md`.
+- `[DONE]` **All 472 animals now have images.** The last 27 (disambiguation-page common names) were scraped by pointing the pipeline at each specific species (e.g. kiwi→*Apteryx*, zebra→*Equus quagga*, mol→*Talpa europaea*), keeping only CC/public-domain results with author + licence recorded. Run `totem-seed --attributions` on deploy to load the new attributions into the DB.
 - `[ENHANCEMENT]` **Emoji refinement**: paw fallbacks are 0; the ~316 family-level "category" emoji could still be refined from `data/emoji-review.md`.
 - `[FEATURE]` **"Which animal are you?" quiz**: v1 built (finder pop-up, 10 EN dilemmas). TODO: morally-grey **exclude** questions; translate prompts to it/nl; move questions to `data/quiz.json` + a `/api/v1/quiz` endpoint; a mobile entry point; more questions covering `loyal`/`brave`/`deft`/`enduring`. Gates the German translation; profiles & friends later (auth via [[AuthenticationServer]]).
 - `[FEATURE]` **German (DE) translation**: a DeepL script exists but needs tweaking. **Only after** IT + EN are of sufficient quality **and** the quiz ships.
