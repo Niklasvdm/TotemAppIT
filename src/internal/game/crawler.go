@@ -82,22 +82,23 @@ const (
 )
 
 const (
-	crMsgStart   = "start"
-	crMsgSpend   = "spend"   // {die, action, dir|monster|ally}
-	crMsgLay     = "layTile" // {x, y, rotation} from the offered options
-	crMsgReroll  = "reroll"  // {die}
-	crMsgEndTurn = "endTurn"
-	crMsgRestart = "restart"
-	crMsgStep    = "step"   // {dir} one bonus step of a multi-square move (no die)
-	crMsgPortal  = "portal" // {tile} teleport from a portal tile to another portal tile (no die)
-	crMsgBuy     = "buy"    // {obj} buy an object from the shop you stand on (spends Courage)
-	crMsgUse     = "use"    // {obj, monster} use a consumable (free action)
-	crMsgLucky   = "lucky"  // {die} Lucky Charm: nudge a die +1 (free, once a turn)
-	crMsgPickup  = "pickup" // {square} take a ground object on your tile
-	crMsgDrop    = "drop"   // {obj} drop an object onto your square
-	crMsgTotem   = "totem"  // {totem} pick/change your animal while in the lobby
-	crMsgRevive  = "revive" // {ally} spend a die to revive a downed ally on your tile
-	crMsgHeal    = "heal"   // spend 2 Courage to heal 1 (always available on your turn)
+	crMsgStart    = "start"
+	crMsgSpend    = "spend"   // {die, action, dir|monster|ally}
+	crMsgLay      = "layTile" // {x, y, rotation} from the offered options
+	crMsgReroll   = "reroll"  // {die}
+	crMsgEndTurn  = "endTurn"
+	crMsgEndLevel = "endLevel" // descend now, skipping the post-boss victory lap (current player only)
+	crMsgRestart  = "restart"
+	crMsgStep     = "step"   // {dir} one bonus step of a multi-square move (no die)
+	crMsgPortal   = "portal" // {tile} teleport from a portal tile to another portal tile (no die)
+	crMsgBuy      = "buy"    // {obj} buy an object from the shop you stand on (spends Courage)
+	crMsgUse      = "use"    // {obj, monster} use a consumable (free action)
+	crMsgLucky    = "lucky"  // {die} Lucky Charm: nudge a die +1 (free, once a turn)
+	crMsgPickup   = "pickup" // {square} take a ground object on your tile
+	crMsgDrop     = "drop"   // {obj} drop an object onto your square
+	crMsgTotem    = "totem"  // {totem} pick/change your animal while in the lobby
+	crMsgRevive   = "revive" // {ally} spend a die to revive a downed ally on your tile
+	crMsgHeal     = "heal"   // spend 2 Courage to heal 1 (always available on your turn)
 )
 
 // Special (non-combat) tile kinds placed into the deck. They carry no monster; their
@@ -165,6 +166,11 @@ const crSnareMoveDice = 2 // Snared: most dice a hero may spend on Move in a tur
 // longer an instant loss.
 const crGraceTurns = 5
 
+// crPostBossTurns is how many turns EACH hero may take after the boss falls, before the
+// level force-descends: a short victory lap to grab loot and regroup. The current player
+// can also end the level early (crMsgEndLevel). See endTurn.
+const crPostBossTurns = 2
+
 // crMaxDieFace is the highest value any die can roll (every faces table tops out at 6).
 // Effective Armour is capped at it so a 6 can ALWAYS land: without the cap a boss whose
 // Armour climbs (Mossback's Adaptive Plating) or is buffed (Pylon's Jammer Field) could
@@ -184,22 +190,23 @@ const (
 // --- state ------------------------------------------------------------------
 
 type crawlerHero struct {
-	name         string
-	sheet        crawlerSheet
-	health       int
-	courage      int
-	shields      int
-	tileID       int
-	square       int
-	alive        bool
-	downed       bool // at 0 Health but not dead: out of the fight until an ally revives them
-	volleyUsed   bool // Arrow Squid: Deep Volley spent this turn (once-a-turn, reset in beginTurn)
-	electrified  bool // status: loses 1 health each round until cleared (boss Overload, fire)
-	electrocuted bool // status: -1 to each die value until cleared (Scrapling sting, live wiring)
-	snared       bool // status: may spend at most 2 dice on Move this turn (Grappler, coolant)
-	drained      bool // status: can't gain Courage until cleared (Jammer, boss)
-	rusted       bool // status: one fewer die until cleared (rust tiles, Scrapling L5-6)
-	moveDiceUsed int  // dice spent on Move this turn (for the Snared cap); reset in beginTurn
+	name          string
+	sheet         crawlerSheet
+	health        int
+	courage       int
+	shields       int
+	tileID        int
+	square        int
+	alive         bool
+	downed        bool // at 0 Health but not dead: out of the fight until an ally revives them
+	postBossTurns int  // turns this hero has ENDED since the boss fell (victory-lap cap, crPostBossTurns)
+	volleyUsed    bool // Arrow Squid: Deep Volley spent this turn (once-a-turn, reset in beginTurn)
+	electrified   bool // status: loses 1 health each round until cleared (boss Overload, fire)
+	electrocuted  bool // status: -1 to each die value until cleared (Scrapling sting, live wiring)
+	snared        bool // status: may spend at most 2 dice on Move this turn (Grappler, coolant)
+	drained       bool // status: can't gain Courage until cleared (Jammer, boss)
+	rusted        bool // status: one fewer die until cleared (rust tiles, Scrapling L5-6)
+	moveDiceUsed  int  // dice spent on Move this turn (for the Snared cap); reset in beginTurn
 
 	// Objects/loot (see crawler_objects.go): object slugs held, capped per totem by
 	// heroSlots (the Beaver carries 2), carried ACROSS levels. Per-turn flags reset in
@@ -550,6 +557,13 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 			return
 		}
 		g.endTurn(seat)
+	case crMsgEndLevel:
+		// Skip the post-boss victory lap and descend now. Only in the cleared state, and
+		// only the current player (per the UI's placement in their turn-action row).
+		if g.phase != crPlaying || !g.levelCleared || seat != g.turn {
+			return
+		}
+		g.descendLevel()
 	case crMsgTotem:
 		if g.phase != crLobby {
 			return // animal is locked once the run starts
@@ -636,6 +650,7 @@ func (g *crawlerGame) startLevel(n int) {
 		h.shields = 0
 		h.alive = true
 		h.downed = false // a downed hero is back on their feet at the next level
+		h.postBossTurns = 0
 		h.volleyUsed = false
 		heroClearStatuses(h)
 		h.tileID = start.id
@@ -1508,11 +1523,19 @@ func (g *crawlerGame) endTurn(seat int) {
 		return
 	}
 	g.bonusMoves = 0 // any unused multi-move steps are forfeited when the turn ends
-	// The level's boss fell this turn: descend to the next level now (a fresh map), so
-	// the round does not continue in a cleared biome.
+	// The level's boss has fallen: play a short victory lap (crPostBossTurns turns each)
+	// so the party can loot and regroup, instead of descending the instant the killer
+	// ends their turn. Each End turn counts against the ending hero's cap; once every
+	// still-acting hero has used theirs, the level descends. The current player may also
+	// skip the lap with End level (crMsgEndLevel).
 	if g.levelCleared {
-		g.levelCleared = false
-		g.startLevel(g.level + 1)
+		g.players[seat].postBossTurns++
+		if next := g.nextPostBossPlayer(seat); next >= 0 {
+			g.turn = next
+			g.beginTurn(next)
+			return
+		}
+		g.descendLevel()
 		return
 	}
 	// End-of-turn hazards bite the hero whose turn just ended if they are standing on one
@@ -1539,6 +1562,36 @@ func (g *crawlerGame) endTurn(seat int) {
 		}
 	}
 	g.beginLayPhase()
+}
+
+// descendLevel ends the cleared level and builds the next one.
+func (g *crawlerGame) descendLevel() {
+	g.levelCleared = false
+	g.startLevel(g.level + 1)
+}
+
+// nextPostBossPlayer returns the next hero (walking turn order from `from`) who can act
+// and still has a post-boss turn left, or -1 when every acting hero has used their cap.
+// It can return `from` again if they are the only one with turns remaining.
+func (g *crawlerGame) nextPostBossPlayer(from int) int {
+	n := len(g.order)
+	if n == 0 {
+		return -1
+	}
+	idx := 0
+	for i, s := range g.order {
+		if s == from {
+			idx = i
+			break
+		}
+	}
+	for i := 1; i <= n; i++ {
+		s := g.order[(idx+i)%n]
+		if h := g.players[s]; canAct(h) && h.postBossTurns < crPostBossTurns {
+			return s
+		}
+	}
+	return -1
 }
 
 func (g *crawlerGame) resetToLobby() {

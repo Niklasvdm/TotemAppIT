@@ -27,6 +27,7 @@ func main() {
 	// default) and hand the games engine the always-on logger for connection lifecycle
 	// and per-room debug traces.
 	game.SetVerboseLogger(config.SetupLogging(cfg))
+	game.SetRoomIdleTimeout(cfg.RoomIdleTimeout) // TOTEM_ROOM_IDLE_TIMEOUT, default 5m
 	for _, w := range cfg.Warnings {
 		slog.Warn("config", "warning", w)
 	}

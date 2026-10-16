@@ -251,7 +251,7 @@ note bottom of Reg : No state is shared between rooms.\nA command on A4K9 can on
 - **One goroutine per room.** A room owns its `Game` on a single goroutine; all mutation funnels through its `acts` channel. There is no lock and no cross-room pointer, so a command for one room is physically unable to reach another's state. A panic is contained to its room (`Room.safely`).
 - **Codes are the tenant key, and unguessable.** A `CodeLen = 4` code is drawn from `crypto/rand` over a 32-symbol alphabet with the look-alike glyphs removed (no `0`/`O`, no `1`/`I`), because it gets read aloud across a field. That is ~1.05 million codes; collisions on `Create` just redraw. Knowing a code is the only way to address a room.
 - **Capacity cap.** The registry holds at most `maxRooms = 200` rooms; `Create` returns `ErrTooManyRooms` past that. Opening a room allocates a goroutine, so creation is also rate-limited per IP at the HTTP layer.
-- **Idle reaping.** A background reaper runs every `reapInterval = 30s` and closes any room that has been **empty** longer than `roomIdleTimeout = 2m`, freeing the goroutine and the code. A room with any connected or held seat is never reaped.
+- **Idle reaping.** A background reaper runs every `reapInterval = 30s` and closes any room that has been **empty** longer than `roomIdleTimeout` (default `5m`, set by `TOTEM_ROOM_IDLE_TIMEOUT`), freeing the goroutine and the code. A room with any connected or held seat is never reaped. A room emptied by a **deliberate leave** (a bye, not a dropped socket) skips the wait and is deleted at once (`Room.Leave` calls the registry's remove hook); a drop holds the seat, so the room survives for the reconnect grace.
 - **Per-connection limits.** Each socket has a `maxGameFrame = 512`-byte frame cap and a per-second frame budget (`maxClientMsgRate`, 4× the tick rate), and nicknames are validated server-side. A flooding or oversized client is dropped, not trusted.
 - **Origin-checked upgrade.** The WebSocket upgrade only accepts an `Origin` whose host matches the `Host` the backend sees (same-origin). `TOTEM_ALLOWED_ORIGINS` widens that for the Vite dev proxy only; it is empty in production.
 
@@ -261,7 +261,7 @@ note bottom of Reg : No state is shared between rooms.\nA command on A4K9 can on
 | --- | --- | --- | --- |
 | `CodeLen` | 4 | `registry.go` | room-code length (32^4 ≈ 1.05M codes) |
 | `maxRooms` | 200 | `registry.go` | process-wide room cap |
-| `roomIdleTimeout` | 2 min | `registry.go` | empty-room grace before reaping |
+| `roomIdleTimeout` | 5 min (default, `TOTEM_ROOM_IDLE_TIMEOUT`) | `registry.go` | how long an empty room is kept before reaping; a deliberate leave deletes an empty room at once |
 | `reapInterval` | 30 s | `registry.go` | how often the reaper runs |
 | `reconnectGrace` | 2 min | `room.go` | how long a dropped seat is held (generous so a phone reload resumes) |
 | resume token | 16 bytes (128-bit) | `room.go` | per-seat reconnect secret, base64url |

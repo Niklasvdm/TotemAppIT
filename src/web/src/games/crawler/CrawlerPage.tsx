@@ -578,7 +578,17 @@ function CrawlerRoom({
                 );
               })()}
               <div className="cr-turn-actions">
-                <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>End turn</button>
+                {v.cleared ? (
+                  <>
+                    <span className="cr-cleared-note">🏆 Boss defeated! Grab loot, then descend.</span>
+                    <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>
+                      End turn{v.postBoss > 0 ? ` (${v.postBoss} left)` : ""}
+                    </button>
+                    <button className="game-btn cr-end-level" onClick={() => g.send({ t: "endLevel" })}>End level</button>
+                  </>
+                ) : (
+                  <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>End turn</button>
+                )}
               </div>
             </>
           ) : (

@@ -97,6 +97,8 @@ export interface CrView {
   bossNear: boolean;
   bonusMoves: number; // directed steps left in the active hero's multi-move (a fast mover)
   grace: number; // collapse countdown once the stack is empty; -1 while tiles remain
+  cleared: boolean; // boss down: the post-boss victory lap (End turn / End level)
+  postBoss: number; // post-boss turns the current player has left (0 = none / not cleared)
   level: number; // 1..6
   biome: string; // Woodland / Ruins / Machine
   shopStock: { slug: string; name: string; cost: number }[];

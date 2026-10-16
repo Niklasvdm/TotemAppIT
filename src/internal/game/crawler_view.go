@@ -121,6 +121,8 @@ type crawlerView struct {
 	BossNear   bool                   `json:"bossNear"`
 	BonusMoves int                    `json:"bonusMoves"` // directed steps left in the active hero's multi-move
 	Grace      int                    `json:"grace"`      // collapse countdown once the stack is empty; -1 while tiles remain
+	Cleared    bool                   `json:"cleared"`    // boss is down: the post-boss victory lap, with End turn / End level
+	PostBoss   int                    `json:"postBoss"`   // post-boss turns the CURRENT player has left (0..crPostBossTurns), when cleared
 	Level      int                    `json:"level"`      // 1..crMaxLevel
 	Biome      string                 `json:"biome"`      // Woodland / Ruins / Machine (display label)
 	ShopStock  []crawlerShopView      `json:"shopStock"`  // the shop's offer this level (buy when on a shop tile)
@@ -182,9 +184,18 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 		T: MsgState, Phase: g.phase, Step: g.step, Turn: g.turn, You: seat,
 		Dice: append([]crawlerDie{}, g.dice...), DeckLeft: len(g.deck) - g.deckPos,
 		Bands: g.bands, Grace: g.grace, BonusMoves: g.bonusMoves, Log: lastLog(g.log, 12),
-		Level: g.level, Biome: biomeLabel(g.biome),
+		Level: g.level, Biome: biomeLabel(g.biome), Cleared: g.levelCleared,
 		ShopStock: []crawlerShopView{},
 		Heroes:    []crawlerHeroView{}, Tiles: []crawlerTileView{}, Frontiers: []crawlerFrontierView{},
+	}
+	// On the victory lap, tell the client how many post-boss turns the current player has
+	// left so it can show "End turn (X left)" alongside "End level".
+	if g.levelCleared {
+		if h, ok := g.players[g.turn]; ok {
+			if left := crPostBossTurns - h.postBossTurns; left > 0 {
+				v.PostBoss = left
+			}
+		}
 	}
 	for _, slug := range g.shopStock {
 		if d := objBySlug(slug); d != nil {

@@ -17,6 +17,7 @@ const hero = (o: Partial<CrHero>): CrHero => ({
 const view = (o: Partial<CrView>): CrView => ({
   t: "state", ph: "playing", step: "spend", turn: 0, you: 0, dice: [], heroes: [], tiles: [],
   frontiers: [], pending: null, deckLeft: 0, bands: 3, bossNear: false, bonusMoves: 0, grace: -1,
+  cleared: false, postBoss: 0,
   level: 1, biome: "Woodland", shopStock: [], bossPool: [], log: [], ...o,
 });
 

@@ -509,3 +509,29 @@ func TestStaleTeardownDoesNotEvictNewConnection(t *testing.T) {
 	r.BroadcastRoster()
 	recvTyped(t, c1, MsgRoster)
 }
+
+func TestDeliberateLeaveDeletesEmptyRoom(t *testing.T) {
+	// A deliberate leave (bye) by the last player empties the room, which must then be
+	// deleted at once rather than lingering for roomIdleTimeout.
+	reg := testRegistry(t)
+	r := mustCreate(t, reg)
+	c0, _ := mustJoin(t, r, "aap")
+
+	r.Quit(c0) // the registry delete runs inside the Leave act, which Quit waits on
+	if _, ok := reg.Get(r.Code()); ok {
+		t.Fatal("an empty room should be deleted immediately after a deliberate leave")
+	}
+}
+
+func TestDropKeepsRoomForReconnect(t *testing.T) {
+	// A drop (not a deliberate leave) holds the seat, so the room must survive for the
+	// reconnect grace, not be deleted.
+	reg := testRegistry(t)
+	r := mustCreate(t, reg)
+	c0, _ := mustJoin(t, r, "aap")
+
+	r.Leave(c0) // a dropped socket: seat held
+	if _, ok := reg.Get(r.Code()); !ok {
+		t.Fatal("a drop must keep the room alive (seat held for reconnect)")
+	}
+}

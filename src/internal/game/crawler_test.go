@@ -865,6 +865,12 @@ func TestCrawlerBossDefeatDescendsLevel(t *testing.T) {
 	g.players[0].courage = 5 // will be reset by the level transition
 	g.dice = []crawlerDie{{Value: 6}, {Value: 1}, {Value: 1}, {Value: 1}}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	// Boss down: a solo hero gets crPostBossTurns (2) victory-lap turns before the level
+	// descends, so the first End turn stays on level 2 and the second drops to level 3.
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
+	if g.level != 2 {
+		t.Fatalf("the first post-boss turn should not descend yet, got level %d", g.level)
+	}
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndTurn})
 	if g.phase != crPlaying || g.level != 3 || g.biome != crRuins {
 		t.Fatalf("beating level 2 should start level 3 (Ruins), got phase=%q level=%d biome=%q", g.phase, g.level, g.biome)
@@ -2592,5 +2598,53 @@ func TestCrawlerHaulerGraceScalesWithParty(t *testing.T) {
 	g.startGrace()
 	if g.grace != crGraceTurns {
 		t.Fatalf("a plain boss should use crGraceTurns (%d), got %d", crGraceTurns, g.grace)
+	}
+}
+
+func TestCrawlerPostBossVictoryLap(t *testing.T) {
+	// After the boss falls the level does not descend immediately: each hero gets up to
+	// crPostBossTurns (2) more turns, then it descends. Here two players each take two
+	// End turns, and only the fourth End turn drops to the next level.
+	g, _ := startedCrawler(t, 2)
+	g.levelCleared = true
+	lvl := g.level
+
+	g.endTurn(0) // p0 turn 1/2
+	if g.level != lvl {
+		t.Fatalf("should not descend after one post-boss turn (level %d)", g.level)
+	}
+	if g.turn != 1 {
+		t.Fatalf("turn should pass to seat 1, got %d", g.turn)
+	}
+	g.endTurn(1) // p1 turn 1/2
+	if g.level != lvl || g.turn != 0 {
+		t.Fatalf("should pass back to seat 0 without descending (level %d, turn %d)", g.level, g.turn)
+	}
+	g.endTurn(0) // p0 turn 2/2 (now at cap)
+	if g.level != lvl || g.turn != 1 {
+		t.Fatalf("seat 0 at cap, seat 1 still has a turn (level %d, turn %d)", g.level, g.turn)
+	}
+	g.endTurn(1) // p1 turn 2/2: everyone capped -> descend
+	if g.level != lvl+1 {
+		t.Fatalf("after both heroes used their 2 post-boss turns, should descend to level %d, got %d", lvl+1, g.level)
+	}
+	if g.levelCleared {
+		t.Fatal("descending should clear the cleared flag")
+	}
+}
+
+func TestCrawlerEndLevelCurrentPlayerOnly(t *testing.T) {
+	// End level descends at once, but only when invoked by the current player.
+	g, _ := startedCrawler(t, 2)
+	g.levelCleared = true
+	lvl := g.level // turn is seat 0
+
+	crCmd(t, g, 1, false, map[string]any{"t": crMsgEndLevel}) // not their turn
+	if g.level != lvl {
+		t.Fatal("a non-current player must not be able to End level")
+	}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgEndLevel}) // current player
+	if g.level != lvl+1 {
+		t.Fatalf("the current player's End level should descend to %d, got %d", lvl+1, g.level)
 	}
 }

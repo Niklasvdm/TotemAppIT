@@ -10,6 +10,12 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.19.1 — 2026-10-16
+- `[CHANGE]` **Games: empty-room lifetime is now configurable, and a deliberate leave deletes an empty room at once.** How long an empty room is kept before the reaper closes it is the new `TOTEM_ROOM_IDLE_TIMEOUT` (a Go duration like `5m`), default **5 minutes** (was a hard-coded 2). And when a player **leaves** a room (a deliberate bye, not a dropped socket) and that leaves it empty, the room is deleted immediately rather than lingering for that timeout. A dropped socket still holds the seat and keeps the room for the reconnect grace.
+
+### 0.19.0 — 2026-10-16
+- `[FEATURE]` **Crawler: a post-boss victory lap.** Beating the boss no longer descends the instant the killer ends their turn. Instead each still-standing hero gets up to **2 more turns** to grab loot and regroup, with two buttons in the turn-action row: **End turn** (shows the turns you have left) and **End level** (descend now; current player only). Once every hero has used their 2 turns, the level descends automatically.
+
 ### 0.18.1 — 2026-10-16
 - `[ENHANCEMENT]` **Per-command debug trace for every game.** All ten other games (Codenames, Skyjo, Love Letter, Just One, Decrypto, Hanabi, The Mind, The Game, Wavelength, Bomberman) now log each command at `debug` like the crawler, so a run can be traced end to end at `TOTEM_LOG_LEVEL=debug`. Bomberman skips its per-frame movement input (hot path) and logs only its other commands. Connection drops/reconnects were already logged for every game (shared room layer).
 

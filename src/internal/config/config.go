@@ -53,6 +53,10 @@ type Config struct {
 	// systemd journal as before, which does its own retention.
 	LogDir           string
 	LogRetentionDays int
+
+	// RoomIdleTimeout is how long an empty game room is kept before the reaper closes
+	// it. From TOTEM_ROOM_IDLE_TIMEOUT (a Go duration like "5m"), default 5 minutes.
+	RoomIdleTimeout time.Duration
 }
 
 // Load resolves the full configuration for the server. Missing optional assets
@@ -73,6 +77,7 @@ func Load() (Config, error) {
 		LogFormat:        strings.ToLower(env("TOTEM_LOG_FORMAT", "text")),
 		LogDir:           env("TOTEM_LOG_DIR", ""),
 		LogRetentionDays: envInt("TOTEM_LOG_RETENTION_DAYS", 14),
+		RoomIdleTimeout:  envDuration("TOTEM_ROOM_IDLE_TIMEOUT", 5*time.Minute),
 	}
 
 	for _, item := range splitList(env("TOTEM_TRUSTED_PROXIES", "")) {
@@ -290,6 +295,17 @@ func envInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
+		}
+	}
+	return def
+}
+
+// envDuration reads a Go duration env var (e.g. "5m"), falling back to def when unset or
+// unparseable.
+func envDuration(key string, def time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
 		}
 	}
 	return def

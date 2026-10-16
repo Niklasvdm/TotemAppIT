@@ -80,9 +80,14 @@ type Room struct {
 	acts      chan func()
 	quit      chan struct{}
 	closeOnce sync.Once
+
+	// remove asks the registry to delete and close this room. Called when a deliberate
+	// leave empties it, so the room goes away at once instead of lingering for the idle
+	// timeout. nil in tests that build a Room without a registry.
+	remove func()
 }
 
-func newRoom(code, gameSlug string, seed uint64) (*Room, error) {
+func newRoom(code, gameSlug string, seed uint64, remove func()) (*Room, error) {
 	factory, ok := gameFactories[gameSlug]
 	if !ok {
 		return nil, fmt.Errorf("unknown game %q", gameSlug)
@@ -96,6 +101,7 @@ func newRoom(code, gameSlug string, seed uint64) (*Room, error) {
 		emptyAt: time.Now(),
 		acts:    make(chan func(), 64),
 		quit:    make(chan struct{}),
+		remove:  remove,
 	}
 	r.game = factory(r, seed) // r is the Game's Outbox
 	go r.run()
@@ -429,10 +435,15 @@ func (r *Room) Leave(c *Conn) {
 		r.reassignHost()
 		if len(r.conns) == 0 {
 			r.emptyAt = time.Now()
-			// Park the game only once nobody is coming back; while a seat is held
-			// the round still belongs to whoever dropped out of it.
+			// No live and no held seats: the room is empty. Reached via Leave with no held
+			// seat only on a deliberate departure (a drop holds the seat), so delete the
+			// room now instead of letting it linger for roomIdleTimeout. A drop leaves a
+			// held seat, so this does not fire until the seat is reclaimed or expires.
 			if len(r.held) == 0 {
 				r.game.ToLobby()
+				if r.remove != nil {
+					r.remove()
+				}
 			}
 			return
 		}

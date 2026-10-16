@@ -19,10 +19,22 @@ const (
 	// bytes modulo the alphabet introduces no bias.
 	codeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-	maxRooms        = 200
-	roomIdleTimeout = 2 * time.Minute
-	reapInterval    = 30 * time.Second
+	maxRooms     = 200
+	reapInterval = 30 * time.Second
 )
+
+// roomIdleTimeout is how long an empty room is kept before the reaper closes it. Default
+// 5 minutes; overridden by TOTEM_ROOM_IDLE_TIMEOUT via SetRoomIdleTimeout. (A room emptied
+// by a deliberate leave is deleted at once instead, see Room.Leave.)
+var roomIdleTimeout = 5 * time.Minute
+
+// SetRoomIdleTimeout overrides how long an empty room is kept. A non-positive value is
+// ignored, keeping the default.
+func SetRoomIdleTimeout(d time.Duration) {
+	if d > 0 {
+		roomIdleTimeout = d
+	}
+}
 
 // ErrTooManyRooms is returned when the registry is at capacity.
 var ErrTooManyRooms = errors.New("too many open rooms")
@@ -61,7 +73,7 @@ func (reg *Registry) Create(gameSlug string) (*Room, error) {
 		if _, taken := reg.rooms[code]; taken {
 			continue
 		}
-		r, err := newRoom(code, gameSlug, randUint64())
+		r, err := newRoom(code, gameSlug, randUint64(), func() { reg.delete(code) })
 		if err != nil {
 			return nil, err
 		}
@@ -69,6 +81,21 @@ func (reg *Registry) Create(gameSlug string) (*Room, error) {
 		return r, nil
 	}
 	return nil, ErrTooManyRooms
+}
+
+// delete removes a room from the registry and closes it. Called when a room empties via a
+// deliberate leave (the room invokes its remove hook), and idempotent with the reaper: if
+// the sweep already removed the code, this is a no-op.
+func (reg *Registry) delete(code string) {
+	reg.mu.Lock()
+	r, ok := reg.rooms[code]
+	if ok {
+		delete(reg.rooms, code)
+	}
+	reg.mu.Unlock()
+	if ok {
+		r.close()
+	}
 }
 
 // Get looks up a room by code.
