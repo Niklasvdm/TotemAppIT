@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"sort"
 	"time"
@@ -55,7 +56,7 @@ type theGameGame struct {
 	phase    string
 	piles    [tgPiles]int   // current top of each pile
 	history  [tgPiles][]int // every card played on each pile, for display
-	reserved [tgPiles]int    // seat that "called" this pile this turn, or -1
+	reserved [tgPiles]int   // seat that "called" this pile this turn, or -1
 	deck     []int          // draw pile
 	hands    map[int][]int
 	turn     int // seat whose turn it is
@@ -113,10 +114,10 @@ func (g *theGameGame) Roster() []RosterEntry {
 func (g *theGameGame) WelcomeExtra() WelcomeExtra { return WelcomeExtra{} }
 
 // Joined/Dropped refresh every connected seat (no tick to do it otherwise).
-func (g *theGameGame) Joined(int)  { g.broadcastViews() }
-func (g *theGameGame) Dropped(int) { g.broadcastViews() }
-func (g *theGameGame) ToLobby()    { g.resetToLobby(); g.broadcastViews() }
-func (g *theGameGame) TickHz() int { return 0 }
+func (g *theGameGame) Joined(int)     { g.broadcastViews() }
+func (g *theGameGame) Dropped(int)    { g.broadcastViews() }
+func (g *theGameGame) ToLobby()       { g.resetToLobby(); g.broadcastViews() }
+func (g *theGameGame) TickHz() int    { return 0 }
 func (g *theGameGame) Tick(time.Time) {}
 
 func (g *theGameGame) Command(seat int, isHost bool, raw []byte) {
@@ -131,6 +132,7 @@ func (g *theGameGame) Command(seat int, isHost bool, raw []byte) {
 	if _, ok := g.players[seat]; !ok {
 		return
 	}
+	slog.Debug("the-game command", "event", "cmd", "game", "the-game", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case tgMsgStart:
@@ -362,7 +364,7 @@ type theGameView struct {
 	History  [tgPiles][]int  `json:"history"`  // every card played per pile, for display
 	Reserved [tgPiles]int    `json:"reserved"` // seat that called each pile, or -1
 	Deck     int             `json:"deck"`     // cards left in the draw pile
-	Hand     []int           `json:"hand"` // YOUR cards (private)
+	Hand     []int           `json:"hand"`     // YOUR cards (private)
 	Played   int             `json:"played"`
 	Min      int             `json:"min"`
 	Turn     int             `json:"turn"`

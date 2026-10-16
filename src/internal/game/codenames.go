@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"strings"
 	"time"
@@ -17,8 +18,8 @@ import (
 // different view per seat and pushing each seat its own through Outbox.Send.
 
 const (
-	cnTiles      = 25 // 5x5 board
-	cnStartAgents = 9 // the team that goes first gets the extra agent
+	cnTiles       = 25 // 5x5 board
+	cnStartAgents = 9  // the team that goes first gets the extra agent
 	cnOtherAgents = 8
 	cnNeutrals    = 7
 	// 9 + 8 + 7 + 1 assassin = 25.
@@ -132,8 +133,8 @@ func (g *codenamesGame) Dropped(int) { g.broadcastViews() } // others see "gone"
 
 func (g *codenamesGame) ToLobby() { g.resetToLobby(); g.broadcastViews() }
 
-func (g *codenamesGame) TickHz() int        { return 0 } // event-driven
-func (g *codenamesGame) Tick(_ time.Time)   {}
+func (g *codenamesGame) TickHz() int      { return 0 } // event-driven
+func (g *codenamesGame) Tick(_ time.Time) {}
 
 func (g *codenamesGame) Command(seat int, isHost bool, raw []byte) {
 	var c struct {
@@ -151,6 +152,7 @@ func (g *codenamesGame) Command(seat int, isHost bool, raw []byte) {
 	if p == nil {
 		return
 	}
+	slog.Debug("codenames command", "event", "cmd", "game", "codenames", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case cnMsgSetup:
@@ -362,8 +364,8 @@ type cnRosterEntry struct {
 }
 
 type cnView struct {
-	T        string `json:"t"` // always "state"
-	Phase    string `json:"ph"`
+	T        string   `json:"t"` // always "state"
+	Phase    string   `json:"ph"`
 	Words    []string `json:"words"`
 	Revealed []bool   `json:"rev"`
 	// Colours of REVEALED tiles, visible to everyone ("" while hidden).
@@ -371,12 +373,12 @@ type cnView struct {
 	// Key is the full 25-colour key — sent ONLY to spymasters; nil for guessers.
 	Key []string `json:"key"`
 
-	Turn     int      `json:"turn"`
-	Clue     *cnClueInfo  `json:"clue"`
-	Guesses  int      `json:"guesses"`
-	RedLeft  int      `json:"redLeft"`
-	BlueLeft int      `json:"blueLeft"`
-	Winner   int      `json:"winner"`
+	Turn     int         `json:"turn"`
+	Clue     *cnClueInfo `json:"clue"`
+	Guesses  int         `json:"guesses"`
+	RedLeft  int         `json:"redLeft"`
+	BlueLeft int         `json:"blueLeft"`
+	Winner   int         `json:"winner"`
 
 	You    cnRosterEntry   `json:"you"`
 	Roster []cnRosterEntry `json:"roster"`

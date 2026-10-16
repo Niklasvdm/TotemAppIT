@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"time"
 )
 
@@ -56,6 +57,9 @@ func (g *bombermanGame) Command(seat int, isHost bool, raw []byte) {
 	var msg ClientMsg
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
+	}
+	if msg.T != MsgInput { // skip the per-frame movement input: it is effectively hot-path
+		slog.Debug("bomberman command", "event", "cmd", "game", "bomberman", "seat", seat, "cmd", msg.T)
 	}
 	switch msg.T {
 	case MsgInput:

@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"time"
 )
@@ -162,6 +163,7 @@ func (g *decryptoGame) Command(seat int, isHost bool, raw []byte) {
 	if !ok {
 		return
 	}
+	slog.Debug("decrypto command", "event", "cmd", "game", "decrypto", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case dcMsgStart:
@@ -353,26 +355,26 @@ type dcRosterEntry struct {
 }
 
 type decryptoView struct {
-	T          string          `json:"t"`
-	Phase      string          `json:"ph"`
-	Round      int             `json:"round"`
-	Rounds     int             `json:"rounds"`
-	You        int             `json:"you"`
-	Team       int             `json:"team"`
-	ActiveTeam int             `json:"activeTeam"`
-	Encryptor  int             `json:"encryptor"`
+	T          string `json:"t"`
+	Phase      string `json:"ph"`
+	Round      int    `json:"round"`
+	Rounds     int    `json:"rounds"`
+	You        int    `json:"you"`
+	Team       int    `json:"team"`
+	ActiveTeam int    `json:"activeTeam"`
+	Encryptor  int    `json:"encryptor"`
 	// YourWords is your own team's four secret words; nil for the other team.
-	YourWords []string      `json:"yourWords"`
+	YourWords []string `json:"yourWords"`
 	// Code is shown to the encryptor while cluing, and to everyone at the reveal.
-	Code         []int         `json:"code"`
-	Clues        []string      `json:"clues"`
-	DecodeGuess  []int         `json:"decodeGuess"`
-	Intercept    []int         `json:"interceptGuess"`
-	DecodeDone   bool          `json:"decodeDone"`
-	InterceptHas bool          `json:"interceptDone"`
-	History      []dcHist      `json:"history"`
-	Teams        []dcTeamView  `json:"teams"`
-	Winner       int           `json:"winner"`
+	Code         []int           `json:"code"`
+	Clues        []string        `json:"clues"`
+	DecodeGuess  []int           `json:"decodeGuess"`
+	Intercept    []int           `json:"interceptGuess"`
+	DecodeDone   bool            `json:"decodeDone"`
+	InterceptHas bool            `json:"interceptDone"`
+	History      []dcHist        `json:"history"`
+	Teams        []dcTeamView    `json:"teams"`
+	Winner       int             `json:"winner"`
 	Roster       []dcRosterEntry `json:"roster"`
 }
 

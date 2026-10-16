@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"time"
 )
@@ -90,10 +91,10 @@ type loveLetterGame struct {
 	active int // seat whose turn it is
 
 	deck   []int
-	burned int        // set-aside card, hidden all round
-	aside  []int      // 2-player face-up cards, public
+	burned int           // set-aside card, hidden all round
+	aside  []int         // 2-player face-up cards, public
 	saw    map[int]llSaw // seat -> what a Priest showed them this round
-	logs   []string   // short public round log
+	logs   []string      // short public round log
 
 	winner     int // round winner seat, -1 if none yet
 	gameWinner int // -1 until someone hits the token goal
@@ -170,6 +171,7 @@ func (g *loveLetterGame) Command(seat int, isHost bool, raw []byte) {
 	if _, ok := g.players[seat]; !ok {
 		return
 	}
+	slog.Debug("love-letter command", "event", "cmd", "game", "love-letter", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case llMsgStart:
@@ -476,19 +478,19 @@ type llPlayerView struct {
 }
 
 type loveLetterView struct {
-	T          string          `json:"t"`
-	Phase      string          `json:"ph"`
-	Active     int             `json:"active"`
-	You        int             `json:"you"`
-	Hand       []int           `json:"yourHand"` // your own cards only
-	Saw        *llSaw          `json:"saw,omitempty"`
-	DeckLeft   int             `json:"deckLeft"`
-	Aside      []int           `json:"aside"` // 2-player face-up cards (public)
-	Need       int             `json:"need"`  // tokens to win the game
-	Logs       []string        `json:"logs"`
-	Winner     int             `json:"winner"`
-	GameWinner int             `json:"gameWinner"`
-	Players    []llPlayerView  `json:"players"`
+	T          string         `json:"t"`
+	Phase      string         `json:"ph"`
+	Active     int            `json:"active"`
+	You        int            `json:"you"`
+	Hand       []int          `json:"yourHand"` // your own cards only
+	Saw        *llSaw         `json:"saw,omitempty"`
+	DeckLeft   int            `json:"deckLeft"`
+	Aside      []int          `json:"aside"` // 2-player face-up cards (public)
+	Need       int            `json:"need"`  // tokens to win the game
+	Logs       []string       `json:"logs"`
+	Winner     int            `json:"winner"`
+	GameWinner int            `json:"gameWinner"`
+	Players    []llPlayerView `json:"players"`
 }
 
 func (g *loveLetterGame) viewFor(seat int) loveLetterView {

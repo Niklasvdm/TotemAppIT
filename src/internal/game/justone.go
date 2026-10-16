@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"sort"
 	"strings"
@@ -133,6 +134,7 @@ func (g *justOneGame) Command(seat int, isHost bool, raw []byte) {
 	if _, ok := g.players[seat]; !ok {
 		return
 	}
+	slog.Debug("just-one command", "event", "cmd", "game", "just-one", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case joMsgStart:

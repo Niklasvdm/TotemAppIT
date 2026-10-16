@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sort"
 	"sync"
 	"time"
@@ -144,7 +144,7 @@ func (r *Room) run() {
 func (r *Room) safely(fn func()) {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Printf("game: room %s recovered from panic: %v", r.code, e)
+			slog.Error("room recovered from panic", "event", "panic", "room", r.code, "game", r.slug, "err", e)
 		}
 	}()
 	fn()
@@ -296,6 +296,7 @@ func (r *Room) reapHeld(now time.Time) {
 		}
 		delete(r.held, slot)
 		r.game.RemovePlayer(slot)
+		vlog.Info("held seat expired, player gone", "event", "drop_expired", "room", r.code, "game", r.slug, "seat", slot)
 		r.reassignHost()
 		r.broadcastRoster()
 		if len(r.conns) == 0 && len(r.held) == 0 {
@@ -331,6 +332,7 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 	)
 	if !r.do(func() {
 		slot, ok := r.resumeSeat(resume)
+		reconnect := ok
 		if !ok {
 			if slot, ok = r.game.AddPlayer(name, meta); !ok {
 				err = ErrRoomFull
@@ -345,9 +347,11 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 		// teardown then no-ops because it is no longer this slot's connection (see Leave).
 		// Without this, the reclaim above could not take a live seat and the client would
 		// be re-seated as a brand-new player (a fresh hero at the start tile: the "teleport").
+		superseded := false
 		if old, held := r.conns[slot]; held {
 			close(old.send)
 			delete(r.conns, slot)
+			superseded = true
 		}
 		conn = &Conn{slot: slot, token: newToken(), send: make(chan []byte, sendQueue)}
 		r.conns[slot] = conn
@@ -364,6 +368,17 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 		}
 		r.broadcastRoster()
 		r.game.Joined(slot) // the game pushes this seat its initial view
+
+		// Connection lifecycle: reconnects and supersedes go to the always-on logger so
+		// they are visible at the quiet default; a fresh join is level-gated (routine).
+		if superseded {
+			vlog.Warn("connection superseded", "event", "supersede", "room", r.code, "game", r.slug, "seat", slot)
+		}
+		if reconnect {
+			vlog.Info("player reconnected", "event", "reconnect", "room", r.code, "game", r.slug, "seat", slot, "superseded", superseded)
+		} else {
+			slog.Debug("player joined", "event", "join", "room", r.code, "game", r.slug, "seat", slot)
+		}
 	}) {
 		return nil, WelcomeMsg{}, ErrRoomClosed
 	}
@@ -405,8 +420,10 @@ func (r *Room) Leave(c *Conn) {
 			h.until = time.Now().Add(reconnectGrace)
 			r.held[slot] = h
 			r.game.Dropped(slot)
+			vlog.Warn("player dropped, seat held", "event", "drop", "room", r.code, "game", r.slug, "seat", slot, "grace", reconnectGrace.String())
 		} else {
 			r.game.RemovePlayer(slot)
+			slog.Debug("player removed", "event", "remove", "room", r.code, "game", r.slug, "seat", slot)
 		}
 
 		r.reassignHost()

@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"time"
 )
@@ -149,6 +150,7 @@ func (g *hanabiGame) Command(seat int, isHost bool, raw []byte) {
 	if _, ok := g.players[seat]; !ok {
 		return
 	}
+	slog.Debug("hanabi command", "event", "cmd", "game", "hanabi", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case hanMsgStart:

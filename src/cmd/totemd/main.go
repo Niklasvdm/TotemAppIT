@@ -3,14 +3,16 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/Niklasvdm/TotemAppIT/internal/api"
 	"github.com/Niklasvdm/TotemAppIT/internal/config"
+	"github.com/Niklasvdm/TotemAppIT/internal/game"
 	"github.com/Niklasvdm/TotemAppIT/internal/store"
 	"github.com/Niklasvdm/TotemAppIT/internal/web"
 )
@@ -18,15 +20,21 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("load config", "err", err)
+		os.Exit(1)
 	}
+	// Install the structured logger (default level from TOTEM_LOG_LEVEL, quiet by
+	// default) and hand the games engine the always-on logger for connection lifecycle
+	// and per-room debug traces.
+	game.SetVerboseLogger(config.SetupLogging(cfg))
 	for _, w := range cfg.Warnings {
-		log.Printf("warning: %s", w)
+		slog.Warn("config", "warning", w)
 	}
 
 	st, err := store.Open(cfg.DBPath, cfg.DBKey)
 	if err != nil {
-		log.Fatalf("open store: %v", err)
+		slog.Error("open store", "err", err)
+		os.Exit(1)
 	}
 	defer st.Close()
 
@@ -34,14 +42,15 @@ func main() {
 	defer stop()
 
 	if err := st.Migrate(ctx); err != nil {
-		log.Fatalf("migrate: %v", err)
+		slog.Error("migrate", "err", err)
+		os.Exit(1)
 	}
 
 	spa, ok := web.FS()
 	if ok {
-		log.Println("serving embedded SPA (built with -tags embed)")
+		slog.Info("serving embedded SPA (built with -tags embed)")
 	} else {
-		log.Println("no embedded SPA (API-only build); the UI is served by the Vite dev server in dev")
+		slog.Info("no embedded SPA (API-only build); the UI is served by the Vite dev server in dev")
 	}
 
 	apiSrv := api.New(st, cfg.Images, cfg.Emoji,
@@ -62,17 +71,18 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("totemd listening on %s", cfg.Addr)
+		slog.Info("totemd listening", "addr", cfg.Addr, "level", cfg.LogLevel)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("serve: %v", err)
+			slog.Error("serve", "err", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done() // SIGINT/SIGTERM
-	log.Println("shutting down…")
+	slog.Info("shutting down")
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
-		log.Printf("shutdown: %v", err)
+		slog.Error("shutdown", "err", err)
 	}
 }

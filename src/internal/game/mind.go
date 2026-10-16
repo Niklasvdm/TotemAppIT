@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"sort"
 	"time"
@@ -144,6 +145,7 @@ func (g *theMindGame) Command(seat int, isHost bool, raw []byte) {
 	if _, ok := g.players[seat]; !ok {
 		return
 	}
+	slog.Debug("the-mind command", "event", "cmd", "game", "the-mind", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case mindMsgStart:

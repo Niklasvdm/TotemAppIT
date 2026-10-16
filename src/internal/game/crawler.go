@@ -478,6 +478,13 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 		return
 	}
 
+	// Per-room gameplay trace: emitted only once the room is started in debug, so a
+	// normal room stays silent. vlog is always-on, so a debug-activated room is verbose
+	// regardless of the quiet global level (that is what "activated per game" means).
+	if g.debug {
+		vlog.Debug("crawler command", "event", "cmd", "cmd", c.T, "seat", seat, "level", g.level, "turn", g.turn, "step", g.step)
+	}
+
 	switch c.T {
 	case crMsgStart:
 		if !isHost || g.phase != crLobby || len(g.players) < crMinPlayers {
@@ -1327,6 +1334,9 @@ func (g *crawlerGame) usePortal(seat, destID int) {
 	h.tileID = dest.id
 	h.square = 4
 	g.log = append(g.log, h.name+" steps through the portal.")
+	if g.debug {
+		vlog.Debug("crawler portal", "event", "portal", "seat", seat, "from", src.id, "to", dest.id)
+	}
 }
 
 // edgesFit checks a candidate tile's edges against every already-placed
@@ -1406,6 +1416,9 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 	assignMonsterSquares(chosen.Edges, mons) // spread a swarm over the walkable squares
 	t := g.placeTile(chosen.X, chosen.Y, chosen.Edges, spec.band, spec.kind, spec.isBoss, mons)
 	t.rot = chosen.Rotation
+	if g.debug {
+		vlog.Debug("crawler tile laid", "event", "lay", "kind", spec.kind, "x", chosen.X, "y", chosen.Y, "rot", chosen.Rotation, "boss", spec.isBoss, "seat", seat)
+	}
 	g.seedHazards(t) // a hazard-room tile seeds its hazard on its squares (no-op otherwise)
 	if t.kind == crKindFog {
 		g.populateFogRoom(t) // a fog room hides either a loot cache or an ambush

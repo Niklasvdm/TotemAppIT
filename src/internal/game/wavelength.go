@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/rand/v2"
 	"sort"
 	"strings"
@@ -61,7 +62,7 @@ type wavelengthGame struct {
 	spectrum [2]string
 	target   int // 0..20, hidden except to the psychic (and everyone at reveal)
 	clue     string
-	guess    int // the dial, 0..20
+	guess    int    // the dial, 0..20
 	counter  string // the other team's bet: "left" | "right"
 
 	active     int // active team this round (0/1)
@@ -139,6 +140,7 @@ func (g *wavelengthGame) Command(seat int, isHost bool, raw []byte) {
 	if p == nil {
 		return
 	}
+	slog.Debug("wavelength command", "event", "cmd", "game", "wavelength", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case wlMsgSetup:
@@ -324,25 +326,25 @@ type wlRosterEntry struct {
 }
 
 type wlView struct {
-	T        string          `json:"t"` // "state"
-	Phase    string          `json:"ph"`
-	Spectrum [2]string       `json:"spectrum"`
-	Clue     string          `json:"clue"`
-	Guess    int             `json:"guess"`
-	Active   int             `json:"active"`
-	Psychic  int             `json:"psychic"`
-	Counter  string          `json:"counter"` // the bet, once placed
-	Left     int             `json:"left"`    // team scores
-	Right    int             `json:"right"`
-	Winner   int             `json:"winner"`
-	LastScore int            `json:"lastScore"` // reveal: points the team scored
-	BetOK     bool           `json:"betOk"`     // reveal: was the bet right
+	T         string    `json:"t"` // "state"
+	Phase     string    `json:"ph"`
+	Spectrum  [2]string `json:"spectrum"`
+	Clue      string    `json:"clue"`
+	Guess     int       `json:"guess"`
+	Active    int       `json:"active"`
+	Psychic   int       `json:"psychic"`
+	Counter   string    `json:"counter"` // the bet, once placed
+	Left      int       `json:"left"`    // team scores
+	Right     int       `json:"right"`
+	Winner    int       `json:"winner"`
+	LastScore int       `json:"lastScore"` // reveal: points the team scored
+	BetOK     bool      `json:"betOk"`     // reveal: was the bet right
 	// Target is the hidden spectrum target — sent ONLY to the psychic until the
 	// reveal, when everyone sees it. nil means hidden.
-	Target *int            `json:"target"`
-	You    int             `json:"you"`
-	YouTeam int            `json:"youTeam"`
-	Roster []wlRosterEntry `json:"roster"`
+	Target  *int            `json:"target"`
+	You     int             `json:"you"`
+	YouTeam int             `json:"youTeam"`
+	Roster  []wlRosterEntry `json:"roster"`
 }
 
 func (g *wavelengthGame) viewFor(seat int) wlView {

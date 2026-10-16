@@ -1,6 +1,7 @@
 package game
 
 import (
+	"log/slog"
 	"math/rand/v2"
 	"time"
 )
@@ -172,6 +173,7 @@ func (g *skyjoGame) Command(seat int, isHost bool, raw []byte) {
 	if _, ok := g.players[seat]; !ok {
 		return
 	}
+	slog.Debug("skyjo command", "event", "cmd", "game", "skyjo", "seat", seat, "cmd", c.T)
 
 	switch c.T {
 	case skMsgStart:

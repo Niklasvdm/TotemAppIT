@@ -803,7 +803,10 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-status-row { display: inline-flex; gap: 3px; flex-wrap: wrap; }
 .cr-status { font-size: .95rem; cursor: help; filter: drop-shadow(0 0 2px rgba(217,140,255,.6)); }
 /* Hazard token on a board square. */
-.cr-hazard { position: absolute; top: 1px; left: 1px; font-size: 14px; z-index: 3; pointer-events: none; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+/* The hazard token carries a `title` naming the hazard; it must stay hoverable (no
+   pointer-events:none) or that tooltip can never fire. It sits in the top-left corner,
+   clear of the centre monster and the bottom-right loot, so catching the pointer is harmless. */
+.cr-hazard { position: absolute; top: 1px; left: 1px; font-size: 14px; z-index: 3; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
 /* Sensor-fog overlay covering a hidden tile. */
 .cr-fog {
   position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center;

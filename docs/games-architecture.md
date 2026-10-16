@@ -330,11 +330,15 @@ Three cross-cutting guards live at the room boundary, so no game repeats them:
 
 ## Logging & observability
 
-> Status: strategy, not yet wired. The server today logs almost nothing (process lifecycle plus per-room panic recovery, via the stdlib `log`). This section is the plan for structured logging across the engine and the Totem Crawler, to be built before it is relied on. It exists because a recent "a hero teleported mid-game" report could not be traced at all.
+> Status: implemented server-side for connection lifecycle and the Totem Crawler (0.17.18); the other games can adopt the same two-line pattern as needed. It exists because a recent "a hero teleported mid-game" report could not be traced at all.
 
 The aim is enough signal to reconstruct an incident without drowning the journal or the 60 Hz tick loop. Four principles: structured key/value records, one line per meaningful event, strict level discipline, and nothing on the hot path or near a secret.
 
-**Library.** Go's stdlib `log/slog` (no new dependency, keeping with the minimal-imports rule). `main` builds one handler from config and installs it as the default; packages log through package-level `slog` helpers, so no `*slog.Logger` has to be threaded through every call. Output stays on stderr, captured by the systemd journal as now.
+**Library and the two loggers.** Go's stdlib `log/slog` (no new dependency, keeping with the minimal-imports rule). `config.SetupLogging` builds everything from the environment and returns two loggers over one stderr stream (captured by the journal), differing only in their level floor:
+- the **default** logger (`slog.SetDefault`, reached through package-level `slog.Info`/`Debug`/…) is gated at `TOTEM_LOG_LEVEL`, **default `error`**, so the server is quiet by default. General logs and the routine stuff live here.
+- the **verbose** logger always emits (floor `debug`), for what we want to see regardless of that quiet default: connection drops and reconnects (every room), and a room's gameplay trace once it is started in debug. The games engine receives it via `game.SetVerboseLogger`; the crawler gates its calls behind the room's debug flag, so only a **debug-activated room** is noisy ("verbose, activated per game"). This is deliberately not level-gated: a drop or reconnect shows even at the `error` default.
+
+The DB key is never passed to either logger (it stays env-only; see the root README security section).
 
 **Levels.**
 
@@ -342,8 +346,15 @@ The aim is enough signal to reconstruct an incident without drowning the journal
 | --- | --- | --- |
 | `error` | broke, needs a human | panic recovery, store/migrate/listen failure, a frame that would not marshal |
 | `warn` | recoverable anomaly or client misbehaviour | rate-limit trip, oversized or malformed frame, origin rejected, resume with an expired/invalid token, a queue-full dropped frame |
-| `info` | lifecycle milestone, low frequency | server up/down, room created/reaped, player join / leave / drop / **supersede**, host reassign, game start, crawler level + boss laid, game over |
+| `info` | lifecycle milestone, low frequency | server up/down, **reconnect**, held-seat expiry, host reassign, game start, crawler level + boss laid, game over |
 | `debug` | per-command / per-turn detail, off by default | each command dispatched, crawler dice roll, tile lay, attack resolution, **portal / teleport**, downed / revive, per-seat view send |
+
+Connection **drops** and **supersedes** are logged at `warn`, and drops/reconnects/supersedes go to the always-on **verbose** logger so they surface even at the `error` default. The crawler's per-command / tile-lay / portal trace is `debug` on the verbose logger, gated by the room's debug flag.
+
+**Why only these four.** The broad industry superset is six (`trace` · `debug` · `info` · `warn` · `error` · `fatal`), with syslog adding `notice` / `critical` / `alert` / `emerg` on top. We deliberately take the pragmatic Go set:
+- **No `fatal` level.** `fatal` conventionally means "log, then exit the process", and `slog` omits it on purpose: calling `os.Exit` from inside a logging call skips deferred cleanup. Startup failures follow the Go idiom (`main` logs at `error` then `os.Exit(1)` for config / store / migrate / listen), which is the only place an exit belongs.
+- **No `notice` / `critical` / `alert` / `emerg`.** These are syslog severities for a multi-service host ("page someone", "system unusable"); for a single game binary `info` and `error` cover the ground.
+- **`trace` is reserved, not yet used.** `slog`'s levels are ints spaced four apart on purpose (`Debug=-4, Info=0, Warn=4, Error=8`), so a finer level slots into the gap without a new type: `const LevelTrace = slog.LevelDebug - 4`. If Bomberman's 60 Hz per-tick stream ever needs its own tap (so `debug` can stay per-command), it goes here; until then `debug` is simply gated harder on the hot path.
 
 **Field conventions.** A small, low-cardinality, stable key set, so records grep cleanly and ship as JSON: `event` (a verb), `room` (code), `game` (slug), `seat` (int), `conn` (a short id minted when the socket is accepted, so one connection's whole life traces end to end: accept, join or resume, supersede or leave, close), `close` (the WS close code). The crawler adds, at `debug` only, `level`, `turn`, `cmd`, `boss`. Typical calls:
 
@@ -354,21 +365,21 @@ slog.Debug("crawler command", "event", "cmd", "room", r.code, "seat", seat, "cmd
 ```
 
 **Where it hooks.**
-- Transport (`api/games.go`): accept, origin reject (`warn`), room-not-found / room-gone close (`info`), rate-limit (`warn`), exit with its close code (`info`). The `conn` id is minted here.
-- Room (`room.go`): created / reaped, join / resume, leave (held vs removed), **supersede**, host reassign. All `info`.
-- Engine (`engine.go` / `Command`): each command dispatched and whether it was accepted or ignored (e.g. a superseded connection). `debug`.
-- Crawler (`crawler*.go`): level start, boss laid (slug + grace turns), win / lose at `info`; tile lay, dice, attack, **portal / teleport**, downed / revive at `debug`. The portal/teleport line is exactly what the earlier incident needed.
+- Room (`room.go`), wired: `reconnect` (resume reclaimed a seat, with `superseded`), `supersede` (a stale connection evicted), `drop` (socket dropped, seat held for the grace), `drop_expired` (the held seat lapsed), `remove`, and panic recovery at `error`. The drop / reconnect / supersede lines use the always-on verbose logger.
+- Crawler (`crawler.go`), wired and gated by the room's debug flag: `cmd` (each command, with `seat` / `level` / `turn` / `step`), `lay` (tile kind + cell + rotation), `portal` (from / to tile). The portal line is exactly what the earlier teleport incident needed.
+- Transport (`api/games.go`), planned: a per-connection `conn` id minted at accept and logged on close with its WS close code, so one socket traces end to end. Not yet wired; the room-level events already cover drops and reconnects.
+- Other games, wired: each logs a `debug` `cmd` line in its `Command` (gated by the global level, since only the crawler has a per-room debug flag). Bomberman omits its per-frame movement input to stay off the hot path. Connection lifecycle is already covered for every game by the shared room layer above.
 
-**Hot-path discipline.** Bomberman ticks 60 times a second, so nothing per-tick goes above `debug`, and even `debug` is guarded by `slog.Default().Enabled(ctx, slog.LevelDebug)` (or a sampled counter) so no record is built when it would only be discarded. Turn-based games change state rarely, so their per-command lines sit at `debug` and stay silent at the default level.
+**Hot-path discipline.** Bomberman ticks 60 times a second, so nothing per-tick goes above `debug`, and even `debug` is guarded (a flag check like the crawler's room-debug gate, or `slog.Default().Enabled`) so no record is built when it would only be discarded. Turn-based games change state rarely, so their per-command lines sit at `debug` and stay silent at the default level.
 
-**Config (env-only, per house rule).** `TOTEM_LOG_LEVEL` (`debug|info|warn|error`, default `info`) and `TOTEM_LOG_FORMAT` (`text|json`, default `text` in dev, `json` in prod for the journal and any shipping). Both read in `internal/config`, alongside the existing env config.
+**Config (env-only, per house rule).** `TOTEM_LOG_LEVEL` (`debug|info|warn|error`, **default `error`**, so the server is quiet unless asked) and `TOTEM_LOG_FORMAT` (`text|json`, default `text`; set `json` in prod for the journal and any shipping). Both read in `internal/config`, which builds the handlers (`config.SetupLogging`).
 
 This is distinct from the **client** debug overlays (Bomberman's `F3`, the crawler's debug HUD): those are per-player, in-browser, and show live view state. Server logs are the operator's view and never reach a client.
 
 **Design Decision / Risk / Mitigation.**
-- **Decision:** stdlib `slog`, leveled and structured, env-configured, default `info`, `debug` gated off the hot path.
+- **Decision:** stdlib `slog`, leveled and structured, env-configured, default `error`; a second always-on "verbose" logger for connection lifecycle and per-debug-room gameplay; `debug` gated off the hot path.
 - **Risk:** log volume at 60 Hz; leaking the DB key or player data; per-record cost on the tick loop.
-- **Mitigation:** no per-tick logging above `debug`, and `debug` is `Enabled`-gated; the DB key is never handed to a logger (it stays env-only, see the root README security section); only already client-visible data is logged (nickname, seat, room code), with client IPs at `debug`/`warn` only for abuse triage and only the trusted-proxy-resolved address, never a spoofable header.
+- **Mitigation:** no per-tick logging above `debug`, and `debug` is flag-/`Enabled`-gated; the DB key is never handed to a logger (it stays env-only, see the root README security section); only already client-visible data is logged (nickname, seat, room code), with client IPs at `debug`/`warn` only for abuse triage and only the trusted-proxy-resolved address, never a spoofable header.
 
 ## Client structure
 
