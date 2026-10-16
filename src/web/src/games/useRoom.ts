@@ -15,8 +15,40 @@ export interface RoomRosterEntry {
   gone?: boolean;
 }
 
-const MAX_RETRIES = 6;
-const backoff = (attempt: number) => Math.min(500 * 2 ** (attempt - 1), 8000);
+// Keep retrying for this long before giving up, rather than after a fixed NUMBER of tries.
+// It is comfortably longer than the server's seat-hold grace (reconnectGrace), so a network
+// blip never makes the client abandon a seat the server would still take back. (The old
+// 6-try cap gave up after ~23s, far short of that grace — a client stranded mid-outage.)
+const RECONNECT_WINDOW_MS = 5 * 60 * 1000;
+
+// Full-jitter exponential backoff (the AWS-blessed standard): the ceiling doubles each
+// attempt up to a cap, and the actual wait is a random point in [0, ceiling]. The doubling
+// backs off a struggling server; the jitter stops many clients that dropped together (e.g.
+// on a server restart) from retrying in lockstep and stampeding it.
+const BACKOFF_BASE_MS = 500;
+const BACKOFF_CAP_MS = 30_000;
+const backoff = (attempt: number) => {
+  const ceiling = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** (attempt - 1));
+  return Math.random() * ceiling;
+};
+
+// closeReasonText turns a WebSocket close into a human sentence: a server-sent reason wins;
+// otherwise the code is mapped (a plain network drop is 1006 with no reason, which is the
+// most the browser can tell us).
+function closeReasonText(ev: CloseEvent): string {
+  if (ev.reason) return ev.reason;
+  switch (ev.code) {
+    case 1001:
+      return "The server is restarting.";
+    case 1011:
+      return "The server hit an error.";
+    case 1005:
+    case 1006:
+      return "Connection lost — your network dropped, or the server restarted.";
+    default:
+      return `Disconnected (code ${ev.code}).`;
+  }
+}
 
 // The server closes with this application code (browsers expose 4000-4999 on the close
 // event) when the room no longer exists or has closed. It means "stop reconnecting":
@@ -42,6 +74,8 @@ export interface Room<V> {
   view: V | null; // the latest game "state" frame
   game: string; // the room's game slug from the welcome ("" until then); a page compares it to its own
   retries: number;
+  closeReason: string | null; // why the socket last closed (shown while reconnecting / disconnected)
+  reconnect: () => void; // manually (re)start the connection, resuming the held seat
   send: (msg: object) => void;
 }
 
@@ -57,6 +91,8 @@ export function useRoom<V = unknown>(code: string, name: string, meta = "", seat
   const [view, setView] = useState<V | null>(null);
   const [game, setGame] = useState("");
   const [retries, setRetries] = useState(0);
+  const [closeReason, setCloseReason] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0); // bumped by reconnect() to re-run the connect effect
 
   const sock = useRef<WebSocket | null>(null);
   const resume = useRef("");
@@ -67,9 +103,14 @@ export function useRoom<V = unknown>(code: string, name: string, meta = "", seat
     if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(msg));
   }, []);
 
+  // reconnect restarts the connection (resuming the held seat via the stored token). Used
+  // by the Disconnected screen's Reconnect button, and to retry sooner than the backoff.
+  const reconnect = useCallback(() => setNonce((n) => n + 1), []);
+
   useEffect(() => {
     let closedByUs = false;
     let attempt = 0;
+    let firstFailAt = 0; // when the current run of failures began (0 = connected / none yet)
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       resume.current = sessionStorage.getItem(tokenKey) || resume.current;
@@ -84,7 +125,9 @@ export function useRoom<V = unknown>(code: string, name: string, meta = "", seat
 
       ws.onopen = () => {
         attempt = 0;
+        firstFailAt = 0;
         setRetries(0);
+        setCloseReason(null);
         setStatus("open");
       };
       ws.onmessage = (ev) => {
@@ -136,12 +179,17 @@ export function useRoom<V = unknown>(code: string, name: string, meta = "", seat
           }
           resume.current = "";
           setError("This room is no longer available.");
+          setCloseReason("This room is no longer available.");
           setStatus("closed");
           return;
         }
+        setCloseReason(closeReasonText(ev));
+        if (firstFailAt === 0) firstFailAt = Date.now();
         attempt += 1;
         setRetries(attempt);
-        if (attempt > MAX_RETRIES) {
+        // Keep retrying for the whole window (not a fixed count), so an outage shorter than
+        // the server's grace is always ridden out instead of abandoning a live seat.
+        if (Date.now() - firstFailAt > RECONNECT_WINDOW_MS) {
           setStatus("closed");
           return;
         }
@@ -159,7 +207,7 @@ export function useRoom<V = unknown>(code: string, name: string, meta = "", seat
       if (timer) clearTimeout(timer);
       sock.current?.close();
     };
-  }, [code, name, meta, tokenKey]);
+  }, [code, name, meta, tokenKey, nonce]);
 
-  return { status, error, you, host, roster, view, game, retries, send };
+  return { status, error, you, host, roster, view, game, retries, closeReason, reconnect, send };
 }

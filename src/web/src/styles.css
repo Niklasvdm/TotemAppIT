@@ -591,6 +591,12 @@ header {
 .cr-sheet-id { display: flex; flex-direction: column; min-width: 6rem; }
 .cr-sheet-id strong { font-size: 1.05rem; }
 .cr-sheet-stats { flex: 1; min-width: 12rem; display: flex; flex-direction: column; gap: .3rem; }
+/* Active status effects, spelled out under the sprite. Red-tinted so a debuff is obvious. */
+.cr-sheet-statuses { display: flex; flex-direction: column; gap: .3rem; }
+.cr-sheet-status { display: flex; align-items: flex-start; gap: .5rem; padding: .35rem .5rem; border-radius: 8px; background: rgba(192,57,43,.14); border: 1px solid rgba(192,57,43,.5); }
+.cr-sheet-status-icon { font-size: 1.2rem; line-height: 1.2; flex: none; }
+.cr-sheet-status-text { display: flex; flex-direction: column; gap: .05rem; }
+.cr-sheet-status-text strong { color: var(--red, #c0392b); }
 .cr-bar-row { display: flex; align-items: center; gap: .5rem; }
 .cr-bar-label { font-size: .8rem; font-weight: 800; min-width: 3.5rem; }
 .cr-bar { flex: 1; height: 12px; border-radius: 6px; background: var(--line, rgba(0,0,0,.15)); overflow: hidden; }

@@ -10,6 +10,30 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.19.8 — 2026-10-16
+- `[CHANGE]` **Crawler: fire bites on entry too.** Stepping onto (passing through) a fire square now deals 2 damage and can Electrify, like live wiring — not only when you end your turn on it.
+
+### 0.19.7 — 2026-10-16
+- `[ENHANCEMENT]` **Crawler: machine tile art fixed and variants ingested.** The machine 3-way (`tile-3`) was wearing 4-way crossing art; it is now a proper tee (sliced from the V1 sheet, rotated to the shared base). The crossing (`tile-4`) is re-ingested from V1, and the two extra crossing looks you generated (pillar + console, V3) are now **variants** (`tile-4b/4c`). The variant picker is biome-aware (`BIOME_VARIANTS`), so machine-only looks never blank out a woodland/ruins crossing.
+
+### 0.19.6 — 2026-10-16
+- `[BUG]` **Crawler: a Rusted die now returns the moment Rusted is cleared.** Clearing Rusted mid-turn (a spring, the shop, the Treefrog's Spores) immediately rolls back the die it had taken, instead of the repair only helping next turn.
+- `[CHANGE]` **Crawler: you are locked in the boss lair until the boss falls.** Once on the boss's tile you can no longer leave it while the boss lives (moving between the side squares is still fine); leaving opens up again once it is defeated.
+
+### 0.19.5 — 2026-10-16
+- `[BUG]` **Games: a dropped socket that had not sent a frame was treated as a deliberate leave.** The transport released the seat (and, since 0.19.1, could delete an emptied room) for any connection that dropped before sending a frame — which an **idle reconnect** does, since the client sends nothing until you act. So a reconnect that flapped could delete the room. Now **only an explicit `bye` (the Leave button)** releases the seat / deletes an emptied room; every plain drop holds the seat for the reconnect grace.
+- `[ENHANCEMENT]` **Games: the logging blind spots are filled.** Refused joins (room-not-found / `4404`, room full), room **deletion**, idle **reaps**, and deliberate **leaves** now log on the always-on verbose channel (visible at the default level), so "the room vanished and I couldn't rejoin" is traceable instead of silent.
+
+### 0.19.4 — 2026-10-16
+- `[ENHANCEMENT]` **Games: reconnect uses full-jitter exponential backoff.** The retry ceiling doubles each attempt up to a 30s cap, and the actual wait is a random point in [0, ceiling], so clients that dropped together (e.g. on a server restart) don't retry in lockstep. Replaces the previous no-jitter, 8s-capped doubling.
+
+### 0.19.3 — 2026-10-16
+- `[BUG]` **Games: the client gave up reconnecting far too early.** The reconnect loop stopped after 6 tries (~23s of backoff), while the server holds your seat for the full reconnect grace (minutes). An outage longer than ~23s abandoned a seat the server would still take back. The client now retries for a **5-minute window** (8s-capped backoff), comfortably longer than the grace, so a blip is ridden out instead of stranding you.
+- `[ENHANCEMENT]` **Games: the Disconnected screen now says why, and offers Reconnect.** The close reason (the server's own reason when it sent one, otherwise mapped from the close code — a plain network drop reads "Connection lost…") shows both while reconnecting and on the Disconnected screen, which now has a **Reconnect** button that resumes your held seat instead of only a Back button. Wired into the crawler; the shared transport exposes it for the other games.
+
+### 0.19.2 — 2026-10-16
+- `[ENHANCEMENT]` **Crawler: status effects are now spelled out on your character sheet.** Active statuses (Electrified, Electrocuted, Snared, Drained, Rusted) show as red-tinted rows right under your sprite, each with its icon, name and a one-line explanation, instead of only the easy-to-miss icons in the party list.
+
 ### 0.19.1 — 2026-10-16
 - `[CHANGE]` **Games: empty-room lifetime is now configurable, and a deliberate leave deletes an empty room at once.** How long an empty room is kept before the reaper closes it is the new `TOTEM_ROOM_IDLE_TIMEOUT` (a Go duration like `5m`), default **5 minutes** (was a hard-coded 2). And when a player **leaves** a room (a deliberate bye, not a dropped socket) and that leaves it empty, the room is deleted immediately rather than lingering for that timeout. A dropped socket still holds the seat and keeps the room for the reconnect grace.
 

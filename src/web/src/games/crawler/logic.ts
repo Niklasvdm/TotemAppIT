@@ -17,7 +17,7 @@ export const TILE_ART: Record<string, { file: string | string[]; base: Edges }> 
   straight: { file: "tile-1", base: [T, F, T, F] }, //   vertical corridor
   bend: { file: "tile-2", base: [F, T, T, F] }, //        E+S corner
   tee: { file: "tile-3", base: [T, T, T, F] }, //         N+E+S junction
-  cross: { file: "tile-4", base: [T, T, T, T] }, //       4-way clearing
+  cross: { file: ["tile-4", "tile-4b", "tile-4c"], base: [T, T, T, T] }, // 4-way clearing; the b/c looks exist only in the Machine set (see BIOME_VARIANTS)
   "dead-end": { file: "tile-0", base: [F, F, T, F] }, //  one doorway
   healing: { file: "tile-5", base: [T, F, T, T] }, //     healing spring: a T-junction (3 doorways), same shape the engine lays it as
   portal: { file: "tile-6", base: [T, T, T, T] }, //      transporter/start: same open edges as the crossroads
@@ -45,7 +45,7 @@ export function rotateEdges(base: Edges, r: number): Edges {
 // the rotations whose edges line up with the tile's actual open edges it prefers the one
 // matching the tile's stored `rot` so a symmetric tile (the crossroads) still rotates
 // visibly. Returns null when the kind has no art.
-export function tileArt(kind: string, edges: Edges, rot = 0, id = 0): { file: string; deg: number } | null {
+export function tileArt(kind: string, edges: Edges, rot = 0, id = 0, biome = ""): { file: string; deg: number } | null {
   const art = TILE_ART[kind];
   if (!art) return null;
   const valid: number[] = [];
@@ -54,15 +54,31 @@ export function tileArt(kind: string, edges: Edges, rot = 0, id = 0): { file: st
   }
   const want = ((rot % 4) + 4) % 4;
   const pick = valid.includes(want) ? want : valid.length ? valid[0] : want;
-  return { file: pickVariant(art.file, id), deg: pick * 90 };
+  return { file: pickVariant(art.file, id, biome), deg: pick * 90 };
 }
+
+// BIOME_VARIANTS lists the variant art files that exist ONLY in a given biome's folder. A
+// kind's variant list in TILE_ART is global, but a variant PNG lives in one biome; picking
+// it for a biome that lacks it would 404 to a blank cell. pickVariant uses this to offer a
+// biome-specific variant only where it exists; the base file (always present) is the fallback.
+// Keep in sync with the tiles/<biome>/ folders.
+const BIOME_VARIANTS: Record<string, Set<string>> = {
+  ruins: new Set(["tile-16b", "tile-16c"]), // trap-room looks
+  machine: new Set(["tile-4b", "tile-4c"]), // crossing looks
+};
+const ALL_BIOME_VARIANTS = new Set(Object.values(BIOME_VARIANTS).flatMap((s) => [...s]));
 
 // pickVariant chooses one art file for a tile from its kind's variant list, keyed by tile
 // id so the choice is stable across re-renders (no flicker). A single string is a one-item
-// list. Negative/large ids wrap safely.
-export function pickVariant(file: string | string[], id: number): string {
+// list. A biome-specific variant (registered in BIOME_VARIANTS) is only offered in the biome
+// that has it; other variant entries are always eligible. Negative/large ids wrap safely.
+export function pickVariant(file: string | string[], id: number, biome = ""): string {
   const files = Array.isArray(file) ? file : [file];
-  return files[((id % files.length) + files.length) % files.length];
+  if (files.length === 1) return files[0];
+  const have = BIOME_VARIANTS[biome];
+  const usable = files.filter((f) => !ALL_BIOME_VARIANTS.has(f) || (have ? have.has(f) : false));
+  const pool = usable.length ? usable : [files[0]];
+  return pool[((id % pool.length) + pool.length) % pool.length];
 }
 
 // Walk poses in the shared totem atlas: each pose's first column and its cycle length.

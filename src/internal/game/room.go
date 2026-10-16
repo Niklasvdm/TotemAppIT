@@ -429,7 +429,7 @@ func (r *Room) Leave(c *Conn) {
 			vlog.Warn("player dropped, seat held", "event", "drop", "room", r.code, "game", r.slug, "seat", slot, "grace", reconnectGrace.String())
 		} else {
 			r.game.RemovePlayer(slot)
-			slog.Debug("player removed", "event", "remove", "room", r.code, "game", r.slug, "seat", slot)
+			vlog.Info("player left", "event", "leave", "room", r.code, "game", r.slug, "seat", slot)
 		}
 
 		r.reassignHost()

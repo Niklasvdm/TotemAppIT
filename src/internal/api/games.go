@@ -93,6 +93,8 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	// gets wsCloseRoomGone so the client stops retrying a room that no longer exists.
 	room, ok := s.games.Get(game.NormalizeCode(q.Get("code")))
 	if !ok {
+		game.VerboseLogger().Warn("join refused: room not found",
+			"event", "join_fail", "code", game.NormalizeCode(q.Get("code")), "reason", "room not found")
 		_ = writeWSJSON(ctx, conn, game.ErrorMsg{T: game.MsgError, Err: "room not found"})
 		_ = conn.Close(wsCloseRoomGone, "room not found")
 		return
@@ -114,22 +116,24 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	// dropped. It is the player's own secret, issued in their last welcome.
 	seat, welcome, err := room.Join(name, animal, q.Get("resume"))
 	if err != nil {
+		game.VerboseLogger().Warn("join refused",
+			"event", "join_fail", "code", game.NormalizeCode(q.Get("code")), "reason", err.Error())
 		_ = writeWSJSON(ctx, conn, game.ErrorMsg{T: game.MsgError, Err: err.Error()})
 		_ = conn.Close(websocket.StatusTryAgainLater, "room unavailable")
 		return
 	}
-	// A seat is only worth holding open for someone who actually occupied it.
-	// A client that says goodbye is leaving on purpose, and one that never sent
-	// a single frame never really arrived — a page torn down mid-handshake, or
-	// React's development double-mount. Either way, release the seat; holding
-	// it would leave a ghost squatting a slot until its grace period lapsed.
-	var deliberate, spoke bool
+	// Only an explicit goodbye (the Leave button -> a "bye" frame) releases the seat and
+	// lets an emptied room be deleted. Every other exit is a dropped socket: HOLD the seat
+	// for the reconnect grace. This includes a connection that dropped before it ever sent
+	// a frame (an idle reconnect that flaps), which must NOT be treated as a deliberate
+	// leave and must never delete the room (the resume + supersede flow reclaims the seat).
+	var deliberate bool
 	defer func() {
-		if deliberate || !spoke {
-			room.Quit(seat)
+		if deliberate {
+			room.Quit(seat) // bye: release the seat; delete the room if that empties it
 			return
 		}
-		room.Leave(seat)
+		room.Leave(seat) // drop: hold the seat for a reconnect
 	}()
 
 	if err := writeWSJSON(ctx, conn, welcome); err != nil {
@@ -148,7 +152,7 @@ func (s *Server) gameWS(w http.ResponseWriter, r *http.Request) {
 	// just for sitting still. A periodic WebSocket ping (protocol-level, invisible
 	// to the client) keeps intermediaries from dropping it. Bomberman never idles.
 	go gamePingPump(ctx, conn)
-	deliberate, spoke = gameReadPump(ctx, conn, room, seat)
+	deliberate = gameReadPump(ctx, conn, room, seat)
 }
 
 // gamePingPump sends a WebSocket keepalive ping every gamePingInterval so an idle
@@ -198,24 +202,25 @@ func gameWritePump(ctx context.Context, conn *websocket.Conn, seat *game.Conn) {
 
 // gameReadPump applies client intent to the room. Unparseable frames are
 // skipped; sustained flooding closes the socket. It reports whether the client
-// left deliberately and whether it ever spoke at all — together those decide
-// whether its seat is released or held open for a reconnect.
+// left DELIBERATELY (a "bye" from the Leave button) — that alone decides whether
+// the seat is released (and an emptied room deleted). A plain socket drop, even
+// one before the client ever sent a frame (e.g. an idle reconnect), is NOT
+// deliberate: the seat is held for a reconnect.
 func gameReadPump(
 	ctx context.Context,
 	conn *websocket.Conn,
 	room *game.Room,
 	seat *game.Conn,
-) (deliberate, spoke bool) {
+) (deliberate bool) {
 	var lim msgLimiter
 	for {
 		_, data, err := conn.Read(ctx)
 		if err != nil {
-			return false, spoke
+			return false
 		}
-		spoke = true
 		if !lim.allow(time.Now(), maxClientMsgRate) {
 			_ = conn.Close(websocket.StatusPolicyViolation, "message rate exceeded")
-			return false, spoke
+			return false
 		}
 
 		// Peek only at the type: a deliberate "bye" releases the seat, everything
@@ -227,7 +232,7 @@ func gameReadPump(
 			continue
 		}
 		if msg.T == game.MsgBye {
-			return true, spoke
+			return true
 		}
 		room.Command(seat, data)
 	}

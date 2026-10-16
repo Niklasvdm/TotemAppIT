@@ -390,7 +390,7 @@ func (g *crawlerGame) maybeSpring(seat int) {
 		return // nothing to heal and no status to wash off
 	}
 	h.health = h.sheet.maxHP // a spring restores the hero to FULL health on entry
-	heroClearStatuses(h)     // and washes off every status
+	g.clearHeroStatuses(h)   // and washes off every status (restoring a Rusted die at once)
 	g.log = append(g.log, h.name+" is restored to full health by the spring.")
 }
 
@@ -404,7 +404,7 @@ func (g *crawlerGame) maybeShop(seat int) {
 	if t == nil || t.kind != crKindShop || !h.alive {
 		return
 	}
-	if heroClearStatuses(h) {
+	if g.clearHeroStatuses(h) {
 		g.log = append(g.log, h.name+" is patched up at the shop.")
 	}
 }

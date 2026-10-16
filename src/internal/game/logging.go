@@ -17,3 +17,8 @@ func SetVerboseLogger(l *slog.Logger) {
 		vlog = l
 	}
 }
+
+// VerboseLogger returns the always-on logger so the transport layer (package api) can log
+// connection events — a refused join, a room gone — on the same channel as the room's
+// drop/reconnect lines, visible even at the quiet default level.
+func VerboseLogger() *slog.Logger { return vlog }

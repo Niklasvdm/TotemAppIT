@@ -17,6 +17,14 @@ describe("pickVariant", () => {
   it("handles negative ids without crashing", () => {
     expect(pickVariant(["a", "b"], -1)).toBe("b");
   });
+  it("offers a biome-specific variant only in its biome", () => {
+    const cross = ["tile-4", "tile-4b", "tile-4c"]; // b/c exist only in the Machine set
+    expect(pickVariant(cross, 1, "machine")).toBe("tile-4b");
+    expect(pickVariant(cross, 2, "machine")).toBe("tile-4c");
+    // woodland/ruins lack them, so every cross falls back to the base art (never a blank cell)
+    expect(pickVariant(cross, 1, "woodland")).toBe("tile-4");
+    expect(pickVariant(cross, 2, "ruins")).toBe("tile-4");
+  });
 });
 
 describe("rotateEdges", () => {

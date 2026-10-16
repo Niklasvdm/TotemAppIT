@@ -45,7 +45,7 @@ export function CrawlerMap({ v, focus, lay, debug, spriteFor, onPickup, onReopen
         // Show the chosen rotation where it fits; otherwise this cell's first legal one.
         const hasRot = atCell.some((o) => o.rotation === lay.rot);
         const ghost = atCell.find((o) => o.rotation === lay.rot) ?? atCell[0];
-        const art = tileArt(lay.kind, ghost.edges, ghost.rotation);
+        const art = tileArt(lay.kind, ghost.edges, ghost.rotation, 0, biomeTileDir(v.biome));
         cells.push(
           <div
             key={key}

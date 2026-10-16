@@ -311,7 +311,11 @@ function CrawlerRoom({
         {bar}
         <div className="panel game-notice">
           <h3>Disconnected</h3>
-          <button className="game-btn" onClick={onLeave}>{t("gameBack")}</button>
+          <p className="muted-note">{g.closeReason ?? "Connection lost."}</p>
+          <div className="cr-action-row">
+            <button className="game-btn" onClick={() => g.reconnect()}>Reconnect</button>
+            <button className="game-btn" onClick={onLeave}>{t("gameBack")}</button>
+          </div>
         </div>
       </div>
     );
@@ -321,7 +325,7 @@ function CrawlerRoom({
       <div className="game-room">
         {bar}
         <p className="muted-note" style={{ padding: "1rem" }}>
-          {g.status === "reconnecting" ? "Reconnecting…" : t("loading")}
+          {g.status === "reconnecting" ? `Reconnecting…${g.closeReason ? ` (${g.closeReason})` : ""}` : t("loading")}
         </p>
       </div>
     );

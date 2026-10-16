@@ -3,6 +3,7 @@
 import type { CrHero, CrView } from "./types";
 import {
   menuMins, specialInfo, unlockInfo, COURAGE_UNLOCKS, COURAGE_CAP, OBJECT_CAP, objInfo, useItemMsg,
+  heroStatuses, STATUSES,
 } from "./data";
 import { TotemSprite, ObjIcon } from "./sprites";
 import { InfoDot } from "./widgets";
@@ -54,6 +55,25 @@ export function CharacterSheet({ me, lost, view, myTurn, selDie, onSend }: {
           <span className="muted-note">🛡 {me.shields} shields</span>
         </div>
       </div>
+      {/* Active status effects, spelled out right under the sprite so a debuff is obvious at
+          a glance (the party-list icons are easy to miss). Hidden when there are none. */}
+      {(() => {
+        const statuses = heroStatuses(me);
+        if (statuses.length === 0) return null;
+        return (
+          <div className="cr-sheet-statuses">
+            {statuses.map((s) => (
+              <div key={s} className="cr-sheet-status">
+                <span className="cr-sheet-status-icon">{STATUSES[s].icon}</span>
+                <span className="cr-sheet-status-text">
+                  <strong>{STATUSES[s].label}</strong>
+                  <span className="muted-note">{STATUSES[s].blurb}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
       <div className="cr-menu">
         <span className="cr-menu-item">Move <b>≥{mins.move}</b></span>
         {me.special && (

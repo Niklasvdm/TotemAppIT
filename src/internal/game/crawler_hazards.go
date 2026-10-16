@@ -48,6 +48,21 @@ func heroHasStatus(h *crawlerHero) bool {
 	return h.electrocuted || h.snared || h.electrified || h.drained || h.rusted
 }
 
+// clearHeroStatuses washes off a hero's statuses and, when that lifts Rusted from the hero
+// whose turn it is, immediately GIVES BACK the die Rusted had taken (rolled fresh and added
+// to the pool), instead of the repair only taking effect next turn. Returns whether anything
+// was cleared, like heroClearStatuses.
+func (g *crawlerGame) clearHeroStatuses(h *crawlerHero) bool {
+	wasRusted := h.rusted
+	cleared := heroClearStatuses(h)
+	if wasRusted && len(g.dice) > 0 {
+		if cur, ok := g.players[g.turn]; ok && cur == h {
+			g.dice = append(g.dice, crawlerDie{Value: electro(h, g.rollFace(h.sheet))})
+		}
+	}
+	return cleared
+}
+
 // --- the status die ---------------------------------------------------------
 
 // monsterStatus is the status an ordinary robot's hit can inflict, by art kind, plus the
@@ -228,9 +243,9 @@ func (g *crawlerGame) revealFog(h *crawlerHero) {
 // can cross eventually) but Snare them on arrival; it is never hard-impassable in V0.
 
 // enterHazard fires a square hazard the moment a hero steps onto it (a move, a bonus
-// step, or a carried ally): live wiring chips 1, a mine bursts once for 3 then is spent.
-// Called from the movement primitives. Fog and coolant bite at end of turn / on arrival,
-// not here.
+// step, or a carried ally): live wiring chips 1, a mine bursts once for 3 then is spent,
+// coolant Snares, fire burns for 2 (and can Electrify). Called from the movement
+// primitives. Fog reveals on arrival, not here.
 func (g *crawlerGame) enterHazard(h *crawlerHero) {
 	t := g.tiles[h.tileID]
 	if t == nil || g.level < 2 {
@@ -251,6 +266,17 @@ func (g *crawlerGame) enterHazard(h *crawlerHero) {
 	case hzCoolant:
 		if g.applyStatus(h, "snared") {
 			g.log = append(g.log, h.name+" wades into coolant and is Snared.")
+		}
+	case hzFire:
+		// Fire bites on ENTRY too (like live wiring), not only when you end on it: moving
+		// across it burns for 2 and can Electrify. (It also bites again at end of turn.)
+		g.hurt(h, 2)
+		if h.alive {
+			if g.applyStatus(h, "electrified") {
+				g.log = append(g.log, h.name+" runs through fire (2 damage) and is Electrified.")
+			} else {
+				g.log = append(g.log, h.name+" runs through fire (2 damage).")
+			}
 		}
 	}
 }

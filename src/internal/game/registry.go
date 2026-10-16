@@ -94,6 +94,7 @@ func (reg *Registry) delete(code string) {
 	}
 	reg.mu.Unlock()
 	if ok {
+		vlog.Info("room deleted", "event", "room_deleted", "room", code, "reason", "emptied by a deliberate leave")
 		r.close()
 	}
 }
@@ -149,6 +150,7 @@ func (reg *Registry) sweep(now time.Time) {
 	var dead []string
 	for code, r := range rooms {
 		if idle, empty := r.idleSince(now); empty && idle > roomIdleTimeout {
+			vlog.Info("room reaped (idle)", "event", "room_reaped", "room", code, "idle", idle.Round(time.Second).String())
 			r.close()
 			dead = append(dead, code)
 		}

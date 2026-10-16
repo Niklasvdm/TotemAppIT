@@ -2648,3 +2648,55 @@ func TestCrawlerEndLevelCurrentPlayerOnly(t *testing.T) {
 		t.Fatalf("the current player's End level should descend to %d, got %d", lvl+1, g.level)
 	}
 }
+
+func TestCrawlerRustedDieReturnsWhenClearedMidTurn(t *testing.T) {
+	// Clearing Rusted during your turn (spring/shop/Spores) gives back the die it took,
+	// immediately, rather than only next turn.
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.rusted = true
+	g.beginTurn(0) // rolls with Rusted -> one fewer die
+	before := len(g.dice)
+	if g.clearHeroStatuses(h); len(g.dice) != before+1 {
+		t.Fatalf("clearing Rusted mid-turn should restore a die: %d -> %d", before, len(g.dice))
+	}
+	if h.rusted {
+		t.Fatal("Rusted should be cleared")
+	}
+}
+
+func TestCrawlerLockedInBossLair(t *testing.T) {
+	// You cannot leave a boss lair while the boss lives; once it falls, you can.
+	g, _ := startedCrawler(t, 1)
+	boss := &crawlerMonster{armour: 5, health: 3, maxHealth: 3, alive: true, isBoss: true, square: 4}
+	bt := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{boss})
+	g.placeTile(6, 5, [4]bool{false, false, false, true}, 0, "dead-end", false, nil) // east neighbour, open W
+	h := g.players[0]
+	h.tileID = bt.id
+	h.square = crawlerDoor[1] // the east doorway of the boss tile
+
+	if g.tryMove(0, 1) || h.tileID != bt.id {
+		t.Fatal("must not be able to leave the boss lair while the boss is alive")
+	}
+	boss.alive = false
+	if !g.tryMove(0, 1) {
+		t.Fatal("should be able to leave once the boss is dead")
+	}
+}
+
+func TestCrawlerFireBitesOnEntry(t *testing.T) {
+	// Fire now bites when you step onto it (like live wiring), not only at end of turn.
+	g, _ := startedCrawler(t, 1)
+	g.level = 5
+	ft := g.placeTile(3, 3, [4]bool{true, true, true, true}, 0, "overheat", false, nil)
+	ft.hazards = []crawlerHazard{{square: 4, kind: hzFire}}
+	h := g.players[0]
+	h.tileID = ft.id
+	h.square = 4
+	h.health = h.sheet.maxHP
+	before := h.health
+	g.enterHazard(h)
+	if h.health != before-2 {
+		t.Fatalf("stepping onto fire should deal 2 damage (%d -> %d)", before, h.health)
+	}
+}

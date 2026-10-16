@@ -1096,7 +1096,7 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 			if ally != seat {
 				tgt = g.players[ally]
 			}
-			if tgt != nil && tgt.alive && tgt.tileID == h.tileID && heroClearStatuses(tgt) {
+			if tgt != nil && tgt.alive && tgt.tileID == h.tileID && g.clearHeroStatuses(tgt) {
 				spored = true
 				g.log = append(g.log, h.name+"'s Spores cleanse "+tgt.name+".")
 			}
@@ -1293,6 +1293,12 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 		g.revealFog(h)      // reaching a fog tile's centre uncovers it for good
 		return true
 	}
+	// Locked in the boss lair: once you are on the boss's tile you cannot leave it while the
+	// boss lives — you fight it out from here (moving between the side squares is still fine).
+	// Leaving opens up again once the boss falls (the post-boss victory lap).
+	if t.isBoss && g.bossAliveOn(t) {
+		return false
+	}
 	// Crossing the tile edge: must be at that side's doorway and the edge open.
 	if h.square != crawlerDoor[dir] || !t.edges[dir] {
 		return false
@@ -1320,6 +1326,17 @@ func (g *crawlerGame) enterTile(seat, id int) {} // reserved: per-tile entry hoo
 func bossOnSquare(t *crawlerTile, sq int) bool {
 	for _, m := range t.monsters {
 		if m.alive && m.isBoss && m.square == sq {
+			return true
+		}
+	}
+	return false
+}
+
+// bossAliveOn reports whether a living boss stands anywhere on tile t (used to lock heroes
+// into the lair until the boss falls).
+func (g *crawlerGame) bossAliveOn(t *crawlerTile) bool {
+	for _, m := range t.monsters {
+		if m.alive && m.isBoss {
 			return true
 		}
 	}
