@@ -333,10 +333,10 @@ func (g *crawlerGame) freeSquares(t *crawlerTile) []int {
 	return out
 }
 
-// spawnMonsters places the given adds on tile t's free squares; extras are dropped when
-// the tile is full.
+// spawnMonsters places the given adds on tile t's free ROBOT squares (hero-unreachable, so
+// they never land on top of a hero); extras are dropped when the tile is full.
 func (g *crawlerGame) spawnMonsters(t *crawlerTile, adds []*crawlerMonster) {
-	free := g.freeSquares(t)
+	free := g.freeRobotSquares(t)
 	for i, a := range adds {
 		if i >= len(free) {
 			return
@@ -344,6 +344,25 @@ func (g *crawlerGame) spawnMonsters(t *crawlerTile, adds []*crawlerMonster) {
 		a.square = free[i]
 		t.monsters = append(t.monsters, a)
 	}
+}
+
+// freeRobotSquares lists the hero-unreachable squares (corners / closed-edge midpoints) of
+// tile t not already held by a live monster: where a spawned robot may land.
+func (g *crawlerGame) freeRobotSquares(t *crawlerTile) []int {
+	w := crawlerWalkable(t.edges)
+	taken := map[int]bool{}
+	for _, m := range t.monsters {
+		if m.alive {
+			taken[m.square] = true
+		}
+	}
+	var out []int
+	for _, s := range crawlerRobotSquareOrder {
+		if !w[s] && !taken[s] {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // spawnCore breaks a splitting boss into a second, weaker core (half the boss's max

@@ -49,7 +49,7 @@ var crObjects = []crObjectDef{
 	// Consumables (shop or found, one-use).
 	{"medkit", "Medkit", "🩹", 2, false, 20, "heal 3"},
 	{"grenade", "Grenade", "💣", 2, false, 18, "auto-kill one Health-1 robot on your tile"},
-	{"recall-whistle", "Recall Whistle", "↩️", 2, false, 12, "teleport yourself to a transporter"},
+	{"recall-whistle", "Recall Whistle", "↩️", 2, false, 12, "teleport yourself to the start or a transporter"},
 	{"battery", "Battery", "🔋", 3, false, 14, "+2 Courage"},
 	{"torch", "Torch", "🔦", 3, false, 12, "clears a hazard"},
 	{"courage-horn", "Courage Horn", "📯", 3, false, 10, "every ally on your tile gains +1 Courage"},
@@ -250,12 +250,47 @@ func (g *crawlerGame) dropFrom(t *crawlerTile, m *crawlerMonster, killer *crawle
 			g.log = append(g.log, "Drop roll "+strconv.Itoa(roll)+"/100 vs "+strconv.Itoa(chance)+"%: nothing.")
 		}
 	}
+	// Trickster (Raccoon's inherent "Loot" passive): one extra consumable on every kill,
+	// on top of the normal drop chance and independent of Big Score (which adds a further
+	// one above). This is the Trickster's identity: it hoovers up gear.
+	if killer != nil && killer.sheet.role == roleTrickster {
+		bonus := g.rollConsumableDrop()
+		drops = append(drops, bonus)
+		g.log = append(g.log, killer.name+" roots out a "+objName(bonus)+".")
+	}
 	for _, slug := range drops {
 		g.dropGround(t, m.square, slug)
 	}
 	if killer != nil && killer.alive && killer.tileID == t.id {
 		g.autoPickup(t, killer)
 	}
+}
+
+// pilfer (Raccoon's signature) pulls one ground item from the ADJACENT tile through the
+// open doorway in dir into the hero's pack, extending the normal own-tile pickup by one
+// tile. Fails if there is no open neighbour there, nothing lies on it, or the pack is full.
+func (g *crawlerGame) pilfer(seat, dir int) bool {
+	h := g.players[seat]
+	if dir < 0 || dir > 3 {
+		return false
+	}
+	t := g.tiles[h.tileID]
+	if t == nil || !t.edges[dir] {
+		return false
+	}
+	id, ok := g.at[[2]int{t.x + crawlerDelta[dir][0], t.y + crawlerDelta[dir][1]}]
+	if !ok {
+		return false
+	}
+	nt := g.tiles[id]
+	if nt == nil || len(nt.loot) == 0 || len(h.objects) >= heroSlots(h) {
+		return false
+	}
+	l := nt.loot[0]
+	nt.loot = append(nt.loot[:0], nt.loot[1:]...)
+	h.objects = append(h.objects, l.slug)
+	g.log = append(g.log, h.name+" pilfers a "+objName(l.slug)+" from the next tile.")
+	return true
 }
 
 // populateVault drops a Vault's guaranteed consumable onto its centre floor the moment the
@@ -291,6 +326,47 @@ func (g *crawlerGame) dropGround(t *crawlerTile, square int, slug string) {
 		}
 	}
 	t.loot = append(t.loot, crawlerGroundItem{square: sq, slug: slug})
+}
+
+// seedTileLoot gives a freshly EXPLORED room a chance at loose floor consumables, branching
+// by tile type (the design's loot rule). It fires ONLY on an exploration lay (a hero stepping
+// onto a frontier), never a proactive LAY-phase lay. Only base path tiles seed: an empty one
+// at 30% (1-2 pieces), a tile with enemies at a lower rate (1/6 for 1-2, 1/3 for 3+, on top of
+// the separate kill drops). Service tiles (shop / healing / portal) and the hazard rooms get
+// nothing; the Vault and fog room seed their own loot (populateVault / populateFogRoom).
+func (g *crawlerGame) seedTileLoot(t *crawlerTile, exploration bool) {
+	if !exploration {
+		return // proactive LAY-phase tiles never seed floor loot
+	}
+	switch t.kind {
+	case "straight", "bend", "tee", "cross", "dead-end":
+		// a base path tile: seed below
+	default:
+		return // specials: services, the self-seeding Vault/fog, hazard rooms, the boss lair
+	}
+	alive := 0
+	for _, m := range t.monsters {
+		if m != nil && m.alive {
+			alive++
+		}
+	}
+	chance := 30 // an empty room
+	switch {
+	case alive >= 3:
+		chance = 100 / 3 // a big pack
+	case alive >= 1:
+		chance = 100 / 6 // one or two enemies
+	}
+	if g.rng.IntN(100) >= chance {
+		return
+	}
+	n := 1
+	if alive == 0 && g.rng.IntN(100) < 40 {
+		n = 2 // an empty room may turn up a second piece
+	}
+	for i := 0; i < n; i++ {
+		g.dropGround(t, 4, g.rollConsumableDrop())
+	}
 }
 
 // autoPickup moves ground loot on t into the hero's pack while it has room (used when a

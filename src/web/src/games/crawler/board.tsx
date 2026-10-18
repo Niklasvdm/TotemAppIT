@@ -8,7 +8,7 @@ import { CrawlerTileCell } from "./tilecell";
 
 // CrawlerMap keeps the `focus` cell centred (your tile, or the tile being laid); `lay`
 // turns every legal frontier cell into a drop-zone with a tile ghost.
-export function CrawlerMap({ v, focus, lay, debug, spriteFor, onPickup, onReopenShop }: { v: CrView; focus: { x: number; y: number } | null; lay: LayState | null; debug?: boolean; spriteFor: SpriteFor; onPickup?: (square: number) => void; onReopenShop?: (tileId: number) => void }) {
+export function CrawlerMap({ v, focus, lay, debug, spriteFor, highlight, onPickup, onReopenShop }: { v: CrView; focus: { x: number; y: number } | null; lay: LayState | null; debug?: boolean; spriteFor: SpriteFor; highlight?: string | null; onPickup?: (square: number) => void; onReopenShop?: (tileId: number) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Keep the focus cell centred in the scroll box as the map grows / you move.
   useEffect(() => {
@@ -65,7 +65,7 @@ export function CrawlerMap({ v, focus, lay, debug, spriteFor, onPickup, onReopen
           </div>,
         );
       } else if (tile) {
-        cells.push(<CrawlerTileCell key={key} tile={tile} v={v} focus={isFocus(x, y)} debug={debug} spriteFor={spriteFor} onPickup={onPickup} onReopenShop={onReopenShop && tile.kind === "shop" ? () => onReopenShop(tile.id) : undefined} />);
+        cells.push(<CrawlerTileCell key={key} tile={tile} v={v} focus={isFocus(x, y)} debug={debug} spriteFor={spriteFor} highlight={highlight} onPickup={onPickup} onReopenShop={onReopenShop && tile.kind === "shop" ? () => onReopenShop(tile.id) : undefined} />);
       } else if (frontierAt(x, y)) {
         cells.push(<div key={key} className="cr-cell cr-frontier">?</div>);
       } else {

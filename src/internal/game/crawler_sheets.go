@@ -81,13 +81,14 @@ func healerSheet(totem string) crawlerSheet {
 	}
 }
 
-// Trickster / loot: 5 Balanced dice, Guard as its die-special. Lucky Paws (free reroll) +
+// Trickster / loot: 5 Balanced dice, Pilfer as its die-special (grab a ground item from an
+// adjacent tile), plus an inherent +1 loot draw on every kill. Lucky Paws (free reroll) +
 // Big Score (a 4th slot and an extra drop). Animals: Raccoon, Squirrel, Spider Monkey,
 // Chimpanzee, Koala.
 func tricksterSheet(totem string) crawlerSheet {
 	return crawlerSheet{
 		totem: totem, role: roleTrickster, maxHP: 5, diceN: 5, faces: diceBalanced, moveRange: 1, objectSlots: 3,
-		menu: baseMenu(actGuard), special: actGuard, unlock0: "Lucky Paws", unlock1: "Big Score",
+		menu: baseMenu(actPilfer), special: actPilfer, unlock0: "Lucky Paws", unlock1: "Big Score",
 	}
 }
 

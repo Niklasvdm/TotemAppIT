@@ -18,7 +18,7 @@ package game
 // rooms (Level 5). The kind decides the bite; the hazard-room tile just seeds it.
 const (
 	hzWiring  = "wiring"  // 1 damage each time you ENTER; Electrocuted if you END on it
-	hzFire    = "fire"    // 2 damage if you END your turn on it; can inflict Electrified
+	hzFire    = "fire"    // 2 damage on entry AND at end of turn; can inflict Electrified
 	hzCoolant = "coolant" // no damage; Snares you when you end on it (a movement tax)
 	hzFog     = "fog"     // no damage; hides the tile's robots and loot until a hero is on/adjacent
 	hzMine    = "mine"    // 3 damage one-off when a hero ENTERS, then spent
@@ -257,6 +257,9 @@ func (g *crawlerGame) enterHazard(h *crawlerHero) {
 	}
 	switch hz.kind {
 	case hzWiring:
+		if heroHas(h, "grounding-boots") {
+			break // Grounding Boots ground out the live floor: no damage, no Electrocuted
+		}
 		g.hurt(h, 1)
 		g.log = append(g.log, h.name+" crosses live wiring (1 damage).")
 	case hzMine:
@@ -346,7 +349,9 @@ const crFogAmbushBudget = 12
 // random lighter robots, never a boss, and with their combined Health kept below the budget
 // (crFogAmbushBudget) so the room is a scare, not a wipe.
 func (g *crawlerGame) populateFogRoom(t *crawlerTile) {
-	if g.rng.IntN(2) == 0 {
+	// Level 1 (the tutorial) is always a cache, never an ambush: no Hulk-led pack in the
+	// level that teaches the basics. Level 2+ keeps the 50/50 cache-or-ambush gamble.
+	if g.level == 1 || g.rng.IntN(2) == 0 {
 		loot := []string{"sap-seed", "beacon"}
 		for i := 0; i < 1+g.rng.IntN(2); i++ {
 			loot = append(loot, g.rollConsumableDrop())

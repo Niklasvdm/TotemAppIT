@@ -10,6 +10,36 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.22.0 — 2026-10-18
+- `[BUG]` **Crawler: every monster on a square is drawn, and spawns no longer stack.** The board rendered only the first monster on a square (`.find`); it now draws them all with a small offset, and `assignMonsterSquares` spreads a swarm over distinct squares (spilling to free non-centre squares before ever doubling up) instead of dumping overflow on the centre.
+- `[BUG]` **Crawler: enemy stat badges no longer overflow onto neighbouring tiles.** The `🛡❤💥✊` line is now a compact vertical column beside the sprite, and tiles clip their contents, so the full badge stays readable without spilling across tiles.
+- `[BUG]` **Crawler: the Attack button shows which enemy it targets.** Hovering or focusing an Attack button glows the matching board sprite (shared `tileId-monsterId` key).
+- `[BUG]` **Crawler: floor loot depends on the tile and the lay.** `seedTileLoot` fires only on exploration lays (never proactive LAY-phase lays) and branches by kind: an empty path tile 30%, a tile with enemies 1/6 (1-2) or 1/3 (3+) on top of kill drops, and shop/healing/portal + hazard rooms 0% (the Vault and fog keep their own loot).
+- `[ENHANCEMENT]` **Crawler: more hidden/trap rooms the deeper you go.** Sensor-fog rooms scale 1→4 across the levels (now from Level 1) and trap rooms 0→2, replacing plain crossings (straight/bend drop to keep every level's Total fixed). Level 1 fog is cache-only, so no ambush lands in the tutorial.
+- `[ENHANCEMENT]` **Crawler: the Raccoon's "Pilfer" is now "Snatch"** in the UI (player-facing copy only; the `pilfer` slug, command and tests are unchanged).
+
+### 0.21.0 — 2026-10-16
+- `[FIX]` **Crawler: service tiles can no longer be buried behind the boss.** The shop (and, by luck of the shuffle, a healing spring or transporter) could land after the boss in the stack, where it was never laid (laying stops once the boss lair is on the map), so a level could have no shop before the boss. Now, like the board game, the essential services (two healing springs, the transporter(s), the shop) are dealt into the stack ABOVE the boss after mixing and placing the boss near the bottom. `TestCrawlerEssentialServicesAlwaysBeforeBoss` locks it in over 60 seeds × all 6 levels. The Vault, hazard rooms and shrine stay mixed and may still sit in the boss-clock tail.
+- `[FEATURE]` **Crawler: Raccoon's Pilfer and loot knack.** The Trickster die-special (die >=2) pulls a ground item from an adjacent tile into the pack, and the Trickster now gains an inherent +1 loot draw on every kill (on top of the drop chance, separate from Big Score). Replaces the Guard placeholder.
+- `[FIX]` **Crawler: every level now builds its exact per-level tile count.** The deck generator was drawing a random `perBand × bands` stack (far too few tiles); it now builds each level straight from the design's per-level table (L1 20, L2 25, L3 21, L4 26, L5 22, L6 27) via `levelPathCounts` + `levelSpecialTiles`, split into difficulty bands with the boss in the final band, and unlayable tiles cycle rather than being buried past the boss. Regression tests (`TestCrawlerDeckMatchesLevelTable`) lock the counts in. Every level now carries two healing springs and two transporters.
+- `[CHANGE]` **Crawler: revive brings a downed ally back on 2 Health** (was 1).
+- `[CHANGE]` **Crawler: Grounding Boots also negate live-wiring's 1 damage**, not only its Electrocuted status.
+- `[DOCS]` **Design-doc gap analysis applied.** Synced the design brief, crawler-architecture and games-architecture to the shipped build: the dead deck-generator constructs (`crawlerTilePool` / `insertSpec` / `perBand`) replaced by the real `levelPathCounts` model; hero dice counts (Arrow Squid 3, Treefrog 5), Mend/Bloom/Spores wording, one baked boss signature, boss Health per-extra-player, and the Summoner II / Jammer Field / Plating / fire / fog / Drained wording; end-of-round combat; the games WS `animal` query param and the eleven-game count; Recall Whistle and weak-point sprite copy.
+
+### 0.20.3 — 2026-10-16
+- `[DOCS]` **Documentation re-synced with the code.** Audited every doc against current behaviour and fixed the drift: crawler-architecture (monster placement on corners, fire-on-entry, biome-aware variants, boss-lair lock-in, explore-loot, Hauler party-scaled grace, armour cap); README (logging moved to shipped, full env-var list, ten games); games-architecture (`heldSeat` 30s→2min, logging status re-stamped, WS close codes 1008/1013, "Where it hooks" as a table); openapi.yaml (`/games/ws` 101-then-close-code model, `info.version`→1.3.0). Doc frontmatter versions aligned to VERSION. Also corrected the stale `hzFire` code comment.
+
+### 0.20.2 — 2026-10-16
+- `[CHANGE]` **Crawler: explore-loot no longer needs enemies.** The 30% loot chance applies to any explored room, not only ones with enemies.
+
+### 0.20.1 — 2026-10-16
+- `[BUG]` **Crawler: a fast mover no longer loses its second step when it lays a tile.** Exploring onto a new tile (a frontier lay) was swallowing the whole move die for a `moveRange>1` hero; the remaining bonus step now runs once the lay completes.
+
+### 0.20.0 — 2026-10-16
+- `[CHANGE]` **Crawler: robots no longer share a square with heroes.** A swarm is placed on the hero-unreachable squares (the four corners, then closed-edge midpoints); the boss keeps the centre. Heroes draw above monsters, so a defeated boss on the centre never covers a pawn, and multiple pawns in one square wrap instead of stacking. Fixes the crowded-tile overlap mess.
+- `[FEATURE]` **Crawler: loot when you explore.** Any explored room has a 30% chance at 1-2 loose consumables on the floor, enemies or not (never more than 2); the Vault, fog room and boss keep their own loot.
+- `[BUG]` **Crawler: moving to a new tile reliably spawns one.** The move-triggered lay now cycles the stack to a tile that fits the doorway you stepped through (no tiles lost, the boss excluded), instead of silently blocking the move when the top tile didn't fit that cell.
+
 ### 0.19.8 — 2026-10-16
 - `[CHANGE]` **Crawler: fire bites on entry too.** Stepping onto (passing through) a fire square now deals 2 damage and can Electrify, like live wiring — not only when you end your turn on it.
 

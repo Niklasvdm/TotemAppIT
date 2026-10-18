@@ -22,126 +22,196 @@ var (
 	ttDeadEnd  = crawlerTileType{"dead-end", [4]bool{true, false, false, false}} // a single doorway
 )
 
-// crawlerTilePool is the weighted draw pool: corridors and bends are common,
-// junctions a little rarer, dead-ends rare (they cap a branch). Tiles can be
-// laid on any of the four sides because rotations cover every orientation.
-var crawlerTilePool = []crawlerTileType{
-	ttStraight, ttStraight, ttStraight,
-	ttBend, ttBend, ttBend,
-	ttTee, ttTee,
-	ttCross, ttCross,
-	ttDeadEnd,
+// buildDeck lays out the shuffled stack from the design's **per-level tile table**: the
+// exact count of each path tile (levelPathCounts) and the specials, split into `g.bands`
+// difficulty tiers so monsters escalate, with the boss near the end. The ESSENTIAL service
+// tiles are then dealt in above the boss so a shuffle can never bury one behind it.
+//
+// This is THE place to tune the tile mix: edit `levelPathCounts` for the base paths,
+// `essentialSpecialTiles` / `mixableSpecialTiles` for the specials, `g.bands` for the
+// difficulty tiers, and `rollMonster` for the enemies (and swarms) per band. The boss stat
+// line is built in levelBossTile. levelPathCounts is the EXACT number of each base path tile
+// per level (1..crMaxLevel), straight from the design's per-level tile table. The deck also
+// carries the specials (essential services dealt in above the boss, the rest shuffled into
+// the bands) and the boss (levelBossTile); the start tile is placed separately by startLevel
+// and so is not in the deck.
+var levelPathCounts = map[string][6]int{
+	"straight": {4, 4, 2, 5, 2, 3}, // dropped per level to make room for the growing fog/trap rooms
+	"bend":     {4, 4, 3, 3, 2, 2}, // (see levelFogCount / levelTrapCount); each column still sums to the Total
+	"tee":      {3, 3, 1, 2, 1, 3},
+	"cross":    {2, 2, 1, 2, 1, 2},
+	"dead-end": {1, 1, 1, 1, 1, 1},
 }
 
-// buildDeck lays out the shuffled stack: tiles in difficulty bands, the boss
-// shuffled into the final band.
-//
-// This is THE place to tune tile mix and difficulty pacing: `perBand` and `g.bands`
-// (set in startRun) size the stack and the boss clock; `crawlerTilePool` weights the
-// tile shapes drawn; `rollMonster` decides the enemies (and swarms) per band. The boss
-// stat line is built here too.
 func (g *crawlerGame) buildDeck() {
-	perBand := 4
 	g.deck = nil
 	g.deckPos = 0
-	for b := 0; b < g.bands; b++ {
-		band := make([]tileSpec, 0, perBand)
-		for i := 0; i < perBand; i++ {
-			tt := crawlerTilePool[g.rng.IntN(len(crawlerTilePool))]
-			band = append(band, tileSpec{band: b, kind: tt.kind, base: tt.base, monsters: g.rollMonster(b)})
+	bands := g.bands
+	if bands < 1 {
+		bands = 1
+	}
+	li := g.level - 1 // index into the per-level tables; clamp so a deck can be built even
+	if li < 0 {       // before startLevel has set a level (treat as level 1 / the last level).
+		li = 0
+	} else if li >= 6 {
+		li = 5
+	}
+
+	// 1. Path tiles: the exact per-level counts, shuffled, then split into `bands` equal
+	//    tiers so monster strength still escalates across the run (rollMonster is per band:
+	//    band 0 easy, the last band nasty).
+	var paths []tileSpec
+	for _, tt := range []crawlerTileType{ttStraight, ttBend, ttTee, ttCross, ttDeadEnd} {
+		for i := 0; i < levelPathCounts[tt.kind][li]; i++ {
+			paths = append(paths, tileSpec{kind: tt.kind, base: tt.base})
 		}
-		g.rng.Shuffle(len(band), func(i, j int) { band[i], band[j] = band[j], band[i] })
-		// Special tiles, one per band, shuffled in at a random spot: a healing spring in
-		// each outer band (two total), and in the middle band the second portal (paired
-		// with the start tile) and the shop. They carry no monster; their kind is their
-		// effect. Edge shapes: portal = crossroads, healing = T-junction, shop = dead-end.
-		spec := func(kind string) tileSpec { return tileSpec{band: b, kind: kind, base: crSpecialBase[kind]} }
-		// The healing spring is a 3-way T-junction in the Woodland, but a 4-way cross in the
-		// Ruins and Machine (their fountain/pad art reads as a crossroads). Same kind,
-		// biome-dependent shape.
-		heal := func() tileSpec {
-			s := spec(crKindHealing)
-			if biomeForLevel(g.level) != crWoodland {
-				s.base = ttCross.base
-			}
-			return s
+	}
+	g.rng.Shuffle(len(paths), func(i, j int) { paths[i], paths[j] = paths[j], paths[i] })
+
+	bandTiles := make([][]tileSpec, bands)
+	for i := range paths {
+		b := i * bands / len(paths) // 0..bands-1, ascending
+		paths[i].band = b
+		paths[i].monsters = g.rollMonster(b)
+		bandTiles[b] = append(bandTiles[b], paths[i])
+	}
+
+	// 2. MIXABLE specials (the Vault, hazard rooms, the shrine): spread across the bands and
+	//    shuffled in. These may land anywhere, even in the last few tiles behind the boss (the
+	//    boss-clock tail); the ESSENTIAL services are dealt in above the boss in step 6.
+	for i, s := range g.mixableSpecialTiles() {
+		s.band = i % bands
+		bandTiles[s.band] = append(bandTiles[s.band], s)
+	}
+
+	// 3. Shuffle within each band, so the order inside a difficulty tier is random.
+	for b := range bandTiles {
+		g.rng.Shuffle(len(bandTiles[b]), func(i, j int) { bandTiles[b][i], bandTiles[b][j] = bandTiles[b][j], bandTiles[b][i] })
+	}
+
+	// 4. The boss goes near the end of the last band, so the run races to it.
+	last := bands - 1
+	pos := len(bandTiles[last])
+	if pos > 0 {
+		pos -= g.rng.IntN(min2(pos, 3) + 1)
+	}
+	boss := g.levelBossTile()
+	bandTiles[last] = append(bandTiles[last][:pos], append([]tileSpec{boss}, bandTiles[last][pos:]...)...)
+
+	// 5. Assemble band 0, 1, ... in order: earlier tiles carry the easier monsters.
+	for b := 0; b < bands; b++ {
+		g.deck = append(g.deck, bandTiles[b]...)
+	}
+
+	// 6. ESSENTIAL service tiles (healing springs, transporters, shop) are dealt into the
+	//    stack ABOVE the boss, exactly like the board game: after mixing and dropping the boss
+	//    near the bottom, slot each at a random index strictly before the boss. No shuffle can
+	//    then bury a service behind the boss, where it could never be laid (laying stops the
+	//    moment the boss lair is on the map).
+	g.insertBeforeBoss(g.essentialSpecialTiles())
+}
+
+// crSpec builds a special tile spec; its kind is its effect, and it carries no monsters.
+func (g *crawlerGame) crSpec(kind string) tileSpec {
+	return tileSpec{kind: kind, base: crSpecialBase[kind]}
+}
+
+// essentialSpecialTiles are the SERVICE tiles the party must always be able to reach before
+// the boss: the two healing springs, the transporter(s), and the shop. buildDeck deals them
+// into the stack ABOVE the boss (insertBeforeBoss), so a shuffle can never bury one where it
+// would be lost. One transporter is normally the pre-placed start tile; Level 3 (where the
+// gate is the start) keeps BOTH transporters in the deck.
+func (g *crawlerGame) essentialSpecialTiles() []tileSpec {
+	// Healing spring: a 3-way T-junction in the Woodland, a 4-way cross in Ruins/Machine
+	// (whose fountain/pad art reads as a crossroads). TWO per level.
+	heal := g.crSpec(crKindHealing)
+	if biomeForLevel(g.level) != crWoodland {
+		heal.base = ttCross.base
+	}
+	out := []tileSpec{heal, heal, g.crSpec(crKindShop), g.crSpec(crKindPortal)}
+	if g.level == 3 {
+		out = append(out, g.crSpec(crKindPortal))
+	}
+	return out
+}
+
+// mixableSpecialTiles are the non-service specials (the Vault, hazard rooms, the shrine).
+// They are shuffled into the banded stack and MAY sit in the last few tiles behind the boss
+// (that is the intended boss-clock tail): losing one there is acceptable, unlike a service.
+// Level-gated to match the design's per-level table.
+// Sensor-fog (hidden) rooms scale up with depth and appear from Level 1; trap/mine rooms
+// scale up from Level 3. These counts progressively replace plain crossings as the run goes
+// deeper (the straight/bend rows in levelPathCounts drop to match, keeping each Total fixed).
+var (
+	levelFogCount  = [6]int{1, 2, 2, 3, 3, 4}
+	levelTrapCount = [6]int{0, 0, 1, 1, 2, 2}
+)
+
+func (g *crawlerGame) mixableSpecialTiles() []tileSpec {
+	li := g.level - 1
+	if li < 0 {
+		li = 0
+	} else if li >= 6 {
+		li = 5
+	}
+	var out []tileSpec
+	for i := 0; i < levelFogCount[li]; i++ {
+		out = append(out, g.crSpec(crKindFog))
+	}
+	for i := 0; i < levelTrapCount[li]; i++ {
+		out = append(out, g.crSpec(crKindTrap))
+	}
+	if g.level >= 2 {
+		out = append(out, g.crSpec(crKindVault), g.crSpec(crKindWiring), g.crSpec(crKindCoolant))
+	}
+	if g.level == 2 {
+		out = append(out, g.crSpec(crKindShrine)) // Woodland L2 landmark only for now
+	}
+	if g.level >= 3 {
+		out = append(out, g.crSpec(crKindRust))
+	}
+	if g.level >= 5 {
+		out = append(out, g.crSpec(crKindOverheat))
+	}
+	return out
+}
+
+// bossIndex returns the position of the boss tile in the deck, or -1 if none is present.
+func (g *crawlerGame) bossIndex() int {
+	for i := range g.deck {
+		if g.deck[i].isBoss {
+			return i
 		}
-		switch b {
-		case 0:
-			band = g.insertSpec(band, heal())
-			// Statuses and hazards begin at Level 2: the first hazard room and a landmark
-			// shrine come in here (see the note's per-level tile table).
-			if g.level == 2 {
-				band = g.insertSpec(band, spec(crKindShrine)) // a landmark, Woodland L2 only for now
-			}
-			if g.level >= 2 {
-				band = g.insertSpec(band, spec(crKindWiring))
-			}
-		case 1:
-			band = g.insertSpec(band, spec(crKindPortal))
-			// Level 3 opens on the broken gate, not a transporter, so the start tile is no
-			// longer half the teleport pair. Add a second deck portal there so the network
-			// still has a usable pair (every level keeps two transporters).
-			if g.level == 3 {
-				band = g.insertSpec(band, spec(crKindPortal))
-			}
-			band = g.insertSpec(band, spec(crKindShop))
-			// The Vault (a dead-end loot cache) appears from Level 2 on (see the note's
-			// per-level tile table). Future level-gated tiles slot in the same way.
-			if g.level >= 2 {
-				band = g.insertSpec(band, spec(crKindVault))
-				band = g.insertSpec(band, spec(crKindCoolant))
-			}
-			if g.level >= 3 { // the Ruins add the rust hazard room
-				band = g.insertSpec(band, spec(crKindRust))
-			}
-		case g.bands - 1:
-			band = g.insertSpec(band, heal())
-			if g.level >= 2 {
-				band = g.insertSpec(band, spec(crKindFog))
-			}
-			// At Level 2 the broken city gate is the BOSS chamber (see below), not a
-			// standalone tile, so nothing extra is injected here for it.
-			if g.level >= 3 { // the Ruins add the trap room
-				band = g.insertSpec(band, spec(crKindTrap))
-			}
-			if g.level >= 5 { // the Machine rooms add the overheat room
-				band = g.insertSpec(band, spec(crKindOverheat))
-			}
+	}
+	return -1
+}
+
+// insertBeforeBoss slots each tile into the deck at a random index strictly before the boss,
+// recomputing the boss position per insert (each one pushes the boss back). A tile placed
+// this way is guaranteed to be laid before the boss lair ends the run.
+func (g *crawlerGame) insertBeforeBoss(specs []tileSpec) {
+	for _, s := range specs {
+		bi := g.bossIndex()
+		if bi < 0 {
+			bi = len(g.deck)
 		}
-		if b == g.bands-1 {
-			// The boss is drawn from the level's pool (rollBossMonsters); it holds the
-			// centre (heroes can't stand on it, see tryMove). The lair is normally a
-			// crossroads room (surround it from four sides), EXCEPT at the biome seams:
-			// Level 2's boss guards the broken city gate (and that gate starts Level 3),
-			// and Level 4's boss guards the stairwell down into the machine rooms. Both are
-			// one-doorway dead-ends fought from the single side.
-			bossKind, bossBase := "boss", ttCross.base
-			if g.level == 2 {
-				bossKind, bossBase = crKindGate, crSpecialBase[crKindGate]
-			} else if g.level == 4 {
-				bossKind, bossBase = crKindDescent, crSpecialBase[crKindDescent]
-			}
-			boss := tileSpec{band: b, kind: bossKind, base: bossBase, isBoss: true,
-				monsters: g.rollBossMonsters()}
-			pos := len(band)
-			if len(band) > 0 {
-				pos = len(band) - g.rng.IntN(min2(len(band), 3)+1)
-			}
-			band = append(band[:pos], append([]tileSpec{boss}, band[pos:]...)...)
-		}
-		g.deck = append(g.deck, band...)
+		at := g.rng.IntN(bi + 1) // 0..bi: at or before the boss slot, so the boss shifts back
+		g.deck = append(g.deck[:at], append([]tileSpec{s}, g.deck[at:]...)...)
 	}
 }
 
-// insertSpec shuffles one special tile into a band at a random position.
-func (g *crawlerGame) insertSpec(band []tileSpec, spec tileSpec) []tileSpec {
-	pos := g.rng.IntN(len(band) + 1)
-	out := make([]tileSpec, 0, len(band)+1)
-	out = append(out, band[:pos]...)
-	out = append(out, spec)
-	out = append(out, band[pos:]...)
-	return out
+// levelBossTile is the boss lair for the level: a crossroads room, except the biome seams —
+// Level 2's boss guards the broken city gate (which also starts Level 3) and Level 4's the
+// descent stairwell; both are one-doorway dead-ends fought from the single side.
+func (g *crawlerGame) levelBossTile() tileSpec {
+	kind, base := "boss", ttCross.base
+	switch g.level {
+	case 2:
+		kind, base = crKindGate, crSpecialBase[crKindGate]
+	case 4:
+		kind, base = crKindDescent, crSpecialBase[crKindDescent]
+	}
+	return tileSpec{kind: kind, base: base, isBoss: true, band: g.bands - 1, monsters: g.rollBossMonsters()}
 }
 
 // newRobot builds one ordinary robot by archetype slug, the single source of their stat
@@ -235,24 +305,47 @@ func bandOddsText(level int) []string {
 	}
 }
 
-// crawlerSquareOrder is the preference order for placing several monsters on a tile:
-// the centre first, then each doorway (N, E, S, W). assignMonsterSquares drops each
-// monster on the next free walkable square so a swarm spreads out instead of stacking.
+// crawlerSquareOrder is the preference order for placing several items on a tile: the
+// centre first, then each doorway (N, E, S, W). Used for ground loot / vault drops, which
+// may sit on a walkable square.
 var crawlerSquareOrder = [5]int{4, crawlerDoor[0], crawlerDoor[1], crawlerDoor[2], crawlerDoor[3]}
+
+// crawlerRobotSquareOrder is the preference order for placing ROBOTS: the four corners
+// first, then the edge midpoints. A robot only lands on a square that is NOT walkable
+// (a corner, or a closed-edge midpoint), so it never shares a square with a hero (who
+// only ever stands on the centre and OPEN doorways). This keeps a crowded tile from
+// rendering heroes and robots stacked on top of each other. The boss is the exception.
+var crawlerRobotSquareOrder = [8]int{0, 2, 6, 8, 1, 3, 5, 7}
 
 func assignMonsterSquares(edges [4]bool, mons []*crawlerMonster) {
 	w := crawlerWalkable(edges)
-	slots := make([]int, 0, 5)
-	for _, sq := range crawlerSquareOrder {
+	// Preference: hero-unreachable squares first (corners / closed-edge midpoints, so a robot
+	// never shares with a hero), then the walkable non-centre squares as a fallback for a big
+	// swarm, then the centre last. Each robot gets its OWN square until the tile is full, so
+	// robots never silently stack (the client offset-renders any genuine overflow).
+	slots := make([]int, 0, 9)
+	for _, sq := range crawlerRobotSquareOrder { // the 8 non-centre squares, corners first
+		if !w[sq] {
+			slots = append(slots, sq)
+		}
+	}
+	for _, sq := range crawlerRobotSquareOrder {
 		if w[sq] {
 			slots = append(slots, sq)
 		}
 	}
-	for i, m := range mons {
-		if i < len(slots) {
-			m.square = slots[i]
+	slots = append(slots, 4) // the centre, last resort (and the boss's own square)
+	ri := 0
+	for _, m := range mons {
+		if m.isBoss {
+			m.square = 4 // the boss holds the lair centre (heroes fight it from the sides)
+			continue
+		}
+		if ri < len(slots) {
+			m.square = slots[ri]
+			ri++
 		} else {
-			m.square = 4 // more monsters than squares (shouldn't happen): stack on centre
+			m.square = 4 // more robots than squares (never for <=8): stack as the last resort
 		}
 	}
 }

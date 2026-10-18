@@ -77,7 +77,7 @@ type RosterMsg struct {
 }
 
 // Snapshot is the per-tick authoritative state. Field names are single letters
-// because this goes out 30 times a second to every client.
+// because this goes out up to 60 times a second to every client.
 type Snapshot struct {
 	T      string      `json:"t"`
 	K      uint64      `json:"k"`

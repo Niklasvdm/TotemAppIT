@@ -17,15 +17,13 @@ import (
 //     Square-by-square movement on 3x3 tiles; stepping onto a frontier mid-spend
 //     also lays a tile there (rotation only, the cell fixed by the step).
 //   - Random banded tile stack (easy early, nasty late), boss in the final band.
-//   - Static enemies (Armour/Health/Damage); combat resolves at end of turn.
+//   - Static enemies (Armour/Health/Damage); combat resolves at end of round.
 //   - Courage (reroll, unlock two specials) and Shields.
 //   - Win = boss defeated; lose = party wiped, or the stack runs out first.
 //
 // V0 simplifications (see the spec): a hero walks the tile's PATH only (the centre
 // plus the doorway of each open edge; corners are off-path), so a straight is a
-// corridor and a bend turns; there are no finer inner walls yet. One monster per
-// monster-tile sits on the centre square, there are no loot items or hazards yet,
-// and combat is the active hero alone (group fights are V1). The co-op view is
+// corridor and a bend turns; there are no finer inner walls yet. The co-op view is
 // shared (viewFor ignores the seat) but kept per-seat for future private info.
 
 // Directions: N,E,S,W.
@@ -152,10 +150,11 @@ const (
 	actMove    = "move"
 	actAttack  = "attack"
 	actCourage = "courage"
-	actBrace   = "brace" // Beaver special: 2 Shields to self or an ally on the tile
-	actMend    = "mend"  // Treefrog special: heal 2 to a hero on your tile
-	actCarry   = "carry" // Comoros Weaver special: give an ally on your tile a 1-square move
-	actGuard   = "guard" // generic/placeholder special: 1 Shield to self
+	actBrace   = "brace"  // Beaver special: 2 Shields to self or an ally on the tile
+	actMend    = "mend"   // Treefrog special: heal 2 to a hero on your tile
+	actCarry   = "carry"  // Comoros Weaver special: give an ally on your tile a 1-square move
+	actPilfer  = "pilfer" // Raccoon (trickster) special: pull a ground item from an adjacent tile
+	actGuard   = "guard"  // generic/placeholder special: 1 Shield to self
 )
 
 const crCourageCap = 10
@@ -240,7 +239,7 @@ type crawlerMonster struct {
 	armour, health, maxHealth, damage int // health is CURRENT and persists across turns
 	square                            int
 	kind                              string // art/type: drone (weak) / brute (tough) / a boss slug
-	engaged                           bool   // attacked this turn (retaliates at end of turn)
+	engaged                           bool   // attacked this turn (retaliates at end of round)
 	alive                             bool
 	isBoss                            bool
 	reward                            int // Courage granted on defeat
@@ -865,32 +864,34 @@ func (g *crawlerGame) keepsForestOpen(x, y int, e [4]bool) bool {
 	return false
 }
 
-// buryTileAt removes the tile at deck position pos and drops it to the bottom of the
-// stack (Mapmaking Rules 3 and 4: a tile that can't legally connect, or whose only
-// placements would seal the map, is discarded to the bottom and redrawn past). deckPos
-// is left unchanged, so the next tile shifts into pos for the following draw.
-func (g *crawlerGame) buryTileAt(pos int) {
-	s := g.deck[pos]
-	g.deck = append(g.deck[:pos], g.deck[pos+1:]...)
-	g.deck = append(g.deck, s)
-}
-
-// drawLayable scans the stack from deckPos for the next tile that can actually be laid
-// under `gen` (the placement generator for the current situation, which already drops
-// map-sealing placements via keepsForestOpen). Forest tiles with no legal placement are
-// buried and the scan continues; a boss tile is returned as-is (it is meant to end the
-// forest). It does NOT advance deckPos: the caller does that once it commits the draw.
-// ok is false when nothing in the remaining stack can be laid.
+// drawLayable finds the next tile that can actually be laid under `gen` (the placement
+// generator, which already drops map-sealing placements via keepsForestOpen) and CYCLES it
+// to the top (deckPos), shifting the skipped tiles right by one so NONE is lost: a forest
+// tile that does not fit right now stays in the stack and is retried as the map grows. It
+// prefers a non-boss tile (the forest keeps growing); only when no forest tile fits anywhere
+// does it fall back to the boss (which ends the forest). ok is false when the stack is empty.
+// It does NOT advance deckPos: the caller does that once it commits the draw.
 func (g *crawlerGame) drawLayable(gen func(tileSpec) []crawlerLayOption) (tileSpec, []crawlerLayOption, bool) {
-	for tries := len(g.deck) - g.deckPos; tries > 0 && g.deckPos < len(g.deck); tries-- {
-		spec := g.deck[g.deckPos]
+	for k := g.deckPos; k < len(g.deck); k++ {
+		spec := g.deck[k]
 		opts := gen(spec)
 		if spec.isBoss || len(opts) > 0 {
-			return spec, opts, true
+			// The boss (kept in its deck position, it ends the forest) or the first tile
+			// that fits SOMEWHERE on the frontier: cycle it to the top. Any skipped
+			// unplaceable tiles stay in the stack (slid behind) and are retried next round.
+			return g.cycleToTop(k), opts, true
 		}
-		g.buryTileAt(g.deckPos)
 	}
 	return tileSpec{}, nil, false
+}
+
+// cycleToTop moves the tile at deck position k to deckPos, sliding the tiles in between
+// right by one (so the order is preserved and nothing is discarded), and returns it.
+func (g *crawlerGame) cycleToTop(k int) tileSpec {
+	spec := g.deck[k]
+	copy(g.deck[g.deckPos+1:k+1], g.deck[g.deckPos:k])
+	g.deck[g.deckPos] = spec
+	return spec
 }
 
 // allLayOptions is the proactive (LAY-phase) placement set: every frontier cell and
@@ -925,22 +926,38 @@ func (g *crawlerGame) beginLay(seat, dir, nx, ny int) bool {
 		g.startGrace()
 		return false
 	}
-	// A move-triggered lay draws ONE tile for the specific doorway stepped through; it is
-	// NOT the place for the bury-and-redraw of Mapmaking Rules 3/4 (those belong to the
-	// proactive lay phase, which weighs the whole frontier). Burying here would silently
-	// discard tiles that simply don't fit this one cell but would fit elsewhere, thinning
-	// the level out. So: draw one, offer its fitting rotations; if none fit (including the
-	// anti-seal filter in layOptions), just block the move and leave the tile on top for
-	// the proactive phase to place where it belongs.
-	spec := g.deck[g.deckPos]
-	opts := g.layOptions(spec, dir, nx, ny)
+	// Find the next NON-BOSS tile in the stack that actually fits this doorway and pull it
+	// to the top, so moving to a new tile reliably spawns one: the top tile often doesn't
+	// fit the specific cell you stepped through, and before, that silently blocked the move
+	// ("it won't spawn a tile"). No tile is lost: the fitting tile is moved to deckPos and
+	// the skipped ones keep their order; the boss is never laid by exploring.
+	opts := g.drawFittingAt(dir, nx, ny)
 	if len(opts) == 0 {
-		return false // no legal (non-sealing) placement at this frontier: the move is blocked
+		return false // nothing in the stack fits this doorway (every option would seal or clash)
 	}
+	g.pending = &crawlerPending{spec: g.deck[g.deckPos], entryDir: dir, options: opts}
 	g.deckPos++
-	g.pending = &crawlerPending{spec: spec, entryDir: dir, options: opts}
 	g.step = crStepLay
 	return true
+}
+
+// drawFittingAt finds the first non-boss tile in the stack (from deckPos) that can be laid
+// at the single frontier cell (nx,ny) entered from dir, pulls it to deckPos (shifting the
+// skipped tiles right by one so none is lost), and returns its placement options. Returns
+// nil when nothing in the stack fits this doorway.
+func (g *crawlerGame) drawFittingAt(dir, nx, ny int) []crawlerLayOption {
+	for k := g.deckPos; k < len(g.deck); k++ {
+		if g.deck[k].isBoss {
+			continue // the boss lair is laid in the lay phase / at the end, not by exploring
+		}
+		opts := g.layOptions(g.deck[k], dir, nx, ny)
+		if len(opts) == 0 {
+			continue
+		}
+		g.cycleToTop(k) // pull this fitting tile to the top; nothing is lost
+		return opts
+	}
+	return nil
 }
 
 // layOptions returns every rotation of spec legal at the single frontier cell
@@ -1070,11 +1087,18 @@ func (g *crawlerGame) spendDie(seat, dieIdx int, action string, dir, monsterIdx,
 			return
 		}
 		h.moveDiceUsed++
-		if h.sheet.moveRange > 1 && g.pending == nil {
+		// A fast mover keeps its remaining steps even when this step LAID a new tile (which
+		// leaves g.pending set): the bonus steps run once the lay completes, so exploring onto
+		// a new tile does not swallow the whole die.
+		if h.sheet.moveRange > 1 {
 			g.bonusMoves = h.sheet.moveRange - 1
 		}
 	case actCarry: // give an ally on your tile a free 1-square move
 		if !g.tryCarry(seat, ally, dir) {
+			return
+		}
+	case actPilfer: // Raccoon: pull a ground item from the adjacent tile in dir
+		if !g.pilfer(seat, dir) {
 			return
 		}
 	case actAttack:
@@ -1235,8 +1259,8 @@ func (g *crawlerGame) revive(seat, allySeat int) {
 	g.dice[di].Spent = true
 	g.dice[di].UsedFor = "revive"
 	a.downed = false
-	a.health = 1
-	g.log = append(g.log, h.name+" revives "+a.name+", back on their feet (1 Health).")
+	a.health = 2
+	g.log = append(g.log, h.name+" revives "+a.name+", back on their feet (2 Health).")
 	g.maybeAutoEnd(seat)
 }
 
@@ -1451,7 +1475,8 @@ func (g *crawlerGame) layTile(seat, x, y, rotation int) {
 	if g.debug {
 		vlog.Debug("crawler tile laid", "event", "lay", "kind", spec.kind, "x", chosen.X, "y", chosen.Y, "rot", chosen.Rotation, "boss", spec.isBoss, "seat", seat)
 	}
-	g.seedHazards(t) // a hazard-room tile seeds its hazard on its squares (no-op otherwise)
+	g.seedHazards(t)             // a hazard-room tile seeds its hazard on its squares (no-op otherwise)
+	g.seedTileLoot(t, !phaseLay) // exploration lays only: a chance at loose floor consumables, by tile type
 	if t.kind == crKindFog {
 		g.populateFogRoom(t) // a fog room hides either a loot cache or an ambush
 	}

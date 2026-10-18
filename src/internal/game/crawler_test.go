@@ -182,6 +182,65 @@ func setupFight(g *crawlerGame, a, h, d int) *crawlerMonster {
 	return m
 }
 
+func TestCrawlerPilferGrabsAdjacentLoot(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.sheet = tricksterSheet("wasbeer") // Pilfer die-special
+	h.objects = nil
+	nt := g.placeTile(1, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil) // east neighbour
+	nt.loot = []crawlerGroundItem{{square: 4, slug: "medkit"}}
+	g.dice = []crawlerDie{{Value: 3}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actPilfer, "dir": 1})
+	if !g.dice[0].Spent {
+		t.Fatal("Pilfer should spend the die")
+	}
+	if len(h.objects) != 1 || h.objects[0] != "medkit" {
+		t.Fatalf("Pilfer should pull the medkit into the pack, got %v", h.objects)
+	}
+	if len(nt.loot) != 0 {
+		t.Fatalf("Pilfer should remove the item from the neighbour tile, got %v", nt.loot)
+	}
+}
+
+func TestCrawlerTricksterLootOnKill(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.sheet = tricksterSheet("wasbeer")
+	h.objects = nil
+	m := &crawlerMonster{armour: 3, health: 1, maxHealth: 1, damage: 1, square: 0, alive: true, reward: 1, kind: "scrapling"}
+	g.tiles[h.tileID].monsters = []*crawlerMonster{m}
+	h.square = 4
+	g.dice = []crawlerDie{{Value: 5}, {Value: 1}}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actAttack, "monster": 0})
+	if m.alive {
+		t.Fatal("a 5 vs Armour 3 should kill the H1 scrapling")
+	}
+	// The Trickster's inherent +1 loot draw guarantees at least one consumable on a kill
+	// (independent of the drop chance); the killer standing on the tile auto-picks it up.
+	if len(h.objects) < 1 {
+		t.Fatalf("Trickster should gain at least one consumable on a kill, got %v", h.objects)
+	}
+}
+
+func TestCrawlerGroundingBootsNegateWiringDamage(t *testing.T) {
+	g, _ := startedCrawler(t, 2)
+	boots, bare := g.players[0], g.players[1]
+	g.level = 2 // hazards only fire from Level 2
+	boots.objects = []string{"grounding-boots"}
+	boots.health, bare.health = boots.sheet.maxHP, bare.sheet.maxHP
+	for _, h := range []*crawlerHero{boots, bare} {
+		t2 := g.tiles[h.tileID]
+		t2.hazards = []crawlerHazard{{kind: hzWiring, square: h.square}}
+		g.enterHazard(h)
+	}
+	if boots.health != boots.sheet.maxHP {
+		t.Fatalf("Grounding Boots should negate live-wiring damage, took %d", boots.sheet.maxHP-boots.health)
+	}
+	if bare.health != bare.sheet.maxHP-1 {
+		t.Fatalf("a bare hero should take 1 from live wiring, health %d", bare.health)
+	}
+}
+
 func TestCrawlerCombatKillsGor(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	m := setupFight(g, 4, 2, 3) // Gor: A4 H2 D3
@@ -645,7 +704,55 @@ func TestCrawlerBossInFinalBand(t *testing.T) {
 	}
 }
 
-// A tile can hold several monsters (a swarm), each laid on its own walkable square.
+// A service tile (healing spring, transporter, shop) must NEVER be buried behind the boss:
+// laying stops the moment the boss lair is laid, so a service after it is unreachable. The
+// essential tiles are dealt into the stack above the boss, which this locks in over many
+// seeds and every level.
+func TestCrawlerEssentialServicesAlwaysBeforeBoss(t *testing.T) {
+	for seed := uint64(1); seed <= 60; seed++ {
+		for level := 1; level <= crMaxLevel; level++ {
+			g := newCrawlerGame(newFakeOutbox(0), seed).(*crawlerGame)
+			g.AddPlayer("beaver", "bever")
+			g.bands = 3
+			g.level = level
+			g.buildDeck()
+			bi := g.bossIndex()
+			if bi < 0 {
+				t.Fatalf("level %d seed %d: no boss in the deck", level, seed)
+			}
+			shop, heal, portal := 0, 0, 0
+			for i, s := range g.deck {
+				switch s.kind {
+				case crKindShop:
+					shop++
+					if i >= bi {
+						t.Fatalf("level %d seed %d: shop at %d is not before the boss at %d", level, seed, i, bi)
+					}
+				case crKindHealing:
+					heal++
+					if i >= bi {
+						t.Fatalf("level %d seed %d: healing at %d is not before the boss at %d", level, seed, i, bi)
+					}
+				case crKindPortal:
+					portal++
+					if i >= bi {
+						t.Fatalf("level %d seed %d: portal at %d is not before the boss at %d", level, seed, i, bi)
+					}
+				}
+			}
+			wantPortal := 1
+			if level == 3 {
+				wantPortal = 2
+			}
+			if shop != 1 || heal != 2 || portal != wantPortal {
+				t.Fatalf("level %d seed %d: essentials shop=%d heal=%d portal=%d (want 1/2/%d)", level, seed, shop, heal, portal, wantPortal)
+			}
+		}
+	}
+}
+
+// A tile can hold several monsters (a swarm), each on its own hero-UNREACHABLE square (so
+// they never stack with a hero): corners / closed-edge midpoints, never a walkable one.
 func TestCrawlerMultipleMonstersPerTile(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	mons := []*crawlerMonster{
@@ -660,8 +767,8 @@ func TestCrawlerMultipleMonstersPerTile(t *testing.T) {
 		if seen[m.square] {
 			t.Fatalf("two monsters share square %d: a swarm must spread out", m.square)
 		}
-		if !crawlerWalkable(edges)[m.square] {
-			t.Fatalf("monster placed on non-walkable square %d", m.square)
+		if crawlerWalkable(edges)[m.square] {
+			t.Fatalf("robot placed on a walkable (hero) square %d", m.square)
 		}
 		seen[m.square] = true
 	}
@@ -1728,12 +1835,17 @@ func TestCrawlerHazardRoomsAppearFromLevel2(t *testing.T) {
 		for _, s := range g.deck {
 			seen[s.kind] = true
 		}
-		haz := seen[crKindWiring] || seen[crKindCoolant] || seen[crKindFog]
-		if lvl == 1 && haz {
-			t.Fatal("no hazard rooms should appear at Level 1")
+		// Fog (the sensor/hidden room) appears from Level 1; the other Woodland hazard rooms
+		// (live-wiring, coolant-flood) start at Level 2.
+		if !seen[crKindFog] {
+			t.Fatalf("L%d: the sensor-fog room should appear from Level 1", lvl)
 		}
-		if lvl == 2 && !haz {
-			t.Fatal("hazard rooms should appear from Level 2")
+		otherHaz := seen[crKindWiring] || seen[crKindCoolant]
+		if lvl == 1 && otherHaz {
+			t.Fatal("wiring/coolant hazard rooms should not appear at Level 1")
+		}
+		if lvl == 2 && !otherHaz {
+			t.Fatal("wiring/coolant hazard rooms should appear from Level 2")
 		}
 	}
 }
@@ -2389,8 +2501,8 @@ func TestCrawlerDownedNotDeadAndRevive(t *testing.T) {
 	}
 	g.turn, g.step, g.dice = 1, crStepSpend, []crawlerDie{{Value: 3}, {Value: 3}} // two dice: don't auto-end
 	g.revive(1, 0)
-	if h0.downed || h0.health != 1 {
-		t.Fatalf("revive should bring the ally back on 1 Health: downed=%v health=%d", h0.downed, h0.health)
+	if h0.downed || h0.health != 2 {
+		t.Fatalf("revive should bring the ally back on 2 Health: downed=%v health=%d", h0.downed, h0.health)
 	}
 	if !g.dice[0].Spent || g.dice[1].Spent {
 		t.Fatalf("revive should spend exactly one die: %+v", g.dice)
@@ -2474,22 +2586,22 @@ func TestCrawlerLayNeverSealsTheMap(t *testing.T) {
 		t.Fatalf("a non-sealing tile should be offered; pending=%v", g.pending)
 	}
 	if g.pending.spec.kind != "straight" {
-		t.Fatalf("the sealing dead-end must be buried, the straight laid; got %q", g.pending.spec.kind)
+		t.Fatalf("the sealing dead-end must be cycled past, the straight laid; got %q", g.pending.spec.kind)
 	}
 	for _, o := range g.pending.options {
 		if !g.keepsForestOpen(o.X, o.Y, o.Edges) {
 			t.Fatalf("offered a map-sealing placement at (%d,%d)", o.X, o.Y)
 		}
 	}
-	if g.deck[len(g.deck)-1].kind != "dead-end" {
-		t.Fatalf("the buried dead-end should sit at the bottom of the stack; deck=%v", g.deck)
+	if len(g.deck) != 2 || g.deck[g.deckPos].kind != "dead-end" {
+		t.Fatalf("the sealing dead-end must be CYCLED (kept in the stack, retried next), not discarded; deck=%v deckPos=%d", g.deck, g.deckPos)
 	}
 }
 
-func TestCrawlerLayBuriesUnconnectableTile(t *testing.T) {
-	// Mapmaking Rule 3: a drawn tile that cannot legally connect anywhere goes to the
-	// bottom of the stack and the next is drawn until one fits. A tile with no openings
-	// can never join the map, so it is buried in favour of the straight behind it.
+func TestCrawlerLayCyclesUnconnectableTile(t *testing.T) {
+	// Mapmaking Rule 3: a drawn tile that cannot legally connect anywhere is CYCLED past
+	// (kept in the stack, retried as the map grows), never discarded. A tile with no
+	// openings can never join the map, so the straight behind it is laid instead.
 	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
 	g.AddPlayer("beaver", "bever")
 	g.phase = crPlaying
@@ -2505,10 +2617,10 @@ func TestCrawlerLayBuriesUnconnectableTile(t *testing.T) {
 	g.turn = 0
 	g.beginLayPhase()
 	if g.pending == nil || g.pending.spec.kind != "straight" {
-		t.Fatalf("the unconnectable blank must be buried and the straight laid; pending=%v", g.pending)
+		t.Fatalf("the unconnectable blank must be cycled past and the straight laid; pending=%v", g.pending)
 	}
-	if g.deck[len(g.deck)-1].kind != "blank" {
-		t.Fatalf("the buried blank should sit at the bottom of the stack; deck=%v", g.deck)
+	if len(g.deck) != 2 || g.deck[g.deckPos].kind != "blank" {
+		t.Fatalf("the unconnectable blank must be kept (cycled), not discarded; deck=%v deckPos=%d", g.deck, g.deckPos)
 	}
 }
 
@@ -2698,5 +2810,237 @@ func TestCrawlerFireBitesOnEntry(t *testing.T) {
 	g.enterHazard(h)
 	if h.health != before-2 {
 		t.Fatalf("stepping onto fire should deal 2 damage (%d -> %d)", before, h.health)
+	}
+}
+
+func TestCrawlerRobotsOnHeroUnreachableSquares(t *testing.T) {
+	// Robots land on hero-unreachable squares (corners / closed-edge mids), never a walkable
+	// one; the boss keeps the centre. So heroes and robots never share a square.
+	edges := [4]bool{true, true, true, true} // crossroads: walkable = {4,1,3,5,7}
+	boss := &crawlerMonster{isBoss: true}
+	r1, r2, r3 := &crawlerMonster{}, &crawlerMonster{}, &crawlerMonster{}
+	assignMonsterSquares(edges, []*crawlerMonster{boss, r1, r2, r3})
+	if boss.square != 4 {
+		t.Fatalf("boss should hold the centre, got %d", boss.square)
+	}
+	w := crawlerWalkable(edges)
+	seen := map[int]bool{}
+	for _, m := range []*crawlerMonster{r1, r2, r3} {
+		if w[m.square] {
+			t.Fatalf("a robot landed on a walkable (hero) square %d", m.square)
+		}
+		if seen[m.square] {
+			t.Fatalf("robots stacked on square %d", m.square)
+		}
+		seen[m.square] = true
+	}
+}
+
+func TestCrawlerMoveLayCyclesToFittingTile(t *testing.T) {
+	// Moving to a frontier spawns a tile that fits that doorway, cycling past a top tile that
+	// cannot connect there (before, the move was silently blocked).
+	g, _ := startedCrawler(t, 1)
+	g.grace = -1
+	g.deck = []tileSpec{
+		{kind: "blank", base: [4]bool{}},                            // no openings: never connects
+		{kind: "straight", base: [4]bool{false, true, false, true}}, // E-W corridor
+	}
+	g.deckPos = 0
+	if !g.beginLay(0, 1, 1, 0) { // step east onto frontier (1,0)
+		t.Fatal("moving to a frontier should spawn a fitting tile")
+	}
+	if g.pending == nil || g.pending.spec.kind != "straight" {
+		t.Fatalf("should have cycled past the unconnectable blank to the straight; pending=%v", g.pending)
+	}
+}
+
+func TestCrawlerExploreLootChance(t *testing.T) {
+	// Any explored room (enemies or not) has a chance at 1-2 loot, capped at 2; the Vault /
+	// fog / boss run their own loot and never get this.
+	g, _ := startedCrawler(t, 1)
+	vault := g.placeTile(5, 5, [4]bool{false, false, true, false}, 0, crKindVault, false, nil)
+	g.seedTileLoot(vault, true)
+	if len(vault.loot) != 0 {
+		t.Fatalf("the Vault runs its own loot; seedTileLoot must skip it, got %d", len(vault.loot))
+	}
+	sawLoot := false
+	for seed := uint64(1); seed <= 80; seed++ {
+		g2 := newCrawlerGame(newFakeOutbox(0), seed).(*crawlerGame)
+		g2.tiles = map[int]*crawlerTile{}
+		g2.at = map[[2]int]int{}
+		// An EMPTY ordinary room (no enemies) should still sometimes get loot.
+		et := g2.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+		g2.seedTileLoot(et, true)
+		if len(et.loot) > 2 {
+			t.Fatalf("seed %d: more than 2 loot pieces (%d)", seed, len(et.loot))
+		}
+		if len(et.loot) > 0 {
+			sawLoot = true
+		}
+	}
+	if !sawLoot {
+		t.Fatal("explored rooms should sometimes get loot even with no enemies")
+	}
+}
+
+func TestCrawlerFogL1CacheOnly(t *testing.T) {
+	// Level 1 (the tutorial) fog is always a loot cache, never a Hulk-led ambush.
+	for seed := uint64(1); seed <= 40; seed++ {
+		g := newCrawlerGame(newFakeOutbox(0), seed).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		g.level = 1
+		tile := g.placeTile(3, 3, crSpecialBase[crKindFog], 0, crKindFog, false, nil)
+		g.populateFogRoom(tile)
+		if len(tile.monsters) != 0 {
+			t.Fatalf("seed %d: Level 1 fog must be cache-only, got %d monsters", seed, len(tile.monsters))
+		}
+		if len(tile.loot) == 0 {
+			t.Fatalf("seed %d: Level 1 fog should still drop a cache", seed)
+		}
+	}
+}
+
+func TestCrawlerFloorLootGating(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	// Proactive LAY-phase lays (exploration=false) never seed floor loot.
+	pt := g.placeTile(6, 6, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	for i := 0; i < 50; i++ {
+		g.seedTileLoot(pt, false)
+	}
+	if len(pt.loot) != 0 {
+		t.Fatalf("proactive lays must not seed floor loot, got %d", len(pt.loot))
+	}
+	// Service tiles never seed, even on exploration.
+	for i, kind := range []string{crKindShop, crKindHealing, crKindPortal} {
+		st := g.placeTile(10+i, 10+i, crSpecialBase[kind], 0, kind, false, nil)
+		for j := 0; j < 50; j++ {
+			g.seedTileLoot(st, true)
+		}
+		if len(st.loot) != 0 {
+			t.Fatalf("service tile %q must not seed floor loot, got %d", kind, len(st.loot))
+		}
+	}
+}
+
+func TestCrawlerFastMoverKeepsStepAfterLayingTile(t *testing.T) {
+	// A moveRange-2 hero whose move LAID a new tile still gets its remaining bonus step
+	// (before, laying a tile swallowed the whole die).
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.sheet.moveRange = 2
+	h.square = crawlerDoor[1] // east doorway, facing the frontier
+	g.deck = []tileSpec{{kind: "straight", base: [4]bool{false, true, false, true}}}
+	g.deckPos = 0
+	g.grace = -1
+	g.dice = []crawlerDie{{Value: 6}}
+	g.turn = 0
+
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSpend, "die": 0, "action": actMove, "dir": 1})
+	if g.pending == nil {
+		t.Fatal("stepping east off the edge should start a lay")
+	}
+	o := g.pending.options[0]
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgLay, "x": o.X, "y": o.Y, "rotation": o.Rotation})
+	if g.bonusMoves != 1 {
+		t.Fatalf("a fast mover should keep 1 bonus step after laying a tile, got %d", g.bonusMoves)
+	}
+}
+
+func TestCrawlerLayPhaseLaysForestNoLoss(t *testing.T) {
+	// Regression (the "level 1 had very few tiles" bug): the proactive lay phase must NEVER
+	// discard a tile (cycling keeps the stack length constant), and must lay the forest up
+	// to the boss. The logged count is the real number of forest tiles for a level-1 deck.
+	g := newCrawlerGame(newFakeOutbox(0), 7).(*crawlerGame)
+	g.AddPlayer("beaver", "bever")
+	g.phase = crPlaying
+	g.bands = 3
+	g.grace = -1
+	g.level = 1
+	g.biome = crWoodland
+	g.buildDeck()
+	deckLen := len(g.deck)
+	start := g.placeTile(0, 0, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	g.players[0].tileID = start.id
+	g.players[0].square = 4
+	g.turn = 0
+
+	laid, sawBoss := 0, false
+	for i := 0; i < 200; i++ {
+		g.pending = nil
+		g.step = crStepLay
+		g.grace = -1 // keep laying for this count (ignore the collapse clock)
+		g.beginLayTurn(0)
+		if len(g.deck) != deckLen {
+			t.Fatalf("a tile was DISCARDED: deck length %d -> %d", deckLen, len(g.deck))
+		}
+		if g.pending == nil || len(g.pending.options) == 0 {
+			break
+		}
+		if g.pending.spec.isBoss {
+			sawBoss = true
+			break
+		}
+		o := g.pending.options[0]
+		g.layTile(0, o.X, o.Y, o.Rotation)
+		laid++
+	}
+	t.Logf("level 1: laid %d forest tiles of a %d-tile deck before the boss (sawBoss=%v)", laid, deckLen, sawBoss)
+	if laid < 8 {
+		t.Fatalf("only %d tiles laid of a %d deck: the lay phase is thinning the level", laid, deckLen)
+	}
+}
+
+func TestCrawlerDeckMatchesLevelTable(t *testing.T) {
+	// The deck must contain EXACTLY the per-level tile table (path counts, specials, boss).
+	totals := [6]int{20, 25, 21, 26, 22, 27}
+	want := map[string][6]int{
+		"straight": {4, 4, 2, 5, 2, 3},
+		"bend":     {4, 4, 3, 3, 2, 2},
+		"tee":      {3, 3, 1, 2, 1, 3},
+		"cross":    {2, 2, 1, 2, 1, 2},
+		"dead-end": {1, 1, 1, 1, 1, 1},
+		"healing":  {2, 2, 2, 2, 2, 2},
+		"shop":     {1, 1, 1, 1, 1, 1},
+		"portal":   {1, 1, 2, 1, 1, 1},
+		"vault":    {0, 1, 1, 1, 1, 1},
+		"shrine":   {0, 1, 0, 0, 0, 0},
+		"wiring":   {0, 1, 1, 1, 1, 1},
+		"coolant":  {0, 1, 1, 1, 1, 1},
+		"fog":      {1, 2, 2, 3, 3, 4},
+		"rust":     {0, 0, 1, 1, 1, 1},
+		"trap":     {0, 0, 1, 1, 2, 2},
+		"overheat": {0, 0, 0, 0, 1, 1},
+	}
+	bossKind := [6]string{"boss", "gate", "boss", "descent", "boss", "boss"}
+	for lvl := 1; lvl <= 6; lvl++ {
+		g := newCrawlerGame(newFakeOutbox(0), uint64(lvl*7+1)).(*crawlerGame)
+		g.AddPlayer("beaver", "bever")
+		g.bands = 3
+		g.level = lvl
+		g.biome = biomeForLevel(lvl)
+		g.buildDeck()
+		if len(g.deck) != totals[lvl-1] {
+			t.Errorf("L%d: deck has %d tiles, table wants %d", lvl, len(g.deck), totals[lvl-1])
+		}
+		got := map[string]int{}
+		bosses := 0
+		for _, s := range g.deck {
+			if s.isBoss {
+				bosses++
+				if s.kind != bossKind[lvl-1] {
+					t.Errorf("L%d: boss kind %q, want %q", lvl, s.kind, bossKind[lvl-1])
+				}
+				continue
+			}
+			got[s.kind]++
+		}
+		if bosses != 1 {
+			t.Errorf("L%d: %d boss tiles, want exactly 1", lvl, bosses)
+		}
+		for kind, counts := range want {
+			if got[kind] != counts[lvl-1] {
+				t.Errorf("L%d: %s = %d, table wants %d", lvl, kind, got[kind], counts[lvl-1])
+			}
+		}
 	}
 }

@@ -187,6 +187,7 @@ function CrawlerRoom({
   const debug = useStatsFlag(); // F3 toggles a debug overlay (like Bomberman)
   const spriteFor = useHeroSprites(g.view); // walk/facing animation for the board pawns
   const [sel, setSel] = useState<number | null>(null); // selected die index
+  const [hlMon, setHlMon] = useState<string | null>(null); // "tileId-monsterId" of the attack button under the cursor, glowed on the board
   const [layRot, setLayRot] = useState(0); // chosen orientation (0..3) while laying a tile
   const [startLevel, setStartLevel] = useState(1); // lobby: which level to begin at
   const [devBoss, setDevBoss] = useState(""); // F3 dev: forced boss slug ("" = random)
@@ -556,8 +557,9 @@ function CrawlerRoom({
                   die={v.dice[sel]}
                   me={me}
                   view={v}
-                  onAct={(msg) => { g.send(msg); setSel(null); }}
+                  onAct={(msg) => { g.send(msg); setSel(null); setHlMon(null); }}
                   onReroll={() => { g.send({ t: "reroll", die: sel }); }}
+                  onHover={setHlMon}
                 />
               )}
               {(() => {
@@ -658,6 +660,7 @@ function CrawlerRoom({
           focus={focus}
           debug={debug}
           spriteFor={spriteFor}
+          highlight={hlMon}
           onPickup={(sq) => g.send({ t: "pickup", square: sq })}
           onReopenShop={(id) => setShopDismissedTile((d) => (d === id ? null : d))}
           lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt, rotate: rotateLayBy } : null}

@@ -9,12 +9,14 @@ export function CrawlerActions({
   view,
   onAct,
   onReroll,
+  onHover,
 }: {
   die: CrDie;
   me: CrHero;
   view: CrView;
   onAct: (msg: object) => void;
   onReroll: () => void;
+  onHover?: (key: string | null) => void;
 }) {
   const mins = menuMins(me);
   const can = (action: string) => die.value >= (mins[action] ?? 99);
@@ -53,6 +55,10 @@ export function CrawlerActions({
               key={`${tileId}-${m.id}`}
               className="game-btn"
               title={`This ${die.value} meets Armour ${effArmour(m)}${effArmour(m) < m.armour ? ` (reduced from ${m.armour})` : effArmour(m) > m.armour ? ` (raised from ${m.armour})` : ""}: a hit.${ranged ? " Ranged, adjacent tile." : ""} Health ${m.health}/${m.maxHP}.`}
+              onMouseEnter={() => onHover?.(`${tileId}-${m.id}`)}
+              onMouseLeave={() => onHover?.(null)}
+              onFocus={() => onHover?.(`${tileId}-${m.id}`)}
+              onBlur={() => onHover?.(null)}
               onClick={() => onAct({ t: "spend", die: di, action: "attack", monster: m.id, tile: tileId })}
             >
               {ranged ? "🎯" : m.isBoss ? "👑" : "👹"} A{effArmour(m)} · ❤{m.health}/{m.maxHP} ✓
@@ -82,6 +88,14 @@ export function CrawlerActions({
         <div className="cr-action-row">
           <span>{specLabel}:</span>
           <button className="game-btn" onClick={() => onAct({ t: "spend", die: di, action: "guard", ally: me.s })}>self (+1🛡)</button>
+        </div>
+      )}
+      {can(me.special) && me.special === "pilfer" && (
+        <div className="cr-action-row">
+          <span>{specLabel}:</span>
+          {DIRS.map((_, d) => (
+            <button key={d} className="game-btn" title="Pull a ground item from the adjacent tile that way into your pack." onClick={() => onAct({ t: "spend", die: di, action: "pilfer", dir: d })}>{DIR_ARROW[d]}</button>
+          ))}
         </div>
       )}
       {can("courage") && me.courage < COURAGE_CAP && (

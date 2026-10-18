@@ -48,7 +48,7 @@ export function ObjIcon({ slug, size = 22 }: { slug: string; size?: number }) {
   );
 }
 
-export function MonsterSprite({ m }: { m: CrMonster }) {
+export function MonsterSprite({ m, highlighted }: { m: CrMonster; highlighted?: boolean }) {
   const slug = ENEMY_ART.has(m.kind) ? m.kind : m.isBoss ? "boss" : "";
   if (!slug) return <>{m.alive ? "👹" : "💀"}</>;
   // A defeated robot stays on its square in its destroyed frame; a living one that is
@@ -56,7 +56,7 @@ export function MonsterSprite({ m }: { m: CrMonster }) {
   const pose = !m.alive ? "destroyed" : m.engaged ? "attack" : "idle";
   return (
     <span
-      className={`cr-enemy${m.isBoss ? " boss" : ""}${m.engaged && m.alive ? " engaged" : ""}${m.alive ? "" : " dead"}`}
+      className={`cr-enemy${m.isBoss ? " boss" : ""}${m.engaged && m.alive ? " engaged" : ""}${m.alive ? "" : " dead"}${highlighted ? " highlight" : ""}`}
       style={{ backgroundImage: `url(/sprites/crawler/enemies/${slug}/${pose}.png)` }}
       aria-label={m.kind}
     />

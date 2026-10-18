@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Totem Finder API
-  version: "1.2.0"
+  version: "1.3.0"
   description: >
     Read API for the totem catalogue (animals, traits, similarity, images, emoji),
     two hardened public write endpoints for community feedback (new-animal
@@ -329,7 +329,8 @@ paths:
 
         After the upgrade the server sends a `welcome` frame (your slot, the room's
         `game` slug, the tick rate, any game-specific `extra`, and a `token` to
-        reclaim this seat after a drop), then `state` frames and `roster` frames on
+        reclaim this seat after a drop; a reconnect with that token SUPERSEDES a still
+        -connected stale socket and keeps the same seat and state), then `state` frames and `roster` frames on
         membership changes. How often `state` arrives depends on the game: the only
         realtime game (Bomberman) streams ~60x/second, while the turn-based games
         (Codenames, Hanabi, the Totem Crawler, …) are event-driven and push a
@@ -365,19 +366,22 @@ paths:
           schema: { type: string }
       responses:
         "101":
-          description: Switching protocols — the WebSocket is open.
-        "400":
-          description: Invalid player name
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+          description: >
+            Switching protocols: the WebSocket is open. Validation that used to be a
+            pre-upgrade HTTP 4xx now happens OVER the socket: the server accepts the
+            upgrade and, if it must refuse, sends an `error` frame and closes with a
+            WebSocket close code so the client can act on the reason:
+              * **4404** (`wsCloseRoomGone`, the browser-readable 4000-4999 range) — unknown
+                room code, or a room that closed mid-session. The client stops reconnecting,
+                drops its stale resume token, and shows "This room is no longer available".
+              * **1008** (policy violation) — invalid player name.
+              * **1013** (try again later) — room full / unavailable.
+            A plain network drop surfaces as **1006**; the client retries with full-jitter
+            backoff for ~5 minutes (longer than the seat-hold grace) before giving up.
         "403":
-          description: Origin not allowed (cross-origin WebSocket refused)
-        "404":
-          description: Unknown room code
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+          description: >
+            Origin not allowed (cross-origin WebSocket refused). This one is still a
+            pre-upgrade HTTP error, written by `websocket.Accept` before the handshake.
 
 components:
   parameters:

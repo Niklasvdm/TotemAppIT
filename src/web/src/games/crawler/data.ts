@@ -83,7 +83,7 @@ export const OBJECTS: Record<string, { name: string; emoji: string; perm: boolea
   "grounding-boots": { name: "Grounding Boots", emoji: "🥾", perm: true, effect: "immune to shock statuses" },
   medkit: { name: "Medkit", emoji: "🩹", perm: false, effect: "heal 3" },
   grenade: { name: "Grenade", emoji: "💣", perm: false, effect: "auto-kill a Health-1 robot on your tile", target: true },
-  "recall-whistle": { name: "Recall Whistle", emoji: "↩️", perm: false, effect: "teleport to a transporter" },
+  "recall-whistle": { name: "Recall Whistle", emoji: "↩️", perm: false, effect: "teleport to the start or a transporter" },
   battery: { name: "Battery", emoji: "🔋", perm: false, effect: "+2 Courage" },
   torch: { name: "Torch", emoji: "🔦", perm: false, effect: "clears the hazards on your tile" },
   "courage-horn": { name: "Courage Horn", emoji: "📯", perm: false, effect: "+1 Courage to every ally on your tile" },
@@ -169,6 +169,7 @@ export const SPECIAL_INFO: Record<string, { name: string; blurb: string }> = {
   brace: { name: "Brace", blurb: "Spend a die (≥2) for 2 Shields to yourself or an ally on your tile." },
   mend: { name: "Mend", blurb: "Spend a die (≥2) to heal 2 to a hero on your tile." },
   guard: { name: "Guard", blurb: "Spend a die (≥2) for +1 Shield (a placeholder for this totem's full special)." },
+  pilfer: { name: "Snatch", blurb: "Spend a die (≥2) to snatch a ground item from an adjacent tile into your pack." },
 };
 export function specialInfo(special: string): { name: string; blurb: string } {
   return SPECIAL_INFO[special] ?? { name: special, blurb: "A special action." };

@@ -5,7 +5,7 @@ import type { CrTile, CrView, SpriteFor } from "./types";
 import { HAZARDS, objInfo, specialLabel, tileKind } from "./data";
 import { TotemSprite, MonsterSprite, ObjIcon } from "./sprites";
 
-export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup, onReopenShop }: { tile: CrTile; v: CrView; focus?: boolean; debug?: boolean; spriteFor: SpriteFor; onPickup?: (square: number) => void; onReopenShop?: () => void }) {
+export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, highlight, onPickup, onReopenShop }: { tile: CrTile; v: CrView; focus?: boolean; debug?: boolean; spriteFor: SpriteFor; highlight?: string | null; onPickup?: (square: number) => void; onReopenShop?: () => void }) {
   const heroesHere = v.heroes.filter((h) => h.tile === tile.id); // includes the fallen (death stance)
   const lost = v.ph === "lost"; // a party wipe or collapse: everyone drops to the defeated frame
   const you = v.heroes.find((h) => h.s === v.you);
@@ -31,9 +31,10 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup, on
       {tile.fogged && <div className="cr-fog" title="Sensor fog: move a hero onto or next to this tile to reveal it">🌫️</div>}
       <div className="cr-squares">
         {Array.from({ length: 9 }, (_, sq) => {
-          // Each square holds at most one monster; a defeated one stays put in its
-          // destroyed frame (no stat badge), a living one shows its stats + Courage reward.
-          const monster = tile.monsters.find((m) => m.square === sq);
+          // Every monster on the square is drawn (a square can hold more than one when a
+          // swarm or summons overflow); each is offset slightly so none is hidden. A defeated
+          // one stays put in its destroyed frame (no stat badge), a living one shows its stats.
+          const monsters = tile.monsters.filter((m) => m.square === sq);
           const here = heroesHere.filter((h) => h.square === sq);
           const loot = (tile.loot ?? []).filter((l) => l.square === sq);
           const hazard = (tile.hazards ?? []).find((hz) => hz.square === sq);
@@ -61,21 +62,28 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, onPickup, on
                   </span>
                 );
               })}
-              {monster && (
-                <span className="cr-mon">
+              {monsters.map((monster, mi) => (
+                <span
+                  key={`mon-${monster.id}`}
+                  className="cr-mon"
+                  style={mi ? { transform: `translate(${mi * 9}px, ${mi * 9}px)` } : undefined}
+                >
                   {monster.alive && monster.name && (
                     <span className="cr-boss-name" title={(monster.specials ?? []).map(specialLabel).join(" · ")}>
                       {monster.name}{(monster.specials?.length ?? 0) > 0 ? " ⚡" : ""}
                     </span>
                   )}
-                  <MonsterSprite m={monster} />
+                  <MonsterSprite m={monster} highlighted={`${tile.id}-${monster.id}` === highlight} />
                   {monster.alive && (
                     <span className="cr-mon-badge" title={`Armour ${monster.effArmour ?? monster.armour}${(monster.effArmour ?? monster.armour) !== monster.armour ? ` (base ${monster.armour})` : ""} — your die must meet it to hit. Health ${monster.health}/${monster.maxHP}, Damage ${monster.damage}, grants ${monster.reward} Courage on defeat${(monster.specials?.length ?? 0) > 0 ? ". Specials: " + (monster.specials ?? []).map(specialLabel).join(", ") : ""}`}>
-                      🛡{monster.effArmour ?? monster.armour} ❤{monster.health} 💥{monster.damage} ✊{monster.reward}
+                      <span>🛡{monster.effArmour ?? monster.armour}</span>
+                      <span>❤{monster.health}</span>
+                      <span>💥{monster.damage}</span>
+                      <span>✊{monster.reward}</span>
                     </span>
                   )}
                 </span>
-              )}
+              ))}
               {here.map((h) => {
                 const a = spriteFor(h.s);
                 const dead = h.downed || !h.alive || lost;

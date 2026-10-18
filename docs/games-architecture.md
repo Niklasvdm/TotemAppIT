@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.17.3
+version: 0.22.0
 relate to:
   - "[[TotemApp-IT]]"
 ---
@@ -12,7 +12,7 @@ relate to:
 
 How the realtime multiplayer layer is put together, how **many rooms run side by side in one process**, and how a **new game** plugs into it. The main [README](../README.md#games-multiplayer) covers Bomberman's netcode (prediction, interpolation) in depth; this document is about the **shared engine** underneath it, the per-room isolation model, and the per-game rules that every game adds.
 
-As of **0.4.0** there are nine games on this engine: Bomberman, Codenames, The Mind, The Game, Wavelength, Just One, Love Letter, Decrypto and Hanabi. The full [game catalog](#game-catalog) documents each one.
+As of **0.4.15** there are **ten** games on this engine (plus the Totem Crawler): Bomberman, Codenames, The Mind, The Game, Wavelength, Just One, Love Letter, Decrypto, Hanabi and Skyjo. The full [game catalog](#game-catalog) documents each one.
 
 ## UML notation in this document
 
@@ -33,7 +33,7 @@ Everything that is *not* a game's rules is shared. A room is a code, a set of se
 
 The one capability these games need that Bomberman alone never did is **per-seat private views**: the Codenames spymaster sees the colour key and the guessers do not; in Love Letter you see your own hand and no one else's; in Hanabi it is inverted, you see everyone's hand *except* your own. So the room does not simply broadcast one state to all. On every change a turn-based game renders the view *each seat is allowed to see* and sends each seat its own frame.
 
-Two engine modes cover all nine games:
+Two engine modes cover all eleven games (the ten above plus the Totem Crawler):
 
 - **Realtime** (`TickHz() > 0`): a server clock advances the simulation and broadcasts snapshots. **Bomberman only** (60 Hz). It uses `Outbox.Broadcast` because every player sees the same arena.
 - **Event-driven** (`TickHz() == 0`): no game clock. The room only pushes when a command changed something, so an idle room sends nothing. **Every other game.** These use `Outbox.Send` per seat for private views.
@@ -102,7 +102,7 @@ class Conn {
 
 class heldSeat {
   -token : string
-  -until : time.Time  (now + 30s)
+  -until : time.Time  (now + reconnectGrace, 2 min)
 }
 
 class bombermanGame <<realtime 60Hz>> {
@@ -288,7 +288,7 @@ API -> Room : Registry.Create(slug)
 API --> Client : 201 { code }
 
 == join (WebSocket) ==
-Client -> API : GET /api/v1/games/ws?code&name&meta&resume
+Client -> API : GET /api/v1/games/ws?code&name&animal&resume
 note right of API : Origin checked (same-origin\n+ dev allowlist); 512B frame cap;\nper-second frame budget
 API -> Room : Join(name, meta, resume)
 alt valid resume token (constant-time compare)
@@ -326,11 +326,11 @@ Three cross-cutting guards live at the room boundary, so no game repeats them:
 - **Command size cap (server).** `Room.Command` drops any client frame over `maxCommandBytes` (8 KiB) before it reaches game parsing. Commands decode through the shared `decodeCmd[T]` helper (`command.go`), the one place to harden parsing.
 - **Identical-frame skip (server).** `sendTo` does not re-send a per-seat view byte-identical to the last one sent to that connection (the UI renders latest state, so it carries nothing). It is reconnect-safe: a reclaimed seat gets a fresh `Conn` and a full frame via `Joined`. Bomberman is unaffected (it broadcasts).
 - **Reconnect supersedes the stale connection (server).** A seat is reclaimed by its resume token, but a silently-dropped socket (macOS App Nap, a backgrounded tab, a lid-sleep) can linger seated for up to a ping interval (~25s) before the server notices. A reconnect inside that window used to fail the reclaim and seat the client as a **new** player (in the crawler, a fresh hero on the start tile: a "teleport"). Now `Join` reclaims the live seat on a valid token and **supersedes** the old connection: it closes the old send queue (unwinding its pumps, so it stops issuing commands), and connections carry identity so `Command` ignores a superseded socket's frames and its delayed `Leave`/`Quit` no-ops instead of evicting the connection that replaced it. Trade-off: the token now lets a client take over its seat even while connected (not only after a drop); the token is the single per-seat secret, minted fresh each seating.
-- **Room-gone close code (server + client).** A missing or closed room must be told apart from a flaky connection, or a client would reconnect-spam a room that no longer exists (a phone that re-opens a dead room is the common case). A failed HTTP upgrade cannot carry that distinction: a browser surfaces it as close code 1006, the same as any network drop. So the server **accepts** the socket and then closes with a dedicated application code `wsCloseRoomGone` (`4404`, in the browser-readable 4000-4999 range), both for an unknown code at join (`gameWS`) and for a room that closes mid-session (`gameWritePump`). The shared transport (`useRoom`) treats `4404` as terminal: it stops reconnecting at once, drops the stale resume token, and surfaces "This room is no longer available." Any other close still retries with backoff (up to `MAX_RETRIES`).
+- **Room-gone close code (server + client).** A missing or closed room must be told apart from a flaky connection, or a client would reconnect-spam a room that no longer exists (a phone that re-opens a dead room is the common case). A failed HTTP upgrade cannot carry that distinction: a browser surfaces it as close code 1006, the same as any network drop. So the server **accepts** the socket and then closes with a dedicated application code `wsCloseRoomGone` (`4404`, in the browser-readable 4000-4999 range), both for an unknown code at join (`gameWS`) and for a room that closes mid-session (`gameWritePump`). The shared transport (`useRoom`) treats `4404` as terminal: it stops reconnecting at once, drops the stale resume token, and surfaces "This room is no longer available." Two other application closes round out the join failures: **1008** (`StatusPolicyViolation`) for an invalid player name and **1013** (`StatusTryAgainLater`) for a room that is full / unavailable. Any other close (a plain network drop, which surfaces as `1006`) keeps retrying with **full-jitter exponential backoff** for a **5-minute window** (comfortably longer than the seat-hold grace, so a blip never abandons a live seat), after which the Disconnected screen shows the close reason and a **Reconnect** button.
 
 ## Logging & observability
 
-> Status: implemented server-side for connection lifecycle and the Totem Crawler (0.17.18); the other games can adopt the same two-line pattern as needed. It exists because a recent "a hero teleported mid-game" report could not be traced at all.
+> Status: implemented across the engine. Connection lifecycle + the crawler trace landed with the logging in **0.18.0**, and the per-command debug trace reached **every game in 0.18.1**. It exists because a recent "a hero teleported mid-game" report could not be traced at all.
 
 The aim is enough signal to reconstruct an incident without drowning the journal or the 60 Hz tick loop. Four principles: structured key/value records, one line per meaningful event, strict level discipline, and nothing on the hot path or near a secret.
 
@@ -365,10 +365,17 @@ slog.Debug("crawler command", "event", "cmd", "room", r.code, "seat", seat, "cmd
 ```
 
 **Where it hooks.**
-- Room (`room.go`), wired: `reconnect` (resume reclaimed a seat, with `superseded`), `supersede` (a stale connection evicted), `drop` (socket dropped, seat held for the grace), `drop_expired` (the held seat lapsed), `remove`, and panic recovery at `error`. The drop / reconnect / supersede lines use the always-on verbose logger.
-- Crawler (`crawler.go`), wired and gated by the room's debug flag: `cmd` (each command, with `seat` / `level` / `turn` / `step`), `lay` (tile kind + cell + rotation), `portal` (from / to tile). The portal line is exactly what the earlier teleport incident needed.
-- Transport (`api/games.go`), planned: a per-connection `conn` id minted at accept and logged on close with its WS close code, so one socket traces end to end. Not yet wired; the room-level events already cover drops and reconnects.
-- Other games, wired: each logs a `debug` `cmd` line in its `Command` (gated by the global level, since only the crawler has a per-room debug flag). Bomberman omits its per-frame movement input to stay off the hot path. Connection lifecycle is already covered for every game by the shared room layer above.
+
+| Event(s) | Source | Logger / level | Status |
+| --- | --- | --- | --- |
+| `reconnect` (with `superseded`), `supersede`, `drop`, `drop_expired`, `leave` | `room.go` | verbose (info / warn) | wired |
+| `join_fail` (4404 / room full), `room_deleted`, `room_reaped` | `api/games.go`, `registry.go` | verbose (info / warn) | wired |
+| panic recovery | `room.go` | default, `error` | wired |
+| crawler `cmd` (seat/level/turn/step), `lay`, `portal` | `crawler.go` | verbose `debug`, gated by the room's debug flag | wired |
+| each other game's `cmd` | each game `*.go` | default `debug` (global level); Bomberman omits per-frame input | wired |
+| per-connection `conn` id + close code | `api/games.go` | — | planned |
+
+The verbose (always-on) lines show even at the quiet `error` default; the `cmd`/`lay`/`portal` trace is the end-to-end detail the earlier teleport incident needed.
 
 **Hot-path discipline.** Bomberman ticks 60 times a second, so nothing per-tick goes above `debug`, and even `debug` is guarded (a flag check like the crawler's room-debug gate, or `slog.Default().Enabled`) so no record is built when it would only be discarded. Turn-based games change state rarely, so their per-command lines sit at `debug` and stay silent at the default level.
 
@@ -523,4 +530,4 @@ The engine is the fixed part; a new game is a backend `Game` plus a client page.
 
 ## History
 
-The engine refactor (0.3.9) lifted Bomberman's `*Match` out of `Room` behind the `Game`/`Outbox` interfaces, proving the seam with zero behaviour change. The turn-based games were then built in the order **Codenames → The Mind → The Game → Wavelength** (0.3.9), each exercising a private-view shape, followed by **Just One, Love Letter, Decrypto and Hanabi** (0.4.0). All nine now run side by side on the same engine; Bomberman is just the one realtime `Game` among them.
+The engine refactor (0.3.9) lifted Bomberman's `*Match` out of `Room` behind the `Game`/`Outbox` interfaces, proving the seam with zero behaviour change. The turn-based games were then built in the order **Codenames → The Mind → The Game → Wavelength** (0.3.9), each exercising a private-view shape, followed by **Just One, Love Letter, Decrypto and Hanabi** (0.4.0). They all run side by side on the same engine (Skyjo and the Totem Crawler followed); Bomberman is just the one realtime `Game` among them.
