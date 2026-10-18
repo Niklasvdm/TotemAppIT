@@ -11,6 +11,7 @@ relate to:
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
 ### 0.22.0 — 2026-10-18
+- `[BUG]` **Crawler: a hidden fog-room ambush no longer attacks before it is revealed.** Monsters on a still-fogged tile were striking heroes at round end (invisible attackers, a possible silent death); they stay dormant until a hero reaches the tile's centre and lifts the fog. `TestCrawlerFoggedAmbushHoldsUntilRevealed`.
 - `[BUG]` **Crawler: every monster on a square is drawn, and spawns no longer stack.** The board rendered only the first monster on a square (`.find`); it now draws them all with a small offset, and `assignMonsterSquares` spreads a swarm over distinct squares (spilling to free non-centre squares before ever doubling up) instead of dumping overflow on the centre.
 - `[BUG]` **Crawler: enemy stat badges no longer overflow onto neighbouring tiles.** The `🛡❤💥✊` line is now a compact vertical column beside the sprite, and tiles clip their contents, so the full badge stays readable without spilling across tiles.
 - `[BUG]` **Crawler: the Attack button shows which enemy it targets.** Hovering or focusing an Attack button glows the matching board sprite (shared `tileId-monsterId` key).

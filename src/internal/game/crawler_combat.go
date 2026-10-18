@@ -518,6 +518,9 @@ func (g *crawlerGame) bloomHeal(src *crawlerHero) {
 func (g *crawlerGame) resolveRound() {
 	g.clearEngaged() // drop last round's flags; this round's strikes set them afresh
 	for _, t := range g.tiles {
+		if tileHasFog(t) && !t.fogRevealed {
+			continue // a hidden fog-room ambush stays dormant until a hero reveals it (reaches the centre)
+		}
 		for _, m := range t.monsters {
 			if !m.alive {
 				continue

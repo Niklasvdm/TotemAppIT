@@ -2900,6 +2900,27 @@ func TestCrawlerFogL1CacheOnly(t *testing.T) {
 	}
 }
 
+func TestCrawlerFoggedAmbushHoldsUntilRevealed(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.level = 2
+	h := g.players[0]
+	m := &crawlerMonster{armour: 3, health: 4, maxHealth: 4, damage: 3, square: 0, alive: true, kind: "hulk", reward: 2}
+	ft := g.placeTile(4, 4, crSpecialBase[crKindFog], 0, crKindFog, false, []*crawlerMonster{m})
+	g.seedHazards(ft) // lays the fog hazard, so the tile reads as fogged
+	h.tileID = ft.id
+	h.square = crawlerDoor[0] // a doorway, not the centre: the tile is not yet revealed
+	h.health = h.sheet.maxHP
+	g.resolveRound()
+	if h.health != h.sheet.maxHP {
+		t.Fatalf("a hidden fog ambush must not strike before the tile is revealed, lost %d", h.sheet.maxHP-h.health)
+	}
+	ft.fogRevealed = true // a hero reached the centre and lifted the fog
+	g.resolveRound()
+	if h.health != h.sheet.maxHP-m.damage {
+		t.Fatalf("a revealed ambush should strike for %d, got health %d", m.damage, h.health)
+	}
+}
+
 func TestCrawlerFloorLootGating(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
 	// Proactive LAY-phase lays (exploration=false) never seed floor loot.
