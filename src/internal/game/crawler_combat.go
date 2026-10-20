@@ -100,7 +100,7 @@ func (g *crawlerGame) tryAttack(seat, tileID, monsterIdx, value int) bool {
 		// Frenzy (Wolf, second special): each kill on your turn grants a free attack die
 		// (a fresh High die added unspent to the pool), so kills can chain.
 		if h.sheet.role == roleMelee && h.specialActive(1) {
-			g.dice = append(g.dice, crawlerDie{Value: diceHigh[g.rng.IntN(len(diceHigh))], Bonus: true})
+			g.dice = append(g.dice, g.rollDie(h, diceHigh, true))
 			g.log = append(g.log, h.name+"'s Frenzy grants a free attack die.")
 		}
 	}
@@ -317,25 +317,34 @@ func bossNameOnTile(g *crawlerGame, tileID int) string {
 	return "the boss"
 }
 
-// levelBossName returns the display name of this level's boss, whether it is still in the
-// stack (not yet laid) or already on the map. Used for the start-of-level title card.
-func (g *crawlerGame) levelBossName() string {
+// levelBoss returns this level's boss monster, whether it is still in the stack (not yet laid)
+// or already on the map, or nil if none is found. Used for the start-of-level title card.
+func (g *crawlerGame) levelBoss() *crawlerMonster {
 	for i := range g.deck {
 		if !g.deck[i].isBoss {
 			continue
 		}
 		for _, m := range g.deck[i].monsters {
-			if m.isBoss && m.bossName != "" {
-				return m.bossName
+			if m.isBoss {
+				return m
 			}
 		}
 	}
 	for _, t := range g.tiles {
 		for _, m := range t.monsters {
-			if m.isBoss && m.bossName != "" {
-				return m.bossName
+			if m.isBoss {
+				return m
 			}
 		}
+	}
+	return nil
+}
+
+// levelBossName returns the display name of this level's boss (empty if none). A thin wrapper
+// over levelBoss, kept for the view and its test.
+func (g *crawlerGame) levelBossName() string {
+	if m := g.levelBoss(); m != nil {
+		return m.bossName
 	}
 	return ""
 }

@@ -126,6 +126,8 @@ type crawlerView struct {
 	Level      int                    `json:"level"`      // 1..crMaxLevel
 	LevelTiles int                    `json:"levelTiles"` // total tiles in this level's stack (for the start-of-level title card)
 	BossName   string                 `json:"bossName"`   // this level's boss display name (for the title card)
+	BossSlug   string                 `json:"bossSlug"`   // this level's boss sprite kind (title card)
+	BossTwist  []string               `json:"bossTwist"`  // this level's boss signature specials, raw slugs (title card)
 	Biome      string                 `json:"biome"`      // Woodland / Ruins / Machine (display label)
 	ShopStock  []crawlerShopView      `json:"shopStock"`  // the shop's offer this level (buy when on a shop tile)
 	BossPool   []crawlerBossView      `json:"bossPool"`   // the full boss roster, for the debug start picker
@@ -187,9 +189,16 @@ func (g *crawlerGame) viewFor(seat int) crawlerView {
 		Dice: append([]crawlerDie{}, g.dice...), DeckLeft: len(g.deck) - g.deckPos,
 		Bands: g.bands, Grace: g.grace, BonusMoves: g.bonusMoves, Log: lastLog(g.log, 12),
 		Level: g.level, Biome: biomeLabel(g.biome), Cleared: g.levelCleared,
-		LevelTiles: len(g.deck), BossName: g.levelBossName(),
-		ShopStock: []crawlerShopView{},
-		Heroes:    []crawlerHeroView{}, Tiles: []crawlerTileView{}, Frontiers: []crawlerFrontierView{},
+		LevelTiles: len(g.deck),
+		BossTwist:  []string{},
+		ShopStock:  []crawlerShopView{},
+		Heroes:     []crawlerHeroView{}, Tiles: []crawlerTileView{}, Frontiers: []crawlerFrontierView{},
+	}
+	// Start-of-level title card: the boss's name, sprite kind and signature specials (twist).
+	if b := g.levelBoss(); b != nil {
+		v.BossName = b.bossName
+		v.BossSlug = b.kind
+		v.BossTwist = append([]string{}, b.specials...)
 	}
 	// On the victory lap, tell the client how many post-boss turns the current player has
 	// left so it can show "End turn (X left)" alongside "End level".

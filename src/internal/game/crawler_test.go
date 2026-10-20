@@ -3262,3 +3262,59 @@ func TestCrawlerEpicTierObjects(t *testing.T) {
 		t.Errorf("Epic weights were lowered (drop=%d shop=%d); Spare Die was too scarce at 1", crDropWeightEpic, crShopWeightEpic)
 	}
 }
+
+// isHighFace reports whether v is a face the High die set can produce (diceHigh = {2,4,5,6});
+// a 1 or 3 means a reroll wrongly used the sheet's Low faces.
+func isHighFace(v int) bool { return v == 2 || v == 4 || v == 5 || v == 6 }
+
+// TestCrawlerRerollKeepsBonusDieHigh guards the fix for the Spare Die / attack die silently
+// turning Low on a reroll: a Bonus die must re-roll on the High face set, not the (Low) sheet.
+func TestCrawlerRerollKeepsBonusDieHigh(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	h := g.players[0]
+	h.objects = append(h.objects, "spare-die")
+	g.beginTurn(0) // re-roll the pool so the Spare Die's bonus die is present
+	bi := -1
+	for i, d := range g.dice {
+		if d.Bonus {
+			bi = i
+			break
+		}
+	}
+	if bi < 0 {
+		t.Fatal("no Bonus die in the pool after adding a Spare Die")
+	}
+	h.courage = 60
+	for k := 0; k < 40; k++ {
+		g.dice[bi].Spent = false
+		g.reroll(0, bi)
+		if !isHighFace(g.dice[bi].Value) {
+			t.Fatalf("reroll %d gave a Bonus die value %d (a Low face); it must stay High", k, g.dice[bi].Value)
+		}
+	}
+}
+
+// TestCrawlerBuySpareDieEnablesItNow guards that buying a Spare Die adds a rolled High attack
+// die to the CURRENT turn's pool immediately, rather than only taking effect next turn.
+func TestCrawlerBuySpareDieEnablesItNow(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	shop := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindShop, false, nil)
+	h := g.players[0]
+	h.tileID = shop.id
+	h.square = 4
+	h.courage = 10
+	h.objects = nil
+	g.shopStock = []string{"spare-die"}
+	before := len(g.dice)
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgBuy, "obj": "spare-die"})
+	if !heroHas(h, "spare-die") {
+		t.Fatal("the Spare Die was not bought")
+	}
+	if len(g.dice) != before+1 {
+		t.Fatalf("buying a Spare Die should add one die now: had %d, now %d", before, len(g.dice))
+	}
+	last := g.dice[len(g.dice)-1]
+	if !last.Bonus || !isHighFace(last.Value) {
+		t.Fatalf("the added die should be a High Bonus die: bonus=%v value=%d", last.Bonus, last.Value)
+	}
+}

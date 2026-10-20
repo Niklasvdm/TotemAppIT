@@ -57,7 +57,7 @@ func (g *crawlerGame) clearHeroStatuses(h *crawlerHero) bool {
 	cleared := heroClearStatuses(h)
 	if wasRusted && len(g.dice) > 0 {
 		if cur, ok := g.players[g.turn]; ok && cur == h {
-			g.dice = append(g.dice, crawlerDie{Value: electro(h, g.rollFace(h.sheet))})
+			g.dice = append(g.dice, g.rollDie(h, sheetFaces(h.sheet), false))
 		}
 	}
 	return cleared

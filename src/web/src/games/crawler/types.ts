@@ -102,6 +102,8 @@ export interface CrView {
   level: number; // 1..6
   levelTiles: number; // total tiles in this level's stack (for the start-of-level title card)
   bossName: string; // this level's boss display name (for the title card)
+  bossSlug: string; // this level's boss sprite kind (title card)
+  bossTwist: string[]; // this level's boss signature specials, raw slugs (title card)
   biome: string; // Woodland / Ruins / Machine
   shopStock: { slug: string; name: string; cost: number }[];
   bossPool: { slug: string; name: string; minLvl: number; maxLvl: number }[]; // for the F3 dev start picker

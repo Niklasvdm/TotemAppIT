@@ -235,6 +235,11 @@ type crawlerDie struct {
 	Spent   bool   `json:"spent"`
 	UsedFor string `json:"usedFor"`
 	Bonus   bool   `json:"bonus,omitempty"` // an acquired attack die (Spare Die, Wolf Frenzy), drawn in a distinct colour
+	// faces is the die's OWN distribution, set when it is rolled. A reroll draws from this, so a
+	// High/bonus die stays High and a Low die stays Low without the reroll having to know where
+	// the die came from (unexported: engine-only, never serialised). All dice are born via
+	// rollDie, so this is always set.
+	faces []int
 }
 
 type crawlerMonster struct {
@@ -1053,13 +1058,13 @@ func (g *crawlerGame) beginTurn(seat int) {
 	n := h.sheet.diceN + h.sheet.attackDiceN + extra
 	g.dice = make([]crawlerDie, n)
 	for i := range g.dice {
-		// Electrocuted (status): -1 to every die value (floored at 1), applied via electro
-		// so rerolls get the same penalty (see reroll).
+		// Base dice roll on the sheet's faces; everything past diceN is a Bonus (distinct-colour)
+		// High die (innate attack die / Spare Die). rollDie records each die's face set and
+		// applies the Electrocuted penalty, so a later reroll follows suit.
 		if i < h.sheet.diceN {
-			g.dice[i] = crawlerDie{Value: electro(h, g.rollFace(h.sheet))}
+			g.dice[i] = g.rollDie(h, sheetFaces(h.sheet), false)
 		} else {
-			// Spare Die(s) / innate attack die: High, flagged Bonus so the client colours them.
-			g.dice[i] = crawlerDie{Value: electro(h, diceHigh[g.rng.IntN(len(diceHigh))]), Bonus: true}
+			g.dice[i] = g.rollDie(h, diceHigh, true)
 		}
 	}
 	// Rusted (status): lose one RANDOM die until cleared (floor of 1 so a turn is never empty),
@@ -1580,7 +1585,9 @@ func (g *crawlerGame) reroll(seat, dieIdx int) {
 	default:
 		return
 	}
-	g.dice[dieIdx].Value = electro(h, g.rollFace(h.sheet)) // the penalty follows a reroll too
+	// Re-roll on the die's OWN face set, so a High/bonus die stays High and a Low die stays Low;
+	// the Electrocuted penalty follows the reroll too.
+	g.dice[dieIdx].Value = electro(h, g.rollFrom(g.dice[dieIdx].faces))
 }
 
 // nudgeDie is the Lucky Charm (object): once a turn, raise one unspent die by 1 (to a

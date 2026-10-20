@@ -2,6 +2,7 @@
 // shows a ↻ reroll control (on hover, and always on touch) that rerolls just that die for 1
 // Courage, or free when a free reroll is available (Gambler's Glove / Lucky Paws). While the
 // Lucky Charm is armed, clicking a die gives it the +1 instead.
+import { useState } from "react";
 import type { CrView, CrHero } from "./types";
 import { Die } from "./Die";
 
@@ -14,16 +15,20 @@ export function CrawlerDiceRow({ v, me, className, lucky, onPickLucky, onReroll 
   onReroll: (dieIndex: number) => void;
 }) {
   const canReroll = !!me.freeReroll || me.courage >= 1;
+  // A per-die reroll counter: bumping it changes the Die's rollKey so the face re-tumbles on
+  // every reroll, even when the new value equals the old one (so a reroll never looks like a no-op).
+  const [spins, setSpins] = useState<Record<number, number>>({});
+  const reroll = (i: number) => { setSpins((s) => ({ ...s, [i]: (s[i] ?? 0) + 1 })); onReroll(i); };
   return (
     <div className={`${className}${lucky ? " armed" : ""}`}>
       {v.dice.map((d, i) => ({ d, i })).sort((a, b) => a.d.value - b.d.value).map(({ d, i }) => (
         <span key={i} className="cr-die-wrap">
-          <Die value={d.value} spent={d.spent} usedFor={d.usedFor} bonus={!!d.bonus} mini onClick={lucky && !d.spent ? () => onPickLucky(i) : undefined} />
+          <Die value={d.value} spent={d.spent} usedFor={d.usedFor} bonus={!!d.bonus} mini rollKey={`${d.value}-${spins[i] ?? 0}`} onClick={lucky && !d.spent ? () => onPickLucky(i) : undefined} />
           {!d.spent && !lucky && canReroll && (
             <button
               className="cr-die-reroll"
               title={me.freeReroll ? `Reroll this die (free: ${me.freeSrc || "🎲"})` : "Reroll this die (1 ✊)"}
-              onClick={() => onReroll(i)}
+              onClick={() => reroll(i)}
             >
               ↻
             </button>

@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.24.0
+version: 0.24.1
 relate to:
   - "[[TotemApp-IT]]"
   - "[[TotemApp-IT-Games]]"
@@ -45,7 +45,7 @@ A full vertical slice of the real game, built on the random tile generator chose
 **Deferred (later)**
 
 - Reaction dice (allies spending dice on another hero's turn, an interrupt mechanic) — distinct from the shipped end-of-round group fight.
-- Richer per-tile story beats and a balancing pass. (The scout ability and the hidden-enemy-stats reveal were both dropped; the friends' totems are mapped onto the six archetypes and playable.) **Mobile UI landed**: the default view is now a collapsible left **party rail** (each hero's expanded controls on their turn, compact cards for the others) beside the board, plus an **on-pawn touch overlay** (dice with per-die reroll, a move d-pad, the action bars, a Courage bar with unlock ticks, items, portal arrows, carry/ally taps) that anchors on your hero, a **board drag-to-pan**, and board combat where a reachable enemy (own tile or ranged/Scope reach) **pulses, is clicked to target, then shows a ⚔** that attacks it (independent of the overlay); hovering the sidebar's Attack bar rings the same enemy it will hit. The classic top-panel view ("V1") was retired in 0.24.0, so the sidebar + on-pawn layout is the only one. Two visibility aids: a **start-of-level title card** (the boss drawn, the total tile count, a shuffle animation; backed by the view's `bossName` / `levelTiles` and `levelBossName()`), and a **start-of-round warning banner** (last 10 tiles: "X tiles left! Boss near"; stack empty: the collapse countdown "N turns left").
+- Richer per-tile story beats and a balancing pass. (The scout ability and the hidden-enemy-stats reveal were both dropped; the friends' totems are mapped onto the six archetypes and playable.) **Mobile UI landed**: the default view is now a collapsible left **party rail** (each hero's expanded controls on their turn, compact cards for the others) beside the board, plus an **on-pawn touch overlay** (dice with per-die reroll, a move d-pad, the action bars, a Courage bar with unlock ticks, items, portal arrows, carry/ally taps) that anchors on your hero, a **board drag-to-pan**, and board combat where a reachable enemy (own tile or ranged/Scope reach) **pulses, is clicked to target, then shows a ⚔** that attacks it (independent of the overlay); hovering the sidebar's Attack bar rings the same enemy it will hit. The classic top-panel view ("V1") was retired in 0.24.0, so the sidebar + on-pawn layout is the only one. Two visibility aids: a **start-of-level title card** (the boss's sprite, name and signature twist, the total tile count, and a shuffle animation; it does not auto-hide, the player dismisses it with ✕ / Begin once the shuffle plays; backed by the view's `bossName` / `bossSlug` / `bossTwist` / `levelTiles` and `levelBoss()`), and a **start-of-round warning banner** (last 10 tiles: "X tiles left! Boss near"; stack empty: the collapse countdown "N turns left").
 
 ## Why it fits the engine as-is
 
@@ -505,7 +505,7 @@ The wire frames are the engine's usual four (`welcome`, `roster`, `state`, `erro
 
 **View (`state`) fields**: `phase`, `turn`, `step`, the active hero's `dice` (value, spent, usedFor), any `pending` tile lay (the drawn tile plus the list of legal `(coord, rotation)` options for the client to render as choices), every `hero` (totem, health, pos, courage, shields, loot, unlocked, alive, downed), the `map` (placed tiles with their 3x3 grids, edges, enemies with A/H/D and remaining Health, loot and hazard squares), the `frontiers`, the `deck` count with the current band and a `bossNear` flag once the final band is reached, the recent `log` beats, `won` / `lost`, and (only on a run started in debug) a `debug` block with the seed, run state, the deck peek (upcoming tiles and their robots) and per-band spawn odds that the client's F3 overlay reads. Every slice is built with `append([]T{}, ...)` so none serialises as `null` (the engine's standing rule).
 
-The **F3 debug overlay** (`CrawlerDebug`, gated on a run started with F3 active) surfaces that `debug` block plus connection stats; the **animal is chosen in the lobby** (the `totem` command) rather than at the name screen, and an **acquired attack die** (Spare Die, Frenzy) is flagged `bonus` and drawn blue.
+The **F3 debug overlay** (`CrawlerDebug`, gated on a run started with F3 active) surfaces that `debug` block plus connection stats; the **animal is chosen in the lobby** (the `totem` command) rather than at the name screen, and an **acquired attack die** (Spare Die, the Healer's innate die, Frenzy) is flagged `bonus` and drawn blue; a bonus die is a High die and **rerolls on the High face set** (not the hero's sheet faces, which silently downgraded it before), and buying a Spare Die adds its rolled die to the pool **that same turn**.
 
 ## Testing strategy
 

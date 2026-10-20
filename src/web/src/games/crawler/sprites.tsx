@@ -63,6 +63,19 @@ export function MonsterSprite({ m, highlighted }: { m: CrMonster; highlighted?: 
   );
 }
 
+// BossPortrait draws a boss's idle sprite at an arbitrary size (for the start-of-level title
+// card), falling back to the generic "boss" art when the slug has no dedicated sprite.
+export function BossPortrait({ slug, size = 84 }: { slug: string; size?: number }) {
+  const art = slug && ENEMY_ART.has(slug) ? slug : "boss";
+  return (
+    <span
+      className="cr-enemy boss"
+      style={{ width: size, height: size, backgroundImage: `url(/sprites/crawler/enemies/${art}/idle.png)` }}
+      aria-hidden="true"
+    />
+  );
+}
+
 // useHeroSprites drives the Bomberman-style walk animation for the board pawns in a
 // turn-based game. The hero positions arrive as discrete server states, not a 60Hz
 // stream, so instead of smoothed velocity it diffs each hero's global cell (tile ×3 +

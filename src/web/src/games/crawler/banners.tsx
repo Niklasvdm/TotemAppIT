@@ -2,7 +2,8 @@
 // robot's sting. Both auto-hide after a couple of seconds.
 import { useEffect, useState } from "react";
 import type { CrView } from "./types";
-import { STATUSES } from "./data";
+import { STATUSES, specialLabel } from "./data";
+import { BossPortrait } from "./sprites";
 
 // useAutoHide returns true, then false after `ms`, so a transient banner removes itself.
 // Give the component a key tied to the event so a fresh event remounts it and the timer
@@ -31,24 +32,46 @@ export function CrawlerLootRoll({ roll }: { roll: NonNullable<CrView["lootRoll"]
   );
 }
 
-// CrawlerLevelCard is the start-of-level title card: which biome/level, the boss that was
-// drawn, the total tile count, and a row of tiles "shuffling" at the bottom. Mounted keyed on
-// the level (and boss/tile-count, so a retry re-triggers it) and auto-hides after a few seconds.
+// CrawlerLevelCard is the start-of-level title card: which biome/level, the boss that was drawn
+// (sprite + name + its signature "twist" specials), and the total tile count, with a row of
+// tiles "shuffling" beneath. Mounted keyed on the level (and boss/tile-count, so a retry
+// re-triggers it). It does NOT auto-hide: the shuffle plays for a beat, then a ✕ / Begin button
+// appears and the player dismisses it when ready.
 export function CrawlerLevelCard({ v }: { v: CrView }) {
-  if (!useAutoHide(4200)) return null;
+  const [done, setDone] = useState(false); // shuffle finished -> show the dismiss button
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDone(true), 2400);
+    return () => clearTimeout(t);
+  }, []);
+  if (closed) return null;
   return (
-    <div className="cr-levelcard" role="status">
+    <div className="cr-levelcard" role="dialog" aria-label="level start">
       <div className="cr-levelcard-inner">
-        <div className="cr-levelcard-level">Level {v.level}/6</div>
-        <div className="cr-levelcard-biome">{v.biome}</div>
-        <div className="cr-levelcard-boss">👑 Boss: <strong>{v.bossName || "???"}</strong></div>
+        {done && (
+          <button className="cr-levelcard-x" onClick={() => setClosed(true)} title="Dismiss" aria-label="Dismiss">✕</button>
+        )}
+        <div className="cr-levelcard-level">Level {v.level}/6 · {v.biome}</div>
+        <BossPortrait slug={v.bossSlug} size={92} />
+        <div className="cr-levelcard-boss">👑 <strong>{v.bossName || "???"}</strong></div>
+        {v.bossTwist.length > 0 && (
+          <div className="cr-levelcard-twist">
+            {v.bossTwist.map((s) => <span key={s} className="cr-levelcard-twist-item">⚡ {specialLabel(s)}</span>)}
+          </div>
+        )}
         <div className="cr-levelcard-tiles">🂠 {v.levelTiles} tiles to explore</div>
-        <div className="cr-levelcard-shuffle" aria-hidden="true">
-          {Array.from({ length: 7 }, (_, i) => (
-            <span key={i} className="cr-shuffle-tile" style={{ animationDelay: `${i * 90}ms` }}>🂠</span>
-          ))}
-        </div>
-        <div className="cr-levelcard-shuffle-label">shuffling the stack…</div>
+        {done ? (
+          <button className="cr-levelcard-begin" onClick={() => setClosed(true)}>Begin ▶</button>
+        ) : (
+          <>
+            <div className="cr-levelcard-shuffle" aria-hidden="true">
+              {Array.from({ length: 7 }, (_, i) => (
+                <span key={i} className="cr-shuffle-tile" style={{ animationDelay: `${i * 90}ms` }}>🂠</span>
+              ))}
+            </div>
+            <div className="cr-levelcard-shuffle-label">shuffling the stack…</div>
+          </>
+        )}
       </div>
     </div>
   );

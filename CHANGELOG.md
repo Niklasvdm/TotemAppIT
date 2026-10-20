@@ -10,6 +10,13 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.24.1 — 2026-10-20
+- `[BUG]` **Crawler: rerolling an attack die no longer downgrades it to Low.** A Bonus die (Spare Die, the Healer's innate die, Wolf Frenzy) is a High die, but a reroll re-rolled it on the hero's sheet faces (Low for a Beaver/Healer), so a rerolled attack die kept coming up low. It now re-rolls on the High face set. `TestCrawlerRerollKeepsBonusDieHigh`.
+- `[CHANGE]` **Crawler: buying a Spare Die enables it immediately.** The purchased High attack die is added to the current turn's pool, already rolled, instead of only appearing next turn. `TestCrawlerBuySpareDieEnablesItNow`.
+- `[ENHANCEMENT]` **Crawler: the start-of-level title card shows the boss and its twist, and waits for you.** The card now draws the boss's sprite plus its signature special(s), and it no longer auto-hides: the stack shuffles for a beat, then a ✕ / Begin button appears so you dismiss it when ready. New view fields `bossSlug` / `bossTwist`.
+- `[ENHANCEMENT]` **Crawler: a reroll always animates.** The die face re-tumbles on every reroll, even when the same value comes up again (it used to look like nothing happened).
+- `[CHORE]` **Ignore the personal workspace symlinks** (the Obsidian-vault / sibling-project links in the repo root) in `.gitignore`.
+
 ### 0.24.0 — 2026-10-20
 - `[CHANGE]` **Crawler: the classic top-panel view ("V1") is gone.** The sidebar + on-pawn layout is now the only layout; the 📱 toggle, the top character sheet, and the classic party strip were removed, along with their now-dead code (`sheet.tsx`) and CSS.
 - `[FEATURE]` **Crawler: a start-of-level title card.** When a level begins, a card announces the level/biome, the boss that was drawn, and the total tile count, with the stack "shuffling" beneath it, then fades. Backed by two new view fields (`bossName`, `levelTiles`) and `levelBossName()`. `TestCrawlerTitleCardViewFields`.

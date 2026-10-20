@@ -37,3 +37,13 @@ node_modules/
 src/web/dist/
 src/internal/web/dist/
 /data/animals.json.bak
+
+# Personal workspace symlinks (Obsidian vault notes, sprites, sibling projects) — convenience
+# links living in the repo root, not part of the project. A symlink is a FILE to git, so use the
+# bare name (no trailing slash) or the pattern will not match it.
+/Applications
+/ProgrammingLanguages
+/Proj-README-sync
+/Screencasts
+/Sprites
+/WAF

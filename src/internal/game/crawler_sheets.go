@@ -175,11 +175,29 @@ func diceTypeName(faces []int) string {
 	}
 }
 
-// rollFace rolls one weighted die face for the sheet's die type (falls back to a
-// plain d6 for a sheet with no faces set).
-func (g *crawlerGame) rollFace(s crawlerSheet) int {
+// dieD6 is the fallback face set for a sheet that defines none (a plain d6).
+var dieD6 = []int{1, 2, 3, 4, 5, 6}
+
+// sheetFaces is a sheet's base face set, or a plain d6 when it defines none.
+func sheetFaces(s crawlerSheet) []int {
 	if len(s.faces) == 0 {
-		return 1 + g.rng.IntN(6)
+		return dieD6
 	}
-	return s.faces[g.rng.IntN(len(s.faces))]
+	return s.faces
+}
+
+// rollFrom rolls one face from a given face set (d6 if empty, so a die with no faces is never
+// a panic).
+func (g *crawlerGame) rollFrom(faces []int) int {
+	if len(faces) == 0 {
+		faces = dieD6
+	}
+	return faces[g.rng.IntN(len(faces))]
+}
+
+// rollDie is the single place a die is created: it records the die's own face set and applies
+// the Electrocuted penalty uniformly, so every die (base, bonus, repair, Frenzy, shop) is born
+// consistent and a later reroll just re-rolls on die.faces.
+func (g *crawlerGame) rollDie(h *crawlerHero, faces []int, bonus bool) crawlerDie {
+	return crawlerDie{Value: electro(h, g.rollFrom(faces)), Bonus: bonus, faces: faces}
 }

@@ -313,6 +313,11 @@ func (g *crawlerGame) buyObject(seat int, slug string) {
 	h.courage -= d.cost
 	g.shopStock = append(g.shopStock[:idx], g.shopStock[idx+1:]...)
 	g.giveObject(h, slug)
+	// Spare Die: enable it immediately. Rather than wait for next turn's roll, add its High
+	// attack die to the current pool, already rolled, so the purchase pays off this turn.
+	if slug == "spare-die" {
+		g.dice = append(g.dice, g.rollDie(h, diceHigh, true))
+	}
 	g.refillShop()
 	g.log = append(g.log, h.name+" buys "+d.name+".")
 }
