@@ -2923,13 +2923,13 @@ func TestCrawlerFoggedAmbushHoldsUntilRevealed(t *testing.T) {
 
 func TestCrawlerFloorLootGating(t *testing.T) {
 	g, _ := startedCrawler(t, 1)
-	// Proactive LAY-phase lays (exploration=false) never seed floor loot.
+	// Proactive LAY-phase lays seed at ~1-in-6 (where enemies spawn), not zero.
 	pt := g.placeTile(6, 6, [4]bool{true, true, true, true}, 0, "cross", false, nil)
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 120; i++ {
 		g.seedTileLoot(pt, false)
 	}
-	if len(pt.loot) != 0 {
-		t.Fatalf("proactive lays must not seed floor loot, got %d", len(pt.loot))
+	if len(pt.loot) == 0 {
+		t.Fatalf("LAY-phase tiles seed floor loot at 1/6; expected some over 120 rolls, got 0")
 	}
 	// Service tiles never seed, even on exploration.
 	for i, kind := range []string{crKindShop, crKindHealing, crKindPortal} {

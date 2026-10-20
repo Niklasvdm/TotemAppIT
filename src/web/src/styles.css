@@ -484,8 +484,12 @@ header {
 
 /* --- Totem Crawler ---------------------------------------------------- */
 .cr-room { display: flex; flex-direction: column; gap: .6rem; --cr-cell: 160px; }
-.cr-map-scroll { overflow: auto; max-height: 70vh; border-radius: 10px; background: var(--cream, #0000); }
-.cr-map { display: grid; gap: 5px; justify-content: center; margin: .3rem auto; width: max-content; }
+.cr-map-scroll { overflow: auto; max-height: 70vh; border-radius: 10px; background: var(--cream, #0000); cursor: grab; }
+.cr-map-scroll.dragging { cursor: grabbing; }
+/* Vertical/horizontal padding gives scroll room past the edge tiles, so the focus tile can
+   always be centred and the on-tile buttons (an enemy's ⚔, the dice above your pawn) are never
+   clipped at the viewport edge. */
+.cr-map { display: grid; gap: 5px; justify-content: center; margin: .3rem auto; width: max-content; padding: 16vh 8vw; }
 .cr-cell { width: var(--cr-cell); height: var(--cr-cell); box-sizing: border-box; }
 @media (max-width: 640px) {
   .cr-room { --cr-cell: 118px; }
@@ -496,7 +500,9 @@ header {
 }
 .cr-empty { background: transparent; }
 .cr-frontier { display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line, rgba(0,0,0,.3)); border-radius: 8px; color: var(--line, rgba(0,0,0,.4)); font-weight: 800; }
-.cr-tile { position: relative; border: 2px solid var(--ink, #333); border-radius: 6px; background: var(--surface-2, #efe7d8); }
+/* clip the tile so an edge-square sprite (a hero on a boss-lair doorway, a dead robot on the
+   top row of the Vespex lair) stays inside its own tile instead of painting onto the neighbour */
+.cr-tile { position: relative; overflow: hidden; border: 2px solid var(--ink, #333); border-radius: 6px; background: var(--surface-2, #efe7d8); }
 .cr-tile.boss { border-color: var(--red, #c0392b); box-shadow: 0 0 0 2px var(--red, #c0392b) inset; }
 /* The tile hiding Hauler's weak-point: a pulsing orange highlight so the party can hunt it down. */
 .cr-tile.weakpoint { border-color: #ff8c1a; box-shadow: 0 0 0 2px #ff8c1a inset, 0 0 10px 1px rgba(255,140,26,.7); animation: cr-weakpoint 1.3s ease-in-out infinite; }
@@ -574,6 +580,11 @@ header {
 .cr-lay-drop.sel .cr-tile-art { opacity: .9; }
 /* a cell where the chosen rotation does not fit (it would drop at a different one) */
 .cr-lay-drop.alt { opacity: .7; border-style: dotted; }
+/* The centre rotate button: click it to rotate the drawn tile; a click anywhere else on the
+   cell lays it there (even an unselected candidate cell). Sized ~40% so the rest stays a big
+   lay target. */
+.cr-lay-rotate { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%; height: 40%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; line-height: 1; color: #140f09; background: rgba(201,162,39,.92); border: 2px solid #140f09; border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+.cr-lay-rotate:hover { background: var(--gold, #c9a227); }
 .cr-lay-drop.alt .cr-tile-art { opacity: .35; }
 @keyframes cr-pulse { 0%, 100% { border-color: var(--gold, #c9a227); } 50% { border-color: #fff3cf; } }
 .cr-glyph { position: relative; display: inline-block; width: 42px; height: 42px; border: 2px solid var(--ink, #333); border-radius: 5px; background: var(--surface-2, #efe7d8); }
@@ -622,8 +633,10 @@ header {
 .cr-pawn.active .cr-sprite { filter: drop-shadow(0 0 3px var(--gold, #c9a227)); }
 /* monster hover stat box — fixed dark panel + light text so it is readable in
    both themes (var(--ink) is light in dark mode, which made this white-on-cream) */
-.cr-mon { position: relative; display: inline-flex; flex-direction: column; align-items: center; z-index: 1; }
-/* Heroes draw above monsters, so a defeated boss on the centre never covers a pawn. */
+/* No z-index here: the monster SPRITE then sorts below the pawns (heroes stay on top, so a
+   defeated boss never covers a pawn), while the badge below — with its own z-index:3 — is
+   free to float ABOVE the pawns instead of being trapped under them. */
+.cr-mon { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
 .cr-pawn { z-index: 2; }
 .cr-mon-badge {
   position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 1px;
@@ -633,6 +646,11 @@ header {
   border: 1px solid rgba(201,162,39,.7); box-shadow: 0 1px 3px rgba(0,0,0,.5);
   pointer-events: none; z-index: 3;
 }
+/* On the rightmost column (sq % 3 === 2) a right-anchored badge spills off the tile and over
+   the next one; flip it to the sprite's left so it stays inside and clear of the pawns. */
+.cr-mon.badge-left .cr-mon-badge { left: auto; right: 100%; margin-left: 0; margin-right: 1px; align-items: flex-end; }
+/* Both horizontal sides are blocked by hero pawns: float the badge above the sprite instead. */
+.cr-mon.badge-above .cr-mon-badge { left: 50%; right: auto; top: auto; bottom: 100%; transform: translateX(-50%); margin: 0 0 1px 0; align-items: center; }
 /* A monster's stat badge may paint over the neighbouring tile, so raise any tile holding a
    monster above its neighbours and let the badge float on top (readable, its own panel);
    nothing else crosses a tile boundary. */
@@ -848,6 +866,181 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-dev-loot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .25rem .6rem; max-height: 10rem; overflow-y: auto; }
 .cr-dev-loot-item { display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; cursor: pointer; }
 .cr-board-wrap { position: relative; }
+
+/* Compact view splits the play area: a left party rail + the board on the right. */
+.cr-play-area.compact { display: flex; gap: .6rem; align-items: flex-start; }
+.cr-play-area.compact .cr-board-wrap { flex: 1 1 0; min-width: 0; }
+.cr-rail { flex: 0 0 17rem; max-width: 17rem; max-height: 78vh; overflow-y: auto; display: flex; flex-direction: column; gap: .5rem; padding: .5rem; }
+.cr-rail-head { display: flex; align-items: center; justify-content: space-between; gap: .4rem; flex-wrap: wrap; }
+.cr-rail-btn { background: transparent; border: 1px solid rgba(201,162,39,.5); color: inherit; border-radius: 6px; cursor: pointer; line-height: 1; padding: .1rem .4rem; font-size: 1rem; }
+.cr-rail-btn:hover { background: rgba(201,162,39,.2); }
+/* emoji-only view toggles next to the Party heading (inactive ones dimmed) */
+.cr-rail-toggles { display: flex; flex-wrap: wrap; gap: .25rem; }
+.cr-rail-tog { background: transparent; border: 1px solid rgba(201,162,39,.4); border-radius: 6px; cursor: pointer; line-height: 1; padding: .2rem .35rem; font-size: 1rem; filter: grayscale(.6); opacity: .6; }
+.cr-rail-tog.on { border-color: var(--gold, #c9a227); background: rgba(201,162,39,.2); filter: none; opacity: 1; }
+.cr-rail-tog:hover { border-color: var(--gold, #c9a227); opacity: 1; }
+.cr-view-toggle.emoji { padding: .25rem .45rem; font-size: 1.05rem; }
+.cr-rail-expand { flex: 0 0 auto; align-self: flex-start; writing-mode: vertical-rl; background: #140f09; color: #fdf6e8; border: 1px solid rgba(201,162,39,.6); border-radius: 8px; cursor: pointer; padding: .5rem .2rem; font-size: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.cr-rail-expand:hover { border-color: var(--gold, #c9a227); }
+/* your expanded block on your turn: the compressed sheet + the action column, stacked */
+.cr-rail-me { display: flex; flex-direction: column; gap: .5rem; }
+.cr-rail-mates { display: flex; flex-direction: column; gap: .4rem; }
+/* let the sheet shrink to the narrow rail (its desktop min-widths would overflow) */
+/* In the narrow rail the stats (incl. the Courage bar) drop to their own full-width line so a
+   long player name never pushes them off-screen; the name wraps instead of overflowing. */
+.cr-rail .cr-sheet-id { min-width: 0; }
+.cr-rail .cr-sheet-id strong { overflow-wrap: anywhere; }
+.cr-rail .cr-sheet-stats { flex: 1 1 100%; min-width: 0; }
+.cr-rail .cr-sheet-head { gap: .4rem; }
+.cr-rail .cr-dice { gap: .35rem; }
+
+/* Compact-view touch overlay: toggles (top-left), and the dice/d-pad/specials cluster that
+   floats over the board so a phone player acts without scrolling to the sheet. The overlay
+   container ignores pointer events; only its actual controls capture them, so the map stays
+   scrollable/draggable through the gaps (and the empty centre where the pawn shows through). */
+.cr-view-toggles { position: absolute; top: .5rem; left: .5rem; z-index: 32; display: flex; flex-wrap: wrap; gap: .35rem; }
+.cr-view-toggle { background: #140f09; color: #fdf6e8; border: 1px solid rgba(201,162,39,.6); border-radius: 999px; cursor: pointer; font-size: .78rem; padding: .25rem .6rem; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.cr-view-toggle.on { background: var(--gold, #c9a227); color: #140f09; border-color: var(--gold, #c9a227); font-weight: 700; }
+.cr-view-toggle:hover { border-color: var(--gold, #c9a227); }
+/* usable objects, on the same axis as the toggles */
+.cr-view-item { display: inline-flex; align-items: center; justify-content: center; padding: .2rem; background: #140f09; border: 1px solid rgba(201,162,39,.6); border-radius: 8px; cursor: pointer; line-height: 0; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.cr-view-item:hover:not(:disabled) { border-color: var(--gold, #c9a227); background: rgba(201,162,39,.25); }
+.cr-view-item.off { opacity: .4; cursor: default; }
+
+.cr-overlay { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+/* A zero-size point sitting ON the pawn (left/top set inline from the measured position). Its
+   three children are placed relative to it: the d-pad centred on the point, the dice floating
+   above, the specials to the right. So the d-pad (not the whole cluster) lands on the hero. */
+.cr-ov-anchor { position: absolute; width: 0; height: 0; }
+.cr-ov-dice { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) translateY(-6.4rem); display: flex; gap: .3rem; pointer-events: none; padding: .25rem .4rem; border-radius: 10px; background: rgba(20,15,9,.55); backdrop-filter: blur(2px); }
+.cr-die.mini { width: 1.7rem; height: 1.7rem; border-radius: 7px; border-width: 1px; box-shadow: none; cursor: default; }
+.cr-die.mini .cr-die-face .pip { width: 4px; height: 4px; }
+.cr-die.mini small { font-size: .45rem; right: 2px; }
+
+/* the move d-pad is shared (movepad.tsx); the overlay positions it on the pawn with a wider gap
+   so the hearts fit just under the up arrow */
+.cr-dpad { display: grid; grid-template-columns: repeat(3, 2.5rem); grid-template-rows: repeat(3, 2.5rem); gap: .25rem; }
+.cr-overlay .cr-dpad { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); gap: .9rem; pointer-events: none; }
+.cr-arrow { pointer-events: auto; font-size: 1.3rem; line-height: 1; border: 2px solid rgba(201,162,39,.8); background: rgba(20,15,9,.82); color: #fdf6e8; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.cr-arrow:hover:not(:disabled) { background: rgba(201,162,39,.35); }
+.cr-arrow:disabled { opacity: .3; cursor: default; }
+.cr-arrow-up { grid-area: 1 / 2; }
+.cr-arrow-left { grid-area: 2 / 1; }
+.cr-arrow-right { grid-area: 2 / 3; }
+.cr-arrow-down { grid-area: 3 / 2; }
+
+/* hearts + shields just above the pawn (under the up arrow) */
+/* hearts: at most 4 per row, wrapping into more rows (hearts then shields) */
+.cr-ov-hp { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) translateY(-2rem); display: flex; flex-flow: row wrap; justify-content: center; align-items: center; width: 5rem; gap: 0 .08rem; pointer-events: none; font-size: .82rem; line-height: 1.15; }
+.cr-pip-heart, .cr-pip-shield { filter: drop-shadow(0 1px 1px rgba(0,0,0,.8)); }
+/* action bars + items to the right of the pawn */
+/* small action bars + courage + items, their LEFT edge just past the right arrow */
+.cr-ov-side { position: absolute; left: 0; top: 0; transform: translate(0, -50%) translateX(4.6rem); display: flex; flex-direction: column; gap: .35rem; pointer-events: none; align-items: stretch; width: 7rem; }
+.cr-ov-side .cr-bars2 { gap: .3rem; }
+.cr-ov-side .cr-bar2 { min-height: 1.55rem; padding: .08rem .25rem; gap: .25rem; }
+.cr-ov-side .cr-bar2-ico { width: 1.2rem; font-size: .95rem; }
+.cr-ov-side .cr-bar2-track { height: .85rem; }
+.cr-ov-side .cr-cost-die { width: 1.1rem; height: 1.1rem; }
+.cr-ov-side .cr-items { grid-template-columns: repeat(3, 1fr); pointer-events: auto; }
+.cr-ov-side .cr-bar2, .cr-ov-side .cr-cou2, .cr-ov-side .cr-info { pointer-events: auto; }
+.cr-ov-end-col { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) translateY(5.6rem); display: flex; flex-direction: column; gap: .3rem; align-items: center; pointer-events: none; }
+.cr-ov-end { pointer-events: auto; white-space: nowrap; font-size: .85rem; padding: .35rem .7rem; border: 2px solid rgba(201,162,39,.8); background: rgba(20,15,9,.86); color: #fdf6e8; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.cr-ov-end:hover { background: rgba(201,162,39,.35); }
+
+/* carried-ally indicator (replaces the dice while carrying) */
+.cr-ov-carry { align-items: center; justify-content: center; outline: 2px solid var(--gold, #c9a227); }
+.cr-carry-note { display: flex; align-items: center; gap: .4rem; padding: .3rem; border: 1px solid var(--gold, #c9a227); border-radius: 8px; background: rgba(201,162,39,.12); }
+
+/* portal arrows around the hero, pointing at the true angle to each other portal */
+.cr-ov-portal { position: absolute; left: 0; top: 0; pointer-events: auto; display: inline-flex; flex-direction: column; align-items: center; gap: 0; width: 1.9rem; height: 1.9rem; justify-content: center; border-radius: 50%; border: 2px solid #7fd1ff; background: rgba(20,15,9,.85); color: #cdefff; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.cr-ov-portal:hover { background: rgba(127,209,255,.3); }
+.cr-ov-portal-arrow { font-size: .85rem; line-height: 1; }
+.cr-ov-portal-no { font-size: .6rem; font-weight: 800; line-height: 1; }
+
+/* ally tap-targets + the Snatch loot glow */
+.cr-pawn.ally-tap { cursor: pointer; }
+.cr-pawn.ally-tap .cr-sprite { filter: drop-shadow(0 0 3px #7fd1ff) drop-shadow(0 0 6px #7fd1ff); }
+.cr-pawn.carried .cr-sprite { filter: drop-shadow(0 0 3px var(--gold, #c9a227)) drop-shadow(0 0 7px var(--gold, #c9a227)); }
+.cr-loot.snatch { cursor: pointer; border-radius: 6px; box-shadow: 0 0 5px rgba(255,111,174,.9), 0 0 11px rgba(255,111,174,.6); animation: cr-pulse 1.1s ease-in-out infinite; }
+
+/* active statuses, pinned just under the up arrow, over the pawn's head */
+.cr-ov-statuses { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) translateX(-6rem); display: flex; flex-direction: column; gap: .15rem; pointer-events: auto; padding: .15rem .25rem; border-radius: 8px; background: rgba(192,57,43,.85); box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+.cr-ov-status { font-size: 1rem; line-height: 1; cursor: help; }
+
+/* ---- uniform action bars: [icon] [track] [die], every one shaped like the Courage bar ---- */
+.cr-bars2 { display: flex; flex-direction: column; gap: .35rem; }
+.cr-bar2 { display: flex; align-items: center; gap: .4rem; width: 100%; min-height: 1.9rem; padding: .12rem .3rem; box-sizing: border-box; border: 1px solid rgba(201,162,39,.5); border-radius: 999px; background: rgba(20,15,9,.82); color: #fdf6e8; cursor: pointer; text-align: left; font: inherit; pointer-events: auto; }
+.cr-bar2.info { cursor: default; }
+.cr-bar2.dim { opacity: .55; }
+.cr-bar2:not(.info):hover { border-color: var(--gold, #c9a227); background: rgba(201,162,39,.25); }
+.cr-bar2-ico { flex: none; width: 1.5rem; text-align: center; font-size: 1.05rem; }
+.cr-bar2-track { position: relative; flex: 1; min-width: 0; height: 1.15rem; border-radius: 999px; background: rgba(0,0,0,.35); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.cr-bar2-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #c9a227, #e3c250); transition: width .25s; }
+.cr-bar2-tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: rgba(255,255,255,.6); box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
+.cr-bar2-tick.on { background: #3b82f6; box-shadow: 0 0 3px #3b82f6; }
+.cr-bar2-label { position: relative; font-size: .72rem; font-weight: 700; color: #efe4c8; white-space: nowrap; }
+.cr-bar2-cost { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 1.4rem; font-weight: 800; color: var(--gold, #c9a227); font-size: .8rem; }
+.cr-cost-die { width: 1.3rem; height: 1.3rem; display: inline-flex; align-items: center; justify-content: center; background: #f4ecd6; border: 1px solid #2a2320; border-radius: 4px; }
+.cr-cost-die .cr-die-face { width: 78%; height: 78%; animation: none; }
+.cr-cost-die .pip { width: 3px; height: 3px; }
+.cr-cou2 .cr-bar2-label { color: #140f09; text-shadow: 0 0 3px rgba(255,255,255,.45); } /* dark over the gold fill */
+
+/* ---- item slots (every slot, so free spaces show), use + ⤓ drop, 2-3 per row ---- */
+.cr-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; }
+.cr-item { position: relative; display: flex; align-items: center; justify-content: center; min-height: 2.2rem; border-radius: 8px; box-sizing: border-box; }
+.cr-item.empty { border: 1px dashed rgba(201,162,39,.35); background: rgba(0,0,0,.25); }
+.cr-item.filled { border: 1px solid rgba(201,162,39,.6); background: rgba(20,15,9,.82); }
+.cr-item-use { pointer-events: auto; width: 100%; display: flex; align-items: center; justify-content: center; padding: .25rem; background: transparent; border: none; border-radius: 8px; cursor: pointer; line-height: 0; }
+.cr-item-use:disabled { opacity: .45; cursor: default; }
+.cr-item.filled:hover .cr-item-use:not(:disabled) { background: rgba(201,162,39,.25); }
+.cr-item-drop { position: absolute; top: -.35rem; right: -.35rem; pointer-events: auto; width: 1.15rem; height: 1.15rem; font-size: .7rem; line-height: 1; border-radius: 50%; border: 1px solid rgba(201,162,39,.6); background: #140f09; color: #fdf6e8; cursor: pointer; padding: 0; }
+.cr-item-drop:hover { background: rgba(201,162,39,.35); border-color: var(--gold, #c9a227); }
+/* Snatch totems: an extra pink glow on every item */
+.cr-item.snatch.filled { border-color: #ff6fae; background: rgba(60,22,42,.7); box-shadow: 0 0 6px rgba(255,111,174,.7), 0 0 13px rgba(255,111,174,.4); }
+.cr-item.snatch.empty { border-color: rgba(255,111,174,.45); border-style: dashed; }
+/* Lucky Charm armed: the charm pulses, and the dice become clickable targets */
+.cr-item.armed { outline: 2px solid var(--gold, #c9a227); outline-offset: 1px; animation: cr-pulse 1s ease-in-out infinite; }
+.cr-die.mini.clickable { cursor: pointer; }
+/* per-die reroll (↻): on hover (desktop), always shown on touch */
+.cr-die-wrap { position: relative; display: inline-flex; pointer-events: auto; } /* stay interactive even inside the pointer-events:none overlay (reroll + Lucky Charm die-pick) */
+.cr-die-reroll { position: absolute; top: -.4rem; right: -.4rem; z-index: 3; width: 1.15rem; height: 1.15rem; padding: 0; line-height: 1; font-size: .7rem; border-radius: 50%; border: 1px solid var(--gold, #c9a227); background: #140f09; color: var(--gold, #c9a227); cursor: pointer; opacity: 0; transition: opacity .15s; pointer-events: auto; }
+.cr-die-wrap:hover .cr-die-reroll, .cr-die-reroll:focus { opacity: 1; }
+.cr-die-reroll:hover { background: rgba(201,162,39,.3); }
+@media (hover: none) { .cr-die-reroll { opacity: 1; } }
+.cr-hp-dice.armed .cr-die.clickable, .cr-ov-dice.armed .cr-die.clickable { outline: 2px solid var(--gold, #c9a227); outline-offset: 1px; animation: cr-pulse 1s ease-in-out infinite; }
+
+/* ---- the sidebar hero panel ---- */
+.cr-hp { display: flex; flex-direction: column; gap: .5rem; }
+.cr-hp-name { display: flex; flex-direction: column; }
+.cr-hp-name strong { overflow-wrap: anywhere; }
+.cr-hp-head { display: flex; align-items: center; gap: .3rem; }
+.cr-hp-statuses { display: flex; flex-direction: column; gap: .15rem; }
+.cr-hp-status { font-size: 1.05rem; line-height: 1; cursor: help; }
+/* hearts sit right next to the sprite (not pushed to the far edge), wrapping into columns */
+.cr-hp-hearts { display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; max-height: 3.3rem; gap: 0 .1rem; font-size: .85rem; line-height: 1.05; }
+.cr-hp-shields { display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; max-height: 3.3rem; gap: 0 .1rem; font-size: .85rem; line-height: 1.05; }
+.cr-hp-dice { display: flex; flex-wrap: wrap; gap: .3rem; }
+/* sidebar d-pad: up on top, then left / down / right on one line (compact, not spread out) */
+.cr-hp .cr-dpad { grid-template-columns: repeat(3, 2.3rem); grid-template-rows: repeat(2, 2.3rem); gap: .3rem; margin: .1rem 0; }
+.cr-hp .cr-arrow-down { grid-area: 2 / 2; }
+.cr-hp .cr-arrow { font-size: 1.15rem; }
+.cr-hp-lay { display: flex; flex-direction: column; gap: .4rem; }
+.cr-hp-footer { display: flex; flex-direction: column; gap: .35rem; }
+
+/* the Courage bar (one clickable uniform bar) + the two unlock markers right under it */
+.cr-cou2 { display: flex; flex-direction: column; gap: .25rem; }
+.cr-cou-marks { display: flex; flex-wrap: wrap; gap: .6rem; font-size: .8rem; padding-left: .3rem; }
+.cr-cou-mark { display: inline-flex; align-items: center; gap: .2rem; color: var(--muted, #8a8277); filter: grayscale(.7); }
+.cr-cou-mark.on { color: #3b82f6; filter: none; font-weight: 700; }
+.cr-cou-mark-ico { font-size: 1.05rem; }
+
+/* compact-view tap-to-attack: a selected monster glows and shows the ⚔ button */
+.cr-mon.selectable { cursor: pointer; }
+.cr-mon.selected > .cr-sprite, .cr-mon.selected .cr-sprite { filter: drop-shadow(0 0 3px #e74c3c) drop-shadow(0 0 6px #e74c3c); }
+.cr-mon-attack { position: absolute; z-index: 6; left: 50%; top: -0.4rem; transform: translate(-50%, -100%); font-size: 1.1rem; line-height: 1; padding: .25rem .4rem; background: #c0392b; color: #fff; border: 2px solid #fff; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.cr-mon-attack:hover:not(:disabled) { background: #e74c3c; }
+.cr-mon-attack:disabled { opacity: .4; cursor: default; }
+.cr-pawn.avatar-btn { cursor: pointer; }
 .cr-shop-callout {
   position: absolute; top: .6rem; right: .6rem; z-index: 30;
   width: min(17rem, 80%); max-height: calc(100% - 1.2rem); overflow-y: auto;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { createGameRoom } from "../../api";
@@ -10,17 +10,17 @@ import { RoomBar } from "../RoomBar";
 import { LocalSeats, type LocalPlayer } from "../LocalSeats";
 import { LossFlash, useLossPulse } from "../LossFlash";
 import { useStatsFlag } from "../bomberman/NetHud";
-import { biomeTileDir } from "./logic";
-import type { CrView } from "./types";
-import { TOTEMS, DIRS, DIR_ARROW, tileKind, heroStatuses, objInfo, OBJECT_CAP, OBJECTS, STATUSES, menuMins, COURAGE_CAP, attackTargets, effArmour, useItemMsg } from "./data";
+import type { CrView, CrMonster } from "./types";
+import { TOTEMS, objInfo, OBJECTS, menuMins, COURAGE_CAP, attackTargets, effArmour, useItemMsg, lowestDie } from "./data";
 import { useHeroSprites, ObjIcon } from "./sprites";
-import { Die } from "./Die";
-import { TilePreview } from "./TilePreview";
 import { CharacterSheet } from "./sheet";
-import { CrawlerActions } from "./actions";
+import { CrawlerActionPanel } from "./actionpanel";
+import { CrawlerHeroPanel } from "./heropanel";
+import { HeroCard } from "./herocard";
 import { CrawlerShopCallout } from "./shop";
 import { CrawlerMap } from "./board";
 import { CrawlerDebug } from "./debug";
+import { CrawlerOverlay } from "./overlay";
 import { CrawlerLootRoll, CrawlerStatusRoll } from "./banners";
 
 export default function CrawlerPage() {
@@ -188,11 +188,46 @@ function CrawlerRoom({
   const spriteFor = useHeroSprites(g.view); // walk/facing animation for the board pawns
   const [sel, setSel] = useState<number | null>(null); // selected die index
   const [hlMon, setHlMon] = useState<string | null>(null); // "tileId-monsterId" of the attack button under the cursor, glowed on the board
+  const [selMon, setSelMon] = useState<string | null>(null); // "tileId-monsterId" tapped on the board in compact view (shows the ⚔ attack button)
+  const [lucky, setLucky] = useState(false); // Lucky Charm armed: the next die clicked gets +1
+  const [carryAlly, setCarryAlly] = useState<number | null>(null); // Carry armed: the arrows move this ally
+  const armLucky = () => setLucky((x) => !x);
+  const pickLucky = (i: number) => { g.send({ t: "lucky", die: i }); setLucky(false); };
+  const rerollDie = (i: number) => g.send({ t: "reroll", die: i });
   const [layRot, setLayRot] = useState(0); // chosen orientation (0..3) while laying a tile
   const [startLevel, setStartLevel] = useState(1); // lobby: which level to begin at
   const [devBoss, setDevBoss] = useState(""); // F3 dev: forced boss slug ("" = random)
   const [devLoot, setDevLoot] = useState<string[]>([]); // F3 dev: starting loot slugs
   const [shopDismissedTile, setShopDismissedTile] = useState<number | null>(null); // shop closed by hand; click the stall (its tile id) to re-open
+  // Compact (mobile) view: a touch overlay of dice + move d-pad + quick specials floats over
+  // the board so you can act without scrolling up to the sheet. The second toggle draws the
+  // move d-pad. Both persist so a reload keeps the player's choice. Default: compact off
+  // (desktop unchanged), move-buttons on once compact is enabled.
+  const [compact, setCompact] = useState(() => localStorage.getItem("totem-crawler-compact") !== "0"); // sidebar layout is the default now
+  const [moveBtns, setMoveBtns] = useState(() => localStorage.getItem("totem-crawler-movebtns") !== "0");
+  // The character overlay (dice/d-pad/specials on the pawn) and the enemy overlay (tap-to-
+  // attack) are INDEPENDENT, each its own toggle, so the character controls never cover the
+  // combat button. Tapping an enemy shows only its ⚔ (the character overlay steps aside);
+  // tapping your avatar brings the character overlay back.
+  const [charOv, setCharOv] = useState(() => localStorage.getItem("totem-crawler-charov") !== "0");
+  const [enemyOv, setEnemyOv] = useState(() => localStorage.getItem("totem-crawler-enemyov") !== "0");
+  const toggleCompact = () => setCompact((c) => { localStorage.setItem("totem-crawler-compact", c ? "0" : "1"); return !c; });
+  const toggleMove = () => setMoveBtns((m) => { localStorage.setItem("totem-crawler-movebtns", m ? "0" : "1"); return !m; });
+  const toggleChar = () => setCharOv((c) => { localStorage.setItem("totem-crawler-charov", c ? "0" : "1"); return !c; });
+  const toggleEnemies = () => setEnemyOv((e) => { localStorage.setItem("totem-crawler-enemyov", e ? "0" : "1"); if (e) setSelMon(null); return !e; });
+  // The left party bar (compact view): collapsible with « / ».
+  const [railOpen, setRailOpen] = useState(() => localStorage.getItem("totem-crawler-rail") !== "0");
+  const toggleRail = () => setRailOpen((o) => { localStorage.setItem("totem-crawler-rail", o ? "0" : "1"); return !o; });
+  const avatarToggleChar = () => { // tap avatar: toggle the character overlay (enabling compact first)
+    setSelMon(null);
+    if (!compact) {
+      setCompact(true); localStorage.setItem("totem-crawler-compact", "1");
+      setCharOv(true); localStorage.setItem("totem-crawler-charov", "1");
+      return;
+    }
+    toggleChar();
+  };
+  const boardRef = useRef<HTMLDivElement>(null); // the board wrap, so the overlay can anchor on the pawn
   const v = g.view;
   // Reset the orientation to the first legal one whenever a fresh tile is drawn.
   useEffect(() => {
@@ -205,6 +240,7 @@ function CrawlerRoom({
   const [myTurns, setMyTurns] = useState(0);
   useEffect(() => {
     if (myTurnNow) { onMyTurn?.(); setMyTurns((n) => n + 1); }
+    else { setLucky(false); setCarryAlly(null); } // drop half-armed Lucky Charm / Carry when the turn passes
   }, [myTurnNow, onMyTurn]);
   // Keyboard controls, a fast twin of the mouse (which still works: select a die for the
   // action menu, use items from your sheet). Each key auto-spends your LOWEST usable die, so
@@ -336,6 +372,73 @@ function CrawlerRoom({
   const me = v.heroes.find((h) => h.s === v.you);
   const myTurn = v.ph === "playing" && v.turn === v.you;
   const nameOf = (s: number) => v.heroes.find((h) => h.s === s)?.n ?? "?";
+
+  // Tap-to-attack (compact view): tapping a monster on the board selects it and shows a ⚔
+  // button; the ⚔ spends your lowest die that can beat its (effective) Armour. Mirrors the
+  // keyboard 'f' logic but aimed at the one monster you picked. canHit gates the sword.
+  const canHitMon = (m: CrMonster) => lowestDie(v.dice, 1, (val) => val >= effArmour(m)) >= 0;
+  const attackMon = (tileId: number, m: CrMonster) => {
+    const lo = lowestDie(v.dice, 1, (val) => val >= effArmour(m));
+    if (lo < 0) return;
+    g.send({ t: "spend", die: lo, action: "attack", monster: m.id, tile: tileId });
+    // keep the monster selected so the ⚔ stays up for repeat hits; it auto-clears when it dies
+    // (selMonValid) — so you fight the same enemy until it drops.
+    setSel(null);
+  };
+  // Only keep a selection that still points at a living monster (it dies, you deselect it).
+  const selMonValid = !!selMon && v.tiles.some((ti) => ti.monsters.some((m) => m.alive && `${ti.id}-${m.id}` === selMon));
+  const touchCombat = compact && enemyOv && myTurn && v.step === "spend" && !!me && !me.downed;
+  // Enemies the active hero can actually reach this turn (their tile + ranged-adjacent),
+  // keyed "tileId-monsterId" — the board only lets you tap these, not a monster across the map.
+  const reachableMon = me ? new Set(attackTargets(v, me).map(({ tileId, m }) => `${tileId}-${m.id}`)) : new Set<string>();
+  const combat = touchCombat
+    ? {
+        sel: selMonValid ? selMon : null,
+        onSelect: (key: string) => setSelMon((k) => (k === key ? null : key)),
+        onAttack: attackMon,
+        canHit: canHitMon,
+        reachable: reachableMon,
+      }
+    : null;
+
+  // Tap an ally pawn on your tile: revive a downed ally, Brace/Mend a standing one, or begin a
+  // Carry (then the arrows move them). Mirrors the enemy tap-to-attack.
+  const myTileNow = me ? v.tiles.find((ti) => ti.id === me.tile) : undefined;
+  const allyAct = (h: typeof v.heroes[number]): "revive" | "brace" | "mend" | "carry" | null => {
+    if (!me || !myTurn || v.step !== "spend" || me.downed) return null;
+    if (h.s === me.s || h.tile !== me.tile) return null;
+    if (h.downed) return "revive";
+    if (!h.alive) return null;
+    const sp = me.special;
+    if (sp === "brace" || sp === "guard") return "brace";
+    if (sp === "mend") return "mend";
+    if (sp === "carry") return "carry";
+    return null;
+  };
+  const tapAlly = (h: typeof v.heroes[number]) => {
+    if (!me) return;
+    const act = allyAct(h);
+    if (!act) return;
+    if (act === "revive") { if (v.dice.some((d) => !d.spent)) g.send({ t: "revive", ally: h.s }); return; }
+    if (act === "carry") { setCarryAlly((c) => (c === h.s ? null : h.s)); return; }
+    const sp = me.special;
+    const lo = lowestDie(v.dice, menuMins(me)[sp] ?? 99);
+    if (lo >= 0) g.send({ t: "spend", die: lo, action: sp, ally: h.s });
+  };
+  // keep carry armed only while the carried ally is still a valid target on your tile
+  const carryValid = carryAlly != null && !!me && v.heroes.some((h) => h.s === carryAlly && h.alive && !h.downed && h.tile === me.tile);
+  const ally = compact && myTurn && v.step === "spend" && !!me && !me.downed
+    ? { act: allyAct, onTap: tapAlly, carrying: carryValid ? carryAlly : null }
+    : null;
+
+  // Snatch (Raccoon): ground loot on an orthogonally-adjacent tile glows; a click pulls it in.
+  const snatch = compact && myTurn && v.step === "spend" && !!me && !me.downed && me.special === "pilfer" && !!myTileNow && v.dice.some((d) => !d.spent)
+    ? {
+        hx: myTileNow.x,
+        hy: myTileNow.y,
+        onSnatch: (dir: number) => { const lo = lowestDie(v.dice, menuMins(me)["pilfer"] ?? 2); if (lo >= 0) g.send({ t: "spend", die: lo, action: "pilfer", dir }); },
+      }
+    : null;
 
   // Tile-laying: the options span every legal frontier cell, each with the rotations that
   // fit there. `layRot` is the orientation the player has chosen; it is kept across cells.
@@ -470,8 +573,19 @@ function CrawlerRoom({
             ? "Your turn"
             : `${nameOf(v.turn)}'s turn`;
 
+  // The per-turn action column, shared by the classic top row and the compact rail's expanded
+  // block (built once so the two cannot drift).
+  const actionPanel = (
+    <CrawlerActionPanel
+      v={v} me={me} myTurn={myTurn} sel={sel} setSel={setSel} send={(msg) => g.send(msg)} setHlMon={setHlMon}
+      layActive={layActive} layPreview={layPreview} isPhaseLay={isPhaseLay} layRots={layRots}
+      rotateLay={rotateLay} rotateLayBy={rotateLayBy}
+      onPortalCenter={onPortalCenter} portalDests={portalDests} portalNo={portalNo} nameOf={nameOf}
+    />
+  );
+
   return (
-    <div className="game-room cr-room">
+    <div className={`game-room cr-room${compact ? " compact" : ""}`}>
       {bar}
       <LossFlash show={hpLost} icon="💔" label="damage" />
       <div className="mind-hud panel">
@@ -485,149 +599,23 @@ function CrawlerRoom({
         <span>{status}</span>
       </div>
 
-      {/* top row: character sheet (3/4) beside the dice + actions (1/4) */}
-      <div className="cr-top-row">
-        {me && <CharacterSheet me={me} lost={v.ph === "lost"} view={v} myTurn={myTurn} selDie={sel} onSend={(msg) => { g.send(msg); }} />}
-        <div className="panel cr-action-col">
-          {v.step === "lay" ? (
-            layActive && layPreview ? (
-              <>
-                <strong>{isPhaseLay ? "Lay phase · you drew" : "You drew"}: {tileKind(v.pending!.kind).label}</strong>
-                <span className="muted-note">{tileKind(v.pending!.kind).blurb}</span>
-                <div
-                  className="cr-lay-tile"
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", "tile")}
-                  onWheel={(e) => { if (layRots.length > 1) { e.preventDefault(); rotateLayBy(e.deltaY > 0 ? 1 : -1); } }}
-                  title={isPhaseLay ? "Scroll to rotate me, then drop me on any glowing cell" : "Scroll to rotate me, then drop me on the glowing cell"}
-                >
-                  <TilePreview kind={v.pending!.kind} edges={layPreview.edges} rot={layPreview.rotation} size={92} dir={biomeTileDir(v.biome)} />
-                </div>
-                <div className="cr-lay-ctl">
-                  {layRots.length > 1 && <button className="game-btn ghost" onClick={rotateLay}>⟳ Rotate (r / scroll)</button>}
-                  <span className="muted-note">
-                    {isPhaseLay
-                      ? "Rotate the tile (scroll over it, the ⟳ button, or r), then drag it onto a glowing cell, click one, or press Enter to lay it at the first spot. You move on your own turn."
-                      : "The spot is fixed (where you stepped): rotate the tile (scroll / ⟳ / r), then click the glowing cell or press Enter to step through."}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="muted-note">{nameOf(v.turn)} is laying a tile…</p>
-            )
-          ) : myTurn && me ? (
-            <>
-              <div className="cr-dice">
-                {/* shown sorted low -> high; the real index is kept for selecting/spending */}
-                {v.dice.map((d, i) => ({ d, i })).sort((a, b) => a.d.value - b.d.value).map(({ d, i }) => (
-                  <Die
-                    key={i}
-                    value={d.value}
-                    spent={d.spent}
-                    selected={sel === i}
-                    usedFor={d.usedFor}
-                    bonus={!!d.bonus}
-                    disabled={d.spent}
-                    onClick={() => setSel(sel === i ? null : i)}
-                  />
-                ))}
-              </div>
-              {v.bonusMoves > 0 && (
-                <div className="cr-actions">
-                  <div className="cr-action-row">
-                    <span>Keep moving ({v.bonusMoves} left):</span>
-                    {DIRS.map((_, d) => (
-                      <button key={d} className="game-btn" onClick={() => g.send({ t: "step", dir: d })}>{DIR_ARROW[d]}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {onPortalCenter && portalDests.length > 0 && (
-                <div className="cr-actions">
-                  <div className="cr-action-row">
-                    <span>🌀 Portal to:</span>
-                    {portalDests.map((ti) => (
-                      <button key={ti.id} className="game-btn" onClick={() => { g.send({ t: "portal", tile: ti.id }); setSel(null); }}>→ Portal {portalNo(ti.id)}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {sel != null && v.dice[sel] && !v.dice[sel].spent && (
-                <CrawlerActions
-                  die={v.dice[sel]}
-                  me={me}
-                  view={v}
-                  onAct={(msg) => { g.send(msg); setSel(null); setHlMon(null); }}
-                  onReroll={() => { g.send({ t: "reroll", die: sel }); }}
-                  onHover={setHlMon}
-                />
-              )}
-              {(() => {
-                const hasDie = v.dice.some((d) => !d.spent);
-                const downedAllies = v.heroes.filter((h) => h.downed && h.tile === me.tile && h.s !== me.s);
-                const canHeal = me.courage >= 2 && me.health < me.maxHP;
-                if (!canHeal && downedAllies.length === 0) return null;
-                return (
-                  <div className="cr-actions">
-                    {canHeal && (
-                      <div className="cr-action-row">
-                        <button className="game-btn" title="Always available: trade 2 Courage for 1 Health" onClick={() => g.send({ t: "heal" })}>🩹 Patch up (2✊ → 1❤)</button>
-                      </div>
-                    )}
-                    {downedAllies.map((a) => (
-                      <div className="cr-action-row" key={a.s}>
-                        <span>⛑ {a.n} is down:</span>
-                        <button className="game-btn" disabled={!hasDie} title={hasDie ? "Spend a die to revive this ally (shortcut: v)" : "needs an unspent die"} onClick={() => { g.send({ t: "revive", ally: a.s }); setSel(null); }}>revive (1 die · v)</button>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-              <div className="cr-turn-actions">
-                {v.cleared ? (
-                  <>
-                    <span className="cr-cleared-note">🏆 Boss defeated! Grab loot, then descend.</span>
-                    <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>
-                      End turn{v.postBoss > 0 ? ` (${v.postBoss} left)` : ""}
-                    </button>
-                    <button className="game-btn cr-end-level" onClick={() => g.send({ t: "endLevel" })}>End level</button>
-                  </>
-                ) : (
-                  <button className="game-btn" onClick={() => { g.send({ t: "endTurn" }); setSel(null); }}>End turn</button>
-                )}
-              </div>
-            </>
-          ) : (
-            <p className="muted-note">Waiting for {nameOf(v.turn)}…</p>
-          )}
+      {/* classic top row: character sheet (3/4) beside the dice + actions (1/4). Hidden in
+          compact view, where the left rail is its replacement. */}
+      {!compact && (
+        <div className="cr-top-row">
+          {me && <CharacterSheet me={me} lost={v.ph === "lost"} view={v} myTurn={myTurn} selDie={sel} onSend={(msg) => { g.send(msg); }} />}
+          <div className="panel cr-action-col">{actionPanel}</div>
         </div>
-      </div>
+      )}
 
-      {/* party */}
-      <div className="cr-party">
-        {v.heroes.map((h) => (
-          <div key={h.s} className={`cr-hero${h.s === v.turn ? " active" : ""}${h.downed || !h.alive ? " down" : ""}`}>
-            <strong>{h.n}{h.s === v.you ? " (you)" : ""}{h.downed ? " ⛑ DOWN" : ""}</strong>
-            <span>❤ {h.health}/{h.maxHP} · ✊ {h.courage} · 🛡 {h.shields}</span>
-            {heroStatuses(h).length > 0 && (
-              <span className="cr-status-row">
-                {heroStatuses(h).map((s) => (
-                  <span key={s} className="cr-status" title={`${STATUSES[s].label}: ${STATUSES[s].blurb}`}>{STATUSES[s].icon}</span>
-                ))}
-              </span>
-            )}
-            <span className="muted-note">{h.totem}{h.unlocked[0] ? " ·★" : ""}{h.unlocked[1] ? "★" : ""}</span>
-            <span className="cr-pack-row" title={`${h.objects.length}/${h.slots || OBJECT_CAP} object slots`}>
-              {Array.from({ length: h.slots || OBJECT_CAP }, (_, i) => {
-                const o = h.objects[i];
-                return o
-                  ? <span key={i} className="cr-pack-cell" title={`${objInfo(o).name}: ${objInfo(o).effect}`}><ObjIcon slug={o} size={18} /></span>
-                  : <span key={i} className="cr-pack-cell empty" />;
-              })}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* classic party list (the compact view folds this into the left rail) */}
+      {!compact && (
+        <div className="cr-party">
+          {v.heroes.map((h) => (
+            <HeroCard key={h.s} h={h} you={v.you} turn={v.turn} />
+          ))}
+        </div>
+      )}
 
       {(v.ph === "won" || v.ph === "lost") && (
         <div className="mind-controls panel mind-over">
@@ -653,14 +641,65 @@ function CrawlerRoom({
         </div>
       )}
 
+      {/* compact view splits the play area: the left party rail, then the board on the right */}
+      <div className={`cr-play-area${compact ? " compact" : ""}`}>
+        {compact && (railOpen ? (
+          <aside className="cr-rail panel">
+            <div className="cr-rail-head">
+              <strong>Party</strong>
+              <div className="cr-rail-toggles" role="group" aria-label="view controls">
+                <button className={`cr-rail-tog on`} onClick={toggleCompact} title="Leave compact view" aria-label="Leave compact view">📱</button>
+                <button className={`cr-rail-tog${charOv ? " on" : ""}`} onClick={toggleChar} title="Character overlay on your hero" aria-pressed={charOv}>🧍</button>
+                <button className={`cr-rail-tog${enemyOv ? " on" : ""}`} onClick={toggleEnemies} title="Enemy overlay: tap a monster to show its ⚔" aria-pressed={enemyOv}>⚔</button>
+                {charOv && <button className={`cr-rail-tog${moveBtns ? " on" : ""}`} onClick={toggleMove} title="Move d-pad around your hero" aria-pressed={moveBtns}>✛</button>}
+                <button className="cr-rail-tog" onClick={toggleRail} title="Collapse the party bar" aria-label="Collapse the party bar">«</button>
+              </div>
+            </div>
+            {/* your block: the redesigned panel with controls on your turn, a card otherwise */}
+            {me && (myTurn ? (
+              <CrawlerHeroPanel
+                v={v} me={me} lost={v.ph === "lost"} onSend={(msg) => { g.send(msg); setSel(null); }}
+                layNode={actionPanel}
+                onPortalCenter={onPortalCenter} portalDests={portalDests} portalNo={portalNo}
+                lucky={lucky} onArmLucky={armLucky} onPickLucky={pickLucky} onReroll={rerollDie}
+                carry={carryValid ? carryAlly : null}
+              />
+            ) : (
+              <HeroCard h={me} you={v.you} turn={v.turn} />
+            ))}
+            {/* teammates, so you can see what they hold and whose turn it is */}
+            <div className="cr-rail-mates">
+              {v.heroes.filter((h) => h.s !== v.you).map((h) => (
+                <HeroCard key={h.s} h={h} you={v.you} turn={v.turn} />
+              ))}
+            </div>
+          </aside>
+        ) : (
+          <button className="cr-rail-expand" onClick={toggleRail} title="Show the party bar" aria-label="Show the party bar">»</button>
+        ))}
       {/* the board, with the shop as an overlay callout when you stand on a shop tile */}
-      <div className="cr-board-wrap">
+      <div className={`cr-board-wrap${compact ? " compact" : ""}`} ref={boardRef}>
+        {/* classic view: a single emoji to enter compact (the rest of the toggles live in the
+            compact rail header). In compact, tapping your avatar re-toggles the hero overlay. */}
+        {!compact && (
+          <div className="cr-view-toggles" role="group" aria-label="view controls">
+            <button className="cr-view-toggle emoji" onClick={toggleCompact} title="Compact (mobile) view" aria-label="Compact view">📱</button>
+          </div>
+        )}
+        {/* character overlay: steps aside while an enemy is selected so its ⚔ is never covered */}
+        {compact && charOv && !selMonValid && myTurn && me && !me.downed && v.step === "spend" && !layActive && (
+          <CrawlerOverlay v={v} me={me} showMove={moveBtns} boardRef={boardRef} onSend={(msg) => { g.send(msg); setSel(null); }} lucky={lucky} onArmLucky={armLucky} onPickLucky={pickLucky} onReroll={rerollDie} carry={carryValid ? carryAlly : null} onPortalCenter={onPortalCenter} portalDests={portalDests} portalNo={portalNo} onPortal={(id) => g.send({ t: "portal", tile: id })} />
+        )}
         <CrawlerMap
           v={v}
           focus={focus}
           debug={debug}
           spriteFor={spriteFor}
           highlight={hlMon}
+          combat={combat}
+          ally={ally}
+          snatch={snatch}
+          onAvatar={avatarToggleChar}
           onPickup={(sq) => g.send({ t: "pickup", square: sq })}
           onReopenShop={(id) => setShopDismissedTile((d) => (d === id ? null : d))}
           lay={layActive && layPreview ? { kind: v.pending!.kind, rot: layRot, options: layOpts, place: placeAt, rotate: rotateLayBy } : null}
@@ -673,6 +712,7 @@ function CrawlerRoom({
         )}
         {v.lootRoll && <CrawlerLootRoll key={`lr-${v.lootRoll.roll}-${v.lootRoll.chance}-${v.lootRoll.killer ?? ""}`} roll={v.lootRoll} />}
         {v.statusRoll && <CrawlerStatusRoll key={`sr-${v.statusRoll.roll}-${v.statusRoll.status}-${v.statusRoll.target ?? ""}`} roll={v.statusRoll} />}
+        </div>
       </div>
 
       {debug && <CrawlerDebug v={v} conn={{ status: g.status, retries: g.retries, seats: g.roster.length, you: g.you, host: g.host }} />}

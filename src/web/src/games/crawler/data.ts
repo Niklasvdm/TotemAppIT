@@ -1,7 +1,7 @@
 // Lookup tables and pure helpers for the Totem Crawler client: the totem roster, the
 // sprite-atlas layout, object/status/hazard/tile metadata, and the small derived-value
 // functions the components share. No JSX and no React, so this is the common data layer.
-import type { CrDie, CrHero, CrMonster, CrView } from "./types";
+import type { CrDie, CrHero, CrMonster, CrTile, CrView } from "./types";
 
 // A roster of totems to play as. meta = the slug sent on join. Each belongs to an
 // archetype (the design note's archetype->animal table); animals in the same archetype
@@ -214,6 +214,60 @@ export const DIE_PIPS: Record<number, [number, number][]> = {
 
 // Cell deltas for N,E,S,W (used for ranged/adjacent-tile lookups).
 export const CR_DELTA: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+// The 3x3 square index of each side's doorway (N,E,S,W), mirrors crawlerDoor on the server.
+export const CR_DOOR: [number, number, number, number] = [1, 5, 7, 3];
+
+// crWalkable is the set of squares a hero may stand on: the centre (4) plus the doorway of
+// each OPEN edge; the four corners are off-path. Mirrors crawlerWalkable on the server.
+export function crWalkable(edges: readonly boolean[]): boolean[] {
+  const w = Array<boolean>(9).fill(false);
+  w[4] = true;
+  for (let d = 0; d < 4; d++) if (edges[d]) w[CR_DOOR[d]] = true;
+  return w;
+}
+
+// crCentreBlocked mirrors centreBlocked: a living boss holds its lair centre, and the
+// kangaroo merchant holds the shop centre, so a hero may not stand on that square.
+function crCentreBlocked(t: CrTile, sq: number): boolean {
+  if (t.kind === "shop" && sq === 4) return true;
+  return t.monsters.some((m) => m.alive && m.isBoss && m.square === sq);
+}
+
+// canStep reports whether the active hero could step one square in dir (N,E,S,W) right now.
+// It mirrors tryMove's path checks so the overlay's move arrows grey out exactly the steps
+// the server would refuse: an in-tile step must land on a walkable, unblocked square; a step
+// off the tile edge must be from that side's open doorway, and either enter a placed
+// neighbour or lay at a still-open frontier (no laying once the collapse clock has started
+// or the stack is empty, and never out of a lair while its boss lives). Snare (the 2-Move
+// cap) is left to the server, so a snared hero may briefly see an enabled arrow it refuses.
+export function canStep(v: CrView, me: CrHero, dir: number): boolean {
+  if (dir < 0 || dir > 3) return false;
+  const t = v.tiles.find((ti) => ti.id === me.tile);
+  if (!t) return false;
+  const col = me.square % 3, row = Math.floor(me.square / 3);
+  const ncol = col + CR_DELTA[dir][0], nrow = row + CR_DELTA[dir][1];
+  if (ncol >= 0 && ncol < 3 && nrow >= 0 && nrow < 3) {
+    const nsq = nrow * 3 + ncol;
+    return crWalkable(t.edges)[nsq] && !crCentreBlocked(t, nsq);
+  }
+  // Crossing the tile edge.
+  if (t.isBoss && t.monsters.some((m) => m.alive && m.isBoss)) return false; // locked in the lair
+  if (me.square !== CR_DOOR[dir] || !t.edges[dir]) return false;
+  const nx = t.x + CR_DELTA[dir][0], ny = t.y + CR_DELTA[dir][1];
+  if (v.tiles.some((ti) => ti.x === nx && ti.y === ny)) return true; // step into a placed neighbour
+  const frontier = v.frontiers.some((f) => f.x === nx && f.y === ny);
+  return frontier && v.grace < 0 && v.deckLeft > 0; // lay at a frontier (only while tiles can still be laid)
+}
+
+// lowestDie returns the index of the lowest-value unspent die meeting `min` (and an optional
+// predicate), or -1. The overlay and keyboard shortcuts both auto-spend the lowest usable die.
+export function lowestDie(dice: CrDie[], min: number, ok?: (val: number) => boolean): number {
+  let lo = -1, loVal = Infinity;
+  dice.forEach((d, i) => {
+    if (!d.spent && d.value >= min && d.value < loVal && (!ok || ok(d.value))) { loVal = d.value; lo = i; }
+  });
+  return lo;
+}
 
 // dieIdx recovers the selected die's index (the view's dice array is stable).
 export function dieIdx(view: CrView, die: CrDie): number {
@@ -236,7 +290,10 @@ export function attackTargets(view: CrView, me: CrHero): { tileId: number; m: Cr
   const out: { tileId: number; m: CrMonster; ranged: boolean }[] = [];
   if (!myTile) return out;
   myTile.monsters.filter((m) => m.alive).forEach((m) => out.push({ tileId: myTile.id, m, ranged: false }));
-  if (me.ranged) {
+  // Ranged reach = a ranged totem (e.g. Arrow Squid) OR carrying a Scope object; the server
+  // grants both, so the client must offer adjacent-tile targets in the same cases.
+  const ranged = !!me.ranged || (me.objects ?? []).includes("scope");
+  if (ranged) {
     CR_DELTA.forEach(([dx, dy], d) => {
       if (!myTile.edges[d]) return;
       const nt = view.tiles.find((t) => t.x === myTile.x + dx && t.y === myTile.y + dy);

@@ -315,57 +315,56 @@ func (g *crawlerGame) dropGround(t *crawlerTile, square int, slug string) {
 	sq := square
 	if occupied(sq) {
 		sq = -1
+		// Prefer a free walkable square (centre + open doorways) — near the action.
 		for _, s := range crawlerSquareOrder {
 			if crawlerWalkable(t.edges)[s] && !occupied(s) {
 				sq = s
 				break
 			}
 		}
+		// Then ANY free square, corners included: loot is picked up tile-wide, so
+		// it need not sit on a walkable square, and spreading over all 9 squares
+		// keeps co-located (stacked) loot rare instead of starting at the 3rd item.
 		if sq < 0 {
-			sq = square // tile crowded: stack it (still pickable)
+			for s := 0; s < 9; s++ {
+				if !occupied(s) {
+					sq = s
+					break
+				}
+			}
+		}
+		if sq < 0 {
+			sq = square // every square taken: stack it (still pickable)
 		}
 	}
 	t.loot = append(t.loot, crawlerGroundItem{square: sq, slug: slug})
 }
 
-// seedTileLoot gives a freshly EXPLORED room a chance at loose floor consumables, branching
-// by tile type (the design's loot rule). It fires ONLY on an exploration lay (a hero stepping
-// onto a frontier), never a proactive LAY-phase lay. Only base path tiles seed: an empty one
-// at 30% (1-2 pieces), a tile with enemies at a lower rate (1/6 for 1-2, 1/3 for 3+, on top of
-// the separate kill drops). Service tiles (shop / healing / portal) and the hazard rooms get
-// nothing; the Vault and fog room seed their own loot (populateVault / populateFogRoom).
+// seedTileLoot gives a laid base-path tile a chance at a loose floor consumable. The chance
+// is set by HOW the tile was laid, not its contents (the design's loot rule):
+//   - EXPLORATION lay (a hero stepping onto a fresh frontier): a flat 30%, ALWAYS, for at
+//     least one item (and ~40% of those a second piece).
+//   - proactive LAY-phase lay (where enemies spawn): a 1-in-6 chance of one item.
+// Only base path tiles roll — service tiles (shop / healing / portal), the hazard rooms and
+// the boss lair get nothing; the Vault and fog room seed their own loot (populateVault /
+// populateFogRoom). Enemy kill drops (dropFrom) are separate.
 func (g *crawlerGame) seedTileLoot(t *crawlerTile, exploration bool) {
-	if !exploration {
-		return // proactive LAY-phase tiles never seed floor loot
-	}
 	switch t.kind {
 	case "straight", "bend", "tee", "cross", "dead-end":
-		// a base path tile: seed below
+		// a base path tile: roll below
 	default:
 		return // specials: services, the self-seeding Vault/fog, hazard rooms, the boss lair
 	}
-	alive := 0
-	for _, m := range t.monsters {
-		if m != nil && m.alive {
-			alive++
-		}
-	}
-	chance := 30 // an empty room
-	switch {
-	case alive >= 3:
-		chance = 100 / 3 // a big pack
-	case alive >= 1:
-		chance = 100 / 6 // one or two enemies
+	chance := 100 / 6 // proactive LAY-phase tile (where enemies spawn): 1-in-6
+	if exploration {
+		chance = 30 // an explored frontier: a flat 30% for loot, always
 	}
 	if g.rng.IntN(100) >= chance {
 		return
 	}
-	n := 1
-	if alive == 0 && g.rng.IntN(100) < 40 {
-		n = 2 // an empty room may turn up a second piece
-	}
-	for i := 0; i < n; i++ {
-		g.dropGround(t, 4, g.rollConsumableDrop())
+	g.dropGround(t, 4, g.rollConsumableDrop())
+	if exploration && g.rng.IntN(100) < 40 {
+		g.dropGround(t, 4, g.rollConsumableDrop()) // an explored room may turn up a second piece
 	}
 }
 

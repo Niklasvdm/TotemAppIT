@@ -129,6 +129,33 @@ export interface CrDebug {
 // spriteFor(seat) returns the walk pose/frame/flip for a board pawn (see useHeroSprites).
 export type SpriteFor = (seat: number) => { pose: CrPose; frame: number; flip: boolean };
 
+// CrCombat drives the compact-view tap-to-attack: tapping a monster selects it (`sel` is its
+// "tileId-monsterId" key), and the ⚔ button it shows calls onAttack; canHit gates the sword.
+export type CrCombat = {
+  sel: string | null;
+  onSelect: (key: string) => void;
+  onAttack: (tileId: number, m: CrMonster) => void;
+  canHit: (m: CrMonster) => boolean;
+  reachable: Set<string>; // "tileId-monsterId" keys the active hero may attack (on/adjacent-reachable)
+};
+
+// CrAllyAct drives tapping an ally pawn: `act(h)` returns what a tap does (revive a downed ally,
+// Brace/Mend them, or begin a Carry), or null when nothing applies; `onTap` performs it. While
+// carrying, `carrying` is that ally's seat (highlighted, its sprite shown by the dice).
+export type CrAllyAct = {
+  act: (h: CrHero) => "revive" | "brace" | "mend" | "carry" | null;
+  onTap: (h: CrHero) => void;
+  carrying: number | null;
+};
+
+// CrSnatch drives the Raccoon's Snatch: ground loot on a tile orthogonally adjacent to the hero
+// glows and, on a click, is pulled in with pilfer in that direction. `hx,hy` is the hero's tile.
+export type CrSnatch = {
+  hx: number;
+  hy: number;
+  onSnatch: (dir: number) => void;
+};
+
 // LayState is what CrawlerMap needs to render the tile-lay drop zones.
 export type LayState = {
   kind: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { attackTargets, useItemMsg, effArmour } from "./data";
+import { attackTargets, useItemMsg, effArmour, canStep, crWalkable, lowestDie } from "./data";
 import type { CrHero, CrMonster, CrTile, CrView } from "./types";
 
 // Minimal fixtures: only the fields the helpers read, cast to the full view types.
@@ -50,6 +50,66 @@ describe("attackTargets", () => {
     const north = tile({ id: 1, x: 0, y: -1, monsters: [mon({ id: 7 })] });
     const v = view({ tiles: [here, north] });
     expect(attackTargets(v, hero({ tile: 0, ranged: false }))).toEqual([]);
+  });
+});
+
+describe("crWalkable", () => {
+  it("is the centre plus the doorway of each open edge", () => {
+    // Open N(1) and E(5) only: walkable = centre(4) + door N(1) + door E(5).
+    expect(crWalkable([true, true, false, false])).toEqual([
+      false, true, false, false, true, true, false, false, false,
+    ]);
+  });
+});
+
+describe("lowestDie", () => {
+  const dice = [
+    { value: 5, spent: false, usedFor: "" },
+    { value: 2, spent: false, usedFor: "" },
+    { value: 6, spent: true, usedFor: "attack" },
+  ];
+  it("picks the lowest unspent die meeting the minimum", () => {
+    expect(lowestDie(dice, 1)).toBe(1); // the 2
+    expect(lowestDie(dice, 5)).toBe(0); // the 2 is too low; the 5 qualifies (6 is spent)
+    expect(lowestDie(dice, 7)).toBe(-1); // nothing qualifies
+  });
+});
+
+describe("canStep", () => {
+  // Hero on the centre of an all-open cross at (0,0).
+  const base = (o: Partial<CrView> = {}) => view({ tiles: [tile({ id: 0 })], heroes: [hero({ tile: 0, square: 4 })], ...o });
+  it("allows a step from centre toward any open doorway", () => {
+    const v = base();
+    expect([0, 1, 2, 3].map((d) => canStep(v, v.heroes[0], d))).toEqual([true, true, true, true]);
+  });
+  it("blocks a step toward a closed edge", () => {
+    const v = view({ tiles: [tile({ id: 0, edges: [true, false, false, false] })], heroes: [hero({ tile: 0, square: 4 })] });
+    expect(canStep(v, v.heroes[0], 0)).toBe(true); // N open
+    expect(canStep(v, v.heroes[0], 1)).toBe(false); // E closed -> corner, off-path
+  });
+  it("blocks stepping onto the shop centre", () => {
+    // On the W doorway (3) of a shop tile, stepping E toward the centre (4) is refused.
+    const v = view({ tiles: [tile({ id: 0, kind: "shop" })], heroes: [hero({ tile: 0, square: 3 })] });
+    expect(canStep(v, v.heroes[0], 1)).toBe(false);
+  });
+  it("steps off a doorway into a placed neighbour", () => {
+    const here = tile({ id: 0, x: 0, y: 0, edges: [true, false, false, false] });
+    const north = tile({ id: 1, x: 0, y: -1 });
+    const v = view({ tiles: [here, north], heroes: [hero({ tile: 0, square: 1 })] }); // on the N doorway
+    expect(canStep(v, v.heroes[0], 0)).toBe(true);
+  });
+  it("lays at a frontier only while tiles can still be laid", () => {
+    const here = tile({ id: 0, x: 0, y: 0, edges: [true, false, false, false] });
+    const open = view({ tiles: [here], heroes: [hero({ tile: 0, square: 1 })], frontiers: [{ x: 0, y: -1 }], grace: -1, deckLeft: 5 });
+    expect(canStep(open, open.heroes[0], 0)).toBe(true);
+    const collapsing = view({ tiles: [here], heroes: [hero({ tile: 0, square: 1 })], frontiers: [{ x: 0, y: -1 }], grace: 3, deckLeft: 5 });
+    expect(canStep(collapsing, collapsing.heroes[0], 0)).toBe(false); // collapse clock started: no more laying
+  });
+  it("locks a hero in the boss lair while the boss lives", () => {
+    const lair = tile({ id: 0, x: 0, y: 0, kind: "boss", isBoss: true, edges: [true, false, false, false], monsters: [mon({ id: 9, isBoss: true, square: 4 })] });
+    const north = tile({ id: 1, x: 0, y: -1 });
+    const v = view({ tiles: [lair, north], heroes: [hero({ tile: 0, square: 1 })] });
+    expect(canStep(v, v.heroes[0], 0)).toBe(false);
   });
 });
 
