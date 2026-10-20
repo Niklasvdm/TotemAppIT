@@ -359,7 +359,16 @@ func (r *Room) Join(name, meta, resume string) (*Conn, WelcomeMsg, error) {
 			delete(r.conns, slot)
 			superseded = true
 		}
-		conn = &Conn{slot: slot, token: newToken(), send: make(chan []byte, sendQueue)}
+		// Keep the client's token on a RECLAIM (do not rotate it): a page reload can fire two
+		// connects in quick succession (React StrictMode's dev double-mount, or a flaky network),
+		// both carrying the same resume token from sessionStorage. If the first reclaim rotated
+		// the token, the second would no longer match the held seat and would be seated anew (the
+		// duplicate-session bug). A FRESH seat still mints a new token.
+		tok := newToken()
+		if reconnect && resume != "" {
+			tok = resume
+		}
+		conn = &Conn{slot: slot, token: tok, send: make(chan []byte, sendQueue)}
 		r.conns[slot] = conn
 		r.held[slot] = heldSeat{token: conn.token} // claim for the NEXT drop
 		r.emptyAt = time.Time{}

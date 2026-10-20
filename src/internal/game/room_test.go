@@ -223,8 +223,8 @@ func TestDroppedPlayerReclaimsTheirSeat(t *testing.T) {
 	if wins != 3 {
 		t.Fatalf("win tally = %d after reconnect, want 3", wins)
 	}
-	if w1.Token == w0.Token {
-		t.Fatal("the resume token was reused; each seating should mint a fresh one")
+	if w1.Token != w0.Token {
+		t.Fatal("a reclaim must keep the client's token (so a racing second reconnect still matches)")
 	}
 }
 
@@ -448,8 +448,8 @@ func TestReconnectSupersedesTheStaleConnection(t *testing.T) {
 	if c1.Slot() != c0.Slot() {
 		t.Fatalf("reconnect landed in slot %d, want the original %d (a new seat is the teleport bug)", c1.Slot(), c0.Slot())
 	}
-	if w1.Token == w0.Token {
-		t.Fatal("a reseat should mint a fresh resume token")
+	if w1.Token != w0.Token {
+		t.Fatal("a reclaim must KEEP the client's token (so a racing second reconnect still matches)")
 	}
 	drainClosed(t, c0) // the stale connection is superseded (queue closed)
 
@@ -457,6 +457,33 @@ func TestReconnectSupersedesTheStaleConnection(t *testing.T) {
 	r.do(func() { wins = bomb(r).Players[c1.Slot()].Wins })
 	if wins != 2 {
 		t.Fatalf("win tally = %d after supersede, want 2 (the same hero was kept)", wins)
+	}
+}
+
+func TestRacingReconnectWithSameTokenReclaims(t *testing.T) {
+	// A page reload can fire TWO connects almost at once (React StrictMode's dev double-mount, or
+	// a flaky network), both carrying the SAME resume token from sessionStorage. Because a reclaim
+	// keeps that token (does not rotate it), the second connect reclaims the SAME seat instead of
+	// being seated as a brand-new player (the duplicate-session bug seen on a phone reopen).
+	r := mustCreate(t, testRegistry(t))
+	c0, w0 := mustJoin(t, r, "aap") // seat 0, token T
+
+	c1, w1, err := r.Join("aap", "", w0.Token) // mount A: reconnect with T
+	if err != nil {
+		t.Fatalf("reconnect A: %v", err)
+	}
+	drainClosed(t, c0)
+	if c1.Slot() != c0.Slot() || w1.Token != w0.Token {
+		t.Fatalf("reconnect A should reclaim seat %d keeping the token; got slot %d token-kept=%v", c0.Slot(), c1.Slot(), w1.Token == w0.Token)
+	}
+
+	c2, _, err := r.Join("aap", "", w0.Token) // mount B: SAME original token (never rotated)
+	if err != nil {
+		t.Fatalf("reconnect B: %v", err)
+	}
+	drainClosed(t, c1)
+	if c2.Slot() != c0.Slot() {
+		t.Fatalf("a racing reconnect with the same token landed in slot %d, want %d (the duplicate-session bug)", c2.Slot(), c0.Slot())
 	}
 }
 

@@ -1,6 +1,6 @@
 ---
 link: https://github.com/Niklasvdm/TotemAppIT
-version: 0.23.1
+version: 0.23.2
 relate to:
   - "[[ReverseProxyWAF]]"
   - "[[AuthenticationServer]]"
@@ -12,7 +12,7 @@ relate to:
 
 # Totem Finder (IT)
 
-**Build `0.23.1`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
+**Build `0.23.2`** — the version lives in [`VERSION`](VERSION) at the repo root and is the single source of truth. `deploy.sh` reads it and stamps it into both halves: the Go binaries via `-ldflags`, the SPA via a Vite `define` at `npm run build`. Go additionally embeds the commit itself, so a binary always identifies its source, and the full stamp reads `0.4.2+a1b2c3d`.
 
 Both stamps are shown side by side in the game's **`F3` netcode HUD** — client and server separately, because a browser serving a cached bundle is exactly how "did my deploy go out?" becomes ambiguous. A mismatch is highlighted. Bump `VERSION` when you cut a release; a plain `go build` or `npm run build` outside the deploy reports `dev`, which is itself worth knowing.
 
@@ -363,21 +363,7 @@ Since then the room layer became a shared **engine**, and eight more games run o
 
 **Server-authoritative, by design.** Clients send *intent* (a direction and whether the bomb key is down) and render what comes back. All movement, collision, fuses, blasts and deaths are decided by the server, so a tampered client cannot walk through walls, teleport, drop infinite bombs or survive a blast. The cost is one round trip of input latency, which is nothing on the LAN these games are played on.
 
-### Layering
-
-`internal/game` is split so the rules are testable without a network:
-
-| File | Responsibility |
-| ---- | -------------- |
-| `arena.go` | Static wall lattice + destructible crate layer, generated from a seed |
-| `state.go` | Match state and the DTOs that go on the wire |
-| `sim.go` | The tick function — a pure `(state, inputs) → state`, no I/O |
-| `protocol.go` | Client/server message envelopes |
-| `room.go` | One goroutine per room, owning a `Match` and running the tick loop |
-| `registry.go` | Room codes → rooms, with idle reaping |
-| `internal/api/games.go` | HTTP/WebSocket transport |
-
-Only `room.go` touches concurrency. Each room **owns its `Match` on a single goroutine** and every mutation is funnelled through an action channel, so the simulation needs no locks. Everything that can resolve a tie (who grabs a powerup on the same tick) iterates players in slot order, and crate drops come from a per-match seeded RNG — so a seed reproduces a whole round, which is what the tests lean on.
+The engine layering (the `internal/game` / `internal/api` split, the single-goroutine-per-room model, multi-tenancy and idle reaping) is in the [games architecture doc](docs/games-architecture.md#package--type-structure-go). This section keeps what is README-specific: Bomberman's netcode in depth, and the totem sprite atlas.
 
 ### Netcode
 
@@ -460,15 +446,7 @@ Classic: bombs have a 2s fuse, blast in a cross that stops at the first crate it
 
 The crate-free pocket around each spawn reaches **two tiles** along both axes, which must stay larger than the starting blast radius — otherwise a player's opening bomb has no survivable tile to retreat to. `TestSpawnHasARetreatFromTheOpeningBomb` pins that invariant across 200 seeds.
 
-### Security
-
-Room codes are drawn from `crypto/rand` over a 32-symbol alphabet with no look-alike glyphs (no `0`/`O`, no `1`/`I`), because the code is the only thing guarding a room and it gets read aloud across a field. Creating a room allocates a goroutine, so it is rate-limited per IP; each connection has its own per-second frame budget, a 512-byte frame cap, and nicknames are validated server-side.
-
-### Adding another game
-
-The seam is `src/web/src/games/GamesPage.tsx` (the index) plus a route in `App.tsx`. A game that needs its own server rules gets a sibling package to `internal/game`; one that doesn't needs no backend at all.
-
-The realtime layer is a shared **engine + `Game` interface**: new games reuse the room, codes, reconnect tokens and transport, and only add their own rules + per-seat (private) views via `Outbox.Send`. The full design — PlantUML of the Go types, the room loop, the networking and the client — is in [docs/games-architecture.md](docs/games-architecture.md). Start there.
+Room-code generation, per-IP/per-connection rate limits and frame caps (the isolation model), and how to add another game, are in the games architecture doc: [multi-tenancy & isolation](docs/games-architecture.md#multi-tenancy--isolation) and [adding a new game](docs/games-architecture.md#adding-a-new-game).
 
 ### Totem sprites
 
