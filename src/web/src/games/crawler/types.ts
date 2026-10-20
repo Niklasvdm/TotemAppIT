@@ -100,6 +100,8 @@ export interface CrView {
   cleared: boolean; // boss down: the post-boss victory lap (End turn / End level)
   postBoss: number; // post-boss turns the current player has left (0 = none / not cleared)
   level: number; // 1..6
+  levelTiles: number; // total tiles in this level's stack (for the start-of-level title card)
+  bossName: string; // this level's boss display name (for the title card)
   biome: string; // Woodland / Ruins / Machine
   shopStock: { slug: string; name: string; cost: number }[];
   bossPool: { slug: string; name: string; minLvl: number; maxLvl: number }[]; // for the F3 dev start picker
@@ -131,11 +133,14 @@ export type SpriteFor = (seat: number) => { pose: CrPose; frame: number; flip: b
 
 // CrCombat drives the compact-view tap-to-attack: tapping a monster selects it (`sel` is its
 // "tileId-monsterId" key), and the ⚔ button it shows calls onAttack; canHit gates the sword.
-// CrCombat drives the on-board attack ⚔: a reachable enemy shows a ⚔ above its sprite that
-// attacks it on tap (canHit gates the button). It lives on the board (not the overlay), so it
-// is clickable and viewable whether or not the on-pawn overlay is up.
+// CrCombat drives the on-board attack ⚔: clicking a reachable enemy SELECTS it (`sel` is its
+// "tileId-monsterId" key) and the ⚔ appears over that one; clicking the ⚔ attacks it (canHit
+// gates it). It lives on the board (not the overlay), so it works whether or not the overlay
+// is up. `hl` highlights a sprite from elsewhere (hovering the sidebar's Attack bar).
 export type CrCombat = {
   reachable: Set<string>; // "tileId-monsterId" keys the active hero may attack (own tile / ranged-reachable)
+  sel: string | null; // the selected enemy's key (⚔ shown on it)
+  onSelect: (key: string) => void;
   onAttack: (tileId: number, m: CrMonster) => void;
   canHit: (m: CrMonster) => boolean;
 };

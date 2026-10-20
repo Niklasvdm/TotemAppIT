@@ -3216,3 +3216,49 @@ func TestCrawlerDeckMatchesLevelTable(t *testing.T) {
 		}
 	}
 }
+
+// TestCrawlerTitleCardViewFields checks the start-of-level title card payload: the view
+// carries this level's boss name and the total tile count (len(deck)) from the moment the
+// level begins, so the client can announce them before the stack is laid.
+func TestCrawlerTitleCardViewFields(t *testing.T) {
+	g, _ := rawCrawler(t, 1)
+	v := g.viewFor(0)
+	if v.BossName == "" {
+		t.Error("BossName is empty at level start; the title card has nothing to announce")
+	}
+	if v.LevelTiles != len(g.deck) {
+		t.Errorf("LevelTiles = %d, want len(deck) = %d", v.LevelTiles, len(g.deck))
+	}
+	if v.LevelTiles == 0 {
+		t.Error("LevelTiles is 0; a level should have a non-empty stack")
+	}
+	if v.BossName != g.levelBossName() {
+		t.Errorf("BossName %q != levelBossName() %q", v.BossName, g.levelBossName())
+	}
+}
+
+// TestCrawlerEpicTierObjects pins the Epic tier (Spare Die, Whetstone) and its bumped pool
+// weights, so a future rarity edit cannot silently make the Spare Die unobtainable again.
+func TestCrawlerEpicTierObjects(t *testing.T) {
+	epic := map[string]bool{}
+	for i := range crObjects {
+		o := &crObjects[i]
+		if o.rarity == rarEpic {
+			epic[o.slug] = true
+			if got := dropWeight(o); got != crDropWeightEpic {
+				t.Errorf("%s dropWeight = %d, want %d", o.slug, got, crDropWeightEpic)
+			}
+			if got := shopWeight(o); got != crShopWeightEpic {
+				t.Errorf("%s shopWeight = %d, want %d", o.slug, got, crShopWeightEpic)
+			}
+		}
+	}
+	for _, slug := range []string{"spare-die", "whetstone"} {
+		if !epic[slug] {
+			t.Errorf("%s should be in the Epic tier", slug)
+		}
+	}
+	if crDropWeightEpic < 2 || crShopWeightEpic < 2 {
+		t.Errorf("Epic weights were lowered (drop=%d shop=%d); Spare Die was too scarce at 1", crDropWeightEpic, crShopWeightEpic)
+	}
+}

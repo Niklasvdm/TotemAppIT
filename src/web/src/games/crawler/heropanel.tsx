@@ -10,7 +10,7 @@ import { CrawlerDiceRow } from "./dicerow";
 import { CrawlerMovePad } from "./movepad";
 import { CrawlerActionBars, CrawlerItemRow } from "./actionbars";
 
-export function CrawlerHeroPanel({ v, me, lost, onSend, layNode, onPortalCenter, portalDests, portalNo, lucky, onArmLucky, onPickLucky, onReroll, carry }: {
+export function CrawlerHeroPanel({ v, me, lost, onSend, layNode, onPortalCenter, portalDests, portalNo, lucky, onArmLucky, onPickLucky, onReroll, carry, onHoverTarget }: {
   v: CrView;
   me: CrHero;
   lost: boolean;
@@ -24,6 +24,7 @@ export function CrawlerHeroPanel({ v, me, lost, onSend, layNode, onPortalCenter,
   onPickLucky: (dieIndex: number) => void;
   onReroll: (dieIndex: number) => void;
   carry: number | null; // Carry armed: the arrows move this ally (its sprite shows by the dice)
+  onHoverTarget?: (key: string | null) => void; // hovering the Attack bar highlights its target on the board
 }) {
   const statuses = heroStatuses(me);
   const carried = carry != null ? v.heroes.find((h) => h.s === carry) : undefined;
@@ -72,7 +73,7 @@ export function CrawlerHeroPanel({ v, me, lost, onSend, layNode, onPortalCenter,
           )}
 
           <CrawlerMovePad v={v} me={me} onSend={onSend} carry={carry} />
-          <CrawlerActionBars v={v} me={me} onSend={onSend} />
+          <CrawlerActionBars v={v} me={me} onSend={onSend} onHoverTarget={onHoverTarget} />
 
           <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} />
 

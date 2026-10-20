@@ -48,9 +48,14 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, highlight, c
           // on the right column); go above only if both horizontal sides are blocked.
           const heroSquares = new Set(heroesHere.map((h) => h.square));
           const col = sq % 3;
+          const rowTop = sq < 3; // top row of the 3x3 tile: the tile's overflow:hidden clips an above-badge
+          const rowBot = sq >= 6; // bottom row: a below-badge would clip
           const badgeRightBlocked = col === 2 || heroSquares.has(sq + 1);
           const badgeLeftBlocked = col === 0 || heroSquares.has(sq - 1);
-          const badgeSide = badgeRightBlocked && !badgeLeftBlocked ? "left" : badgeRightBlocked && badgeLeftBlocked ? "above" : "right";
+          let badgeSide = badgeRightBlocked && !badgeLeftBlocked ? "left" : badgeRightBlocked && badgeLeftBlocked ? "above" : "right";
+          // Both horizontal sides blocked puts the badge above the sprite, which clips on the top
+          // row (like the ⚔). Flip it below there, unless the bottom row would clip that too.
+          if (badgeSide === "above" && rowTop && !rowBot) badgeSide = "below";
           return (
             <div key={sq} className="cr-sq">
               {hazard && HAZARDS[hazard.kind] && (
@@ -85,18 +90,26 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, highlight, c
                 const monKey = `${tile.id}-${monster.id}`;
                 // Only enemies the active hero can actually reach (own tile / a legally
                 // attackable square — the same set the desktop Attack list uses) are
-                // tappable; a monster across the map must not respond to taps.
-                const reachable = !!combat && monster.alive && combat.reachable.has(monKey); // attackable: glows + ⚔
+                // tappable; a monster across the map must not respond to taps. Clicking a
+                // reachable enemy SELECTS it; the ⚔ shows only on the selected one.
+                const reachable = !!combat && monster.alive && combat.reachable.has(monKey); // attackable: glows, click to select
+                const selected = reachable && combat!.sel === monKey; // the one showing the ⚔
+                // Enemies spawn at the top of the tile; the ⚔ sits above the sprite and the tile
+                // clips its overflow, so for the top row paint the ⚔ BELOW the sprite instead.
+                const atkBelow = sq < 3;
                 return (
                 <span
                   key={`mon-${monster.id}`}
                   data-mon={monKey}
-                  className={`cr-mon${reachable ? " selectable" : ""}${badgeSide !== "right" ? ` badge-${badgeSide}` : ""}`}
+                  className={`cr-mon${reachable ? " selectable" : ""}${selected ? " selected" : ""}${badgeSide !== "right" ? ` badge-${badgeSide}` : ""}${rowTop ? " mon-top" : rowBot ? " mon-bot" : ""}`}
                   style={mi ? { transform: `translate(${mi * 9}px, ${mi * 9}px)` } : undefined}
+                  role={reachable ? "button" : undefined}
+                  title={reachable && !selected ? `${monster.name ?? monster.kind} — click to target` : undefined}
+                  onClick={reachable ? (e) => { e.stopPropagation(); combat!.onSelect(monKey); } : undefined}
                 >
-                  {reachable && (
+                  {selected && (
                     <button
-                      className="cr-mon-attack"
+                      className={`cr-mon-attack${atkBelow ? " below" : ""}`}
                       disabled={!combat!.canHit(monster)}
                       title={combat!.canHit(monster) ? "Attack: spend your lowest die that beats its Armour" : "No unspent die can beat its Armour"}
                       onClick={(e) => { e.stopPropagation(); combat!.onAttack(tile.id, monster); }}

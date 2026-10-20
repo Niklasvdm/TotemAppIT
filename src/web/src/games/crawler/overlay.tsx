@@ -117,7 +117,7 @@ export function CrawlerOverlay({ v, me, showMove, onSend, boardRef, lucky, onArm
         {/* small (no-text) action bars + courage next to the arrows; items under the courage bar */}
         <div className="cr-ov-side">
           <CrawlerActionBars v={v} me={me} onSend={onSend} compact names={false} />
-          <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} />
+          <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} info />
         </div>
         {/* end turn, under the d-pad; End level appears under it during the post-boss lap */}
         <div className="cr-ov-end-col">

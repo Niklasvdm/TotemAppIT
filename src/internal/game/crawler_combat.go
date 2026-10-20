@@ -317,6 +317,29 @@ func bossNameOnTile(g *crawlerGame, tileID int) string {
 	return "the boss"
 }
 
+// levelBossName returns the display name of this level's boss, whether it is still in the
+// stack (not yet laid) or already on the map. Used for the start-of-level title card.
+func (g *crawlerGame) levelBossName() string {
+	for i := range g.deck {
+		if !g.deck[i].isBoss {
+			continue
+		}
+		for _, m := range g.deck[i].monsters {
+			if m.isBoss && m.bossName != "" {
+				return m.bossName
+			}
+		}
+	}
+	for _, t := range g.tiles {
+		for _, m := range t.monsters {
+			if m.isBoss && m.bossName != "" {
+				return m.bossName
+			}
+		}
+	}
+	return ""
+}
+
 // jammerActive reports whether a live Jammer-Field boss (Pylon) is on the board.
 func (g *crawlerGame) jammerActive() bool {
 	for _, t := range g.tiles {

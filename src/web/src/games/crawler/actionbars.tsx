@@ -18,7 +18,7 @@ type Tick = { pct: number; on: boolean; title: string };
 
 // One uniform bar row. `fill` (0-100) draws the Courage-style fill; `ticks` mark positions on
 // the track; `costDie` shows a pip die on the right (or `costText`). `compact` hides the label.
-function StatBar({ icon, label, fill, ticks, costDie, costText, onClick, title, dim, compact }: {
+function StatBar({ icon, label, fill, ticks, costDie, costText, onClick, title, dim, compact, onHover, onLeave }: {
   icon: string;
   label?: string;
   fill?: number;
@@ -29,6 +29,8 @@ function StatBar({ icon, label, fill, ticks, costDie, costText, onClick, title, 
   title: string;
   dim?: boolean;
   compact?: boolean;
+  onHover?: () => void; // hovering the bar highlights its target on the board
+  onLeave?: () => void;
 }) {
   const inner = (
     <>
@@ -44,16 +46,17 @@ function StatBar({ icon, label, fill, ticks, costDie, costText, onClick, title, 
     </>
   );
   return onClick
-    ? <button className="cr-bar2" onClick={onClick} title={title}>{inner}</button>
+    ? <button className="cr-bar2" onClick={onClick} title={title} onMouseEnter={onHover} onMouseLeave={onLeave}>{inner}</button>
     : <div className={`cr-bar2 info${dim ? " dim" : ""}`} title={title}>{inner}</div>;
 }
 
-export function CrawlerActionBars({ v, me, onSend, compact = false, names = true }: {
+export function CrawlerActionBars({ v, me, onSend, compact = false, names = true, onHoverTarget }: {
   v: CrView;
   me: CrHero;
   onSend: (msg: object) => void;
   compact?: boolean; // mobile: no text, smaller
   names?: boolean;   // show the unlock-marker names (desktop) vs emoji-only (mobile)
+  onHoverTarget?: (key: string | null) => void; // hovering Attack highlights its target enemy on the board
 }) {
   const mins = menuMins(me);
   const unlocks = unlockInfo(me);
@@ -90,14 +93,17 @@ export function CrawlerActionBars({ v, me, onSend, compact = false, names = true
   const atkIdx = lowestDie(v.dice, 1, (val) => targets.some((t) => val >= effArmour(t.m)));
   if (atkIdx >= 0) {
     const val = v.dice[atkIdx].value;
+    // The bar auto-targets the lowest-Health reachable enemy this die can hit; expose its key so
+    // hovering the bar can highlight that same enemy on the board.
+    const hit = targets.filter((t) => val >= effArmour(t.m));
+    const tgt = hit.length ? hit.reduce((b, t) => (t.m.health < b.m.health ? t : b)) : null;
+    const tgtKey = tgt ? `${tgt.tileId}-${tgt.m.id}` : null;
     const doAttack = () => {
-      const hit = targets.filter((t) => val >= effArmour(t.m));
-      if (!hit.length) return;
-      const tgt = hit.reduce((b, t) => (t.m.health < b.m.health ? t : b));
+      if (!tgt) return;
       onSend({ t: "spend", die: atkIdx, action: "attack", monster: tgt.m.id, tile: tgt.tileId });
     };
     bars.push({ sort: val, node: (
-      <StatBar key="attack" icon="⚔️" label="Attack" costDie={val} onClick={doAttack} compact={compact} title="Attack: spend your lowest die that beats a monster's Armour (hits the lowest-Health reachable one)." />
+      <StatBar key="attack" icon="⚔️" label="Attack" costDie={val} onClick={doAttack} compact={compact} onHover={onHoverTarget && tgtKey ? () => onHoverTarget(tgtKey) : undefined} onLeave={onHoverTarget ? () => onHoverTarget(null) : undefined} title="Attack: spend your lowest die that beats a monster's Armour (hits the lowest-Health reachable one)." />
     ) });
   }
 
@@ -135,7 +141,7 @@ export function CrawlerActionBars({ v, me, onSend, compact = false, names = true
 // The hero's object slots (every slot, so free spaces are visible). A filled slot is a quick-
 // use button plus a ⤓ drop button; an empty slot shows the gap. The Lucky Charm arms a
 // "pick a die" mode (onArmLucky) instead of firing, since it needs a target die.
-export function CrawlerItemRow({ v, me, myTurn, sel = null, onSend, luckyArmed = false, onArmLucky }: {
+export function CrawlerItemRow({ v, me, myTurn, sel = null, onSend, luckyArmed = false, onArmLucky, info: showInfo = false }: {
   v: CrView;
   me: CrHero;
   myTurn: boolean;
@@ -143,6 +149,7 @@ export function CrawlerItemRow({ v, me, myTurn, sel = null, onSend, luckyArmed =
   onSend: (msg: object) => void;
   luckyArmed?: boolean;
   onArmLucky?: () => void;
+  info?: boolean; // mobile short-view: add an ⓘ per item (tap for what it does, since there's no hover)
 }) {
   const cap = me.slots || OBJECT_CAP;
   const canAct = myTurn && !me.downed;
@@ -171,6 +178,7 @@ export function CrawlerItemRow({ v, me, myTurn, sel = null, onSend, luckyArmed =
             {canAct && (
               <button className="cr-item-drop" title={`Drop ${info.name} on your square`} onClick={() => onSend({ t: "drop", obj: slug })}>⤓</button>
             )}
+            {showInfo && <InfoDot text={`${info.name}: ${info.effect}`} />}
           </span>
         );
       })}

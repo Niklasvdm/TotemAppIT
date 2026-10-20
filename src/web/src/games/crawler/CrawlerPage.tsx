@@ -13,7 +13,6 @@ import { useStatsFlag } from "../bomberman/NetHud";
 import type { CrView, CrMonster } from "./types";
 import { TOTEMS, objInfo, OBJECTS, menuMins, COURAGE_CAP, attackTargets, effArmour, useItemMsg, lowestDie } from "./data";
 import { useHeroSprites, ObjIcon } from "./sprites";
-import { CharacterSheet } from "./sheet";
 import { CrawlerActionPanel } from "./actionpanel";
 import { CrawlerHeroPanel } from "./heropanel";
 import { HeroCard } from "./herocard";
@@ -21,7 +20,7 @@ import { CrawlerShopCallout } from "./shop";
 import { CrawlerMap } from "./board";
 import { CrawlerDebug } from "./debug";
 import { CrawlerOverlay } from "./overlay";
-import { CrawlerLootRoll, CrawlerStatusRoll } from "./banners";
+import { CrawlerLootRoll, CrawlerStatusRoll, CrawlerRoundWarning, CrawlerLevelCard } from "./banners";
 
 export default function CrawlerPage() {
   const { t } = useTranslation();
@@ -187,6 +186,7 @@ function CrawlerRoom({
   const debug = useStatsFlag(); // F3 toggles a debug overlay (like Bomberman)
   const spriteFor = useHeroSprites(g.view); // walk/facing animation for the board pawns
   const [sel, setSel] = useState<number | null>(null); // selected die index
+  const [selMon, setSelMon] = useState<string | null>(null); // "tileId-monsterId" the player clicked to target: its ⚔ shows
   const [hlMon, setHlMon] = useState<string | null>(null); // "tileId-monsterId" of the attack button under the cursor, glowed on the board
   const [lucky, setLucky] = useState(false); // Lucky Charm armed: the next die clicked gets +1
   const [carryAlly, setCarryAlly] = useState<number | null>(null); // Carry armed: the arrows move this ally
@@ -198,33 +198,20 @@ function CrawlerRoom({
   const [devBoss, setDevBoss] = useState(""); // F3 dev: forced boss slug ("" = random)
   const [devLoot, setDevLoot] = useState<string[]>([]); // F3 dev: starting loot slugs
   const [shopDismissedTile, setShopDismissedTile] = useState<number | null>(null); // shop closed by hand; click the stall (its tile id) to re-open
-  // Compact (mobile) view: a touch overlay of dice + move d-pad + quick specials floats over
-  // the board so you can act without scrolling up to the sheet. The second toggle draws the
-  // move d-pad. Both persist so a reload keeps the player's choice. Default: compact off
-  // (desktop unchanged), move-buttons on once compact is enabled.
-  const [compact, setCompact] = useState(() => localStorage.getItem("totem-crawler-compact") !== "0"); // sidebar layout is the default now
+  // The sidebar + on-pawn layout is the only layout (the old classic top-panel "V1" view was
+  // removed in 0.24.0). The on-pawn character overlay (dice / d-pad / specials on the pawn) and
+  // the enemy overlay (click-to-attack) are INDEPENDENT toggles, each persisted, so the character
+  // controls never cover the combat button; the move d-pad is a sub-toggle of the character one.
   const [moveBtns, setMoveBtns] = useState(() => localStorage.getItem("totem-crawler-movebtns") !== "0");
-  // The character overlay (dice/d-pad/specials on the pawn) and the enemy overlay (tap-to-
-  // attack) are INDEPENDENT, each its own toggle, so the character controls never cover the
-  // combat button. Tapping an enemy shows only its ⚔ (the character overlay steps aside);
-  // tapping your avatar brings the character overlay back.
   const [charOv, setCharOv] = useState(() => localStorage.getItem("totem-crawler-charov") !== "0");
   const [enemyOv, setEnemyOv] = useState(() => localStorage.getItem("totem-crawler-enemyov") !== "0");
-  const toggleCompact = () => setCompact((c) => { localStorage.setItem("totem-crawler-compact", c ? "0" : "1"); return !c; });
   const toggleMove = () => setMoveBtns((m) => { localStorage.setItem("totem-crawler-movebtns", m ? "0" : "1"); return !m; });
   const toggleChar = () => setCharOv((c) => { localStorage.setItem("totem-crawler-charov", c ? "0" : "1"); return !c; });
   const toggleEnemies = () => setEnemyOv((e) => { localStorage.setItem("totem-crawler-enemyov", e ? "0" : "1"); return !e; });
-  // The left party bar (compact view): collapsible with « / ».
+  // The left party rail: collapsible with « / ».
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("totem-crawler-rail") !== "0");
   const toggleRail = () => setRailOpen((o) => { localStorage.setItem("totem-crawler-rail", o ? "0" : "1"); return !o; });
-  const avatarToggleChar = () => { // tap avatar: toggle the character overlay (enabling compact first)
-    if (!compact) {
-      setCompact(true); localStorage.setItem("totem-crawler-compact", "1");
-      setCharOv(true); localStorage.setItem("totem-crawler-charov", "1");
-      return;
-    }
-    toggleChar();
-  };
+  const avatarToggleChar = toggleChar; // tap your avatar: toggle the on-pawn character overlay
   const boardRef = useRef<HTMLDivElement>(null); // the board wrap, so the overlay can anchor on the pawn
   const v = g.view;
   // Reset the orientation to the first legal one whenever a fresh tile is drawn.
@@ -238,7 +225,7 @@ function CrawlerRoom({
   const [myTurns, setMyTurns] = useState(0);
   useEffect(() => {
     if (myTurnNow) { onMyTurn?.(); setMyTurns((n) => n + 1); }
-    else { setLucky(false); setCarryAlly(null); } // drop half-armed Lucky Charm / Carry when the turn passes
+    else { setLucky(false); setCarryAlly(null); setSelMon(null); } // drop half-armed Lucky Charm / Carry / target when the turn passes
   }, [myTurnNow, onMyTurn]);
   // Keyboard controls, a fast twin of the mouse (which still works: select a die for the
   // action menu, use items from your sheet). Each key auto-spends your LOWEST usable die, so
@@ -303,6 +290,25 @@ function CrawlerRoom({
         if (me.courage >= COURAGE_CAP) return;
         const lo = lowestDie(mins.courage);
         if (lo >= 0) { g.send({ t: "spend", die: lo, action: "courage" }); setSel(null); }
+        return;
+      }
+      // Brace: b (shield totems). Spend the lowest usable die to shield yourself, same as the
+      // Special bar's self-target.
+      if (key === "b" && (me.special === "brace" || me.special === "guard")) {
+        e.preventDefault();
+        const lo = lowestDie(mins[me.special] ?? 2);
+        if (lo >= 0) { g.send({ t: "spend", die: lo, action: me.special, ally: me.s }); setSel(null); }
+        return;
+      }
+      // Heal/Mend: h (healer totems). Mend the lowest-Health hero on your tile (yourself included).
+      if (key === "h" && me.special === "mend") {
+        e.preventDefault();
+        const lo = lowestDie(mins.mend ?? 2);
+        if (lo < 0) return;
+        const onTile = v.heroes.filter((h) => h.alive && !h.downed && h.tile === me.tile);
+        const tgt = onTile.reduce((best, h) => (h.health / h.maxHP < best.health / best.maxHP ? h : best), me);
+        g.send({ t: "spend", die: lo, action: "mend", ally: tgt.s });
+        setSel(null);
         return;
       }
       // Fight: f. The lowest die that can beat some enemy's Armour attacks the lowest-Health
@@ -371,7 +377,7 @@ function CrawlerRoom({
   const myTurn = v.ph === "playing" && v.turn === v.you;
   const nameOf = (s: number) => v.heroes.find((h) => h.s === s)?.n ?? "?";
 
-  // Tap-to-attack (compact view): tapping a monster on the board selects it and shows a ⚔
+  // Tap-to-attack: clicking a monster on the board selects it and shows a ⚔
   // button; the ⚔ spends your lowest die that can beat its (effective) Armour. Mirrors the
   // keyboard 'f' logic but aimed at the one monster you picked. canHit gates the sword.
   const canHitMon = (m: CrMonster) => lowestDie(v.dice, 1, (val) => val >= effArmour(m)) >= 0;
@@ -380,13 +386,15 @@ function CrawlerRoom({
     if (lo < 0) return;
     g.send({ t: "spend", die: lo, action: "attack", monster: m.id, tile: tileId });
     setSel(null);
+    setSelMon(null);
   };
-  // Tap-to-attack lives on the board: a ⚔ above each reachable enemy (their tile + ranged-
-  // adjacent), active whenever the Enemies toggle is on and it is your spend turn, independent
-  // of the character overlay (so you can fight whether or not the arrows are up).
-  const touchCombat = compact && enemyOv && myTurn && v.step === "spend" && !!me && !me.downed;
+  // Tap-to-attack lives on the board: clicking a reachable enemy (their tile + ranged-adjacent)
+  // selects it and raises its ⚔; the ⚔ attacks. Active whenever the Enemies toggle is on and it
+  // is your spend turn, independent of the character overlay (so you can fight whether or not the
+  // arrows are up). The ⚔ shows only on the clicked enemy, never on all reachable at once.
+  const touchCombat = enemyOv && myTurn && v.step === "spend" && !!me && !me.downed;
   const reachableMon = me ? new Set(attackTargets(v, me).map(({ tileId, m }) => `${tileId}-${m.id}`)) : new Set<string>();
-  const combat = touchCombat ? { reachable: reachableMon, onAttack: attackMon, canHit: canHitMon } : null;
+  const combat = touchCombat ? { reachable: reachableMon, sel: selMon, onSelect: setSelMon, onAttack: attackMon, canHit: canHitMon } : null;
 
   // Tap an ally pawn on your tile: revive a downed ally, Brace/Mend a standing one, or begin a
   // Carry (then the arrows move them). Mirrors the enemy tap-to-attack.
@@ -414,12 +422,12 @@ function CrawlerRoom({
   };
   // keep carry armed only while the carried ally is still a valid target on your tile
   const carryValid = carryAlly != null && !!me && v.heroes.some((h) => h.s === carryAlly && h.alive && !h.downed && h.tile === me.tile);
-  const ally = compact && myTurn && v.step === "spend" && !!me && !me.downed
+  const ally = myTurn && v.step === "spend" && !!me && !me.downed
     ? { act: allyAct, onTap: tapAlly, carrying: carryValid ? carryAlly : null }
     : null;
 
   // Snatch (Raccoon): ground loot on an orthogonally-adjacent tile glows; a click pulls it in.
-  const snatch = compact && myTurn && v.step === "spend" && !!me && !me.downed && me.special === "pilfer" && !!myTileNow && v.dice.some((d) => !d.spent)
+  const snatch = myTurn && v.step === "spend" && !!me && !me.downed && me.special === "pilfer" && !!myTileNow && v.dice.some((d) => !d.spent)
     ? {
         hx: myTileNow.x,
         hy: myTileNow.y,
@@ -560,8 +568,8 @@ function CrawlerRoom({
             ? "Your turn"
             : `${nameOf(v.turn)}'s turn`;
 
-  // The per-turn action column, shared by the classic top row and the compact rail's expanded
-  // block (built once so the two cannot drift).
+  // The per-turn action column, shown inside the rail's expanded block during the lay phase
+  // (passed as the HeroPanel's layNode).
   const actionPanel = (
     <CrawlerActionPanel
       v={v} me={me} myTurn={myTurn} sel={sel} setSel={setSel} send={(msg) => g.send(msg)} setHlMon={setHlMon}
@@ -572,7 +580,7 @@ function CrawlerRoom({
   );
 
   return (
-    <div className={`game-room cr-room${compact ? " compact" : ""}`}>
+    <div className="game-room cr-room compact">
       {bar}
       <LossFlash show={hpLost} icon="💔" label="damage" />
       <div className="mind-hud panel">
@@ -585,24 +593,6 @@ function CrawlerRoom({
         {v.grace >= 0 && <span className="cr-collapse">⚠ collapse in {v.grace} turn{v.grace === 1 ? "" : "s"}</span>}
         <span>{status}</span>
       </div>
-
-      {/* classic top row: character sheet (3/4) beside the dice + actions (1/4). Hidden in
-          compact view, where the left rail is its replacement. */}
-      {!compact && (
-        <div className="cr-top-row">
-          {me && <CharacterSheet me={me} lost={v.ph === "lost"} view={v} myTurn={myTurn} selDie={sel} onSend={(msg) => { g.send(msg); }} />}
-          <div className="panel cr-action-col">{actionPanel}</div>
-        </div>
-      )}
-
-      {/* classic party list (the compact view folds this into the left rail) */}
-      {!compact && (
-        <div className="cr-party">
-          {v.heroes.map((h) => (
-            <HeroCard key={h.s} h={h} you={v.you} turn={v.turn} />
-          ))}
-        </div>
-      )}
 
       {(v.ph === "won" || v.ph === "lost") && (
         <div className="mind-controls panel mind-over">
@@ -621,6 +611,8 @@ function CrawlerRoom({
           <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span>
           <span><kbd>C</kbd> Courage</span>
           <span><kbd>F</kbd> Fight</span>
+          {(me?.special === "brace" || me?.special === "guard") && <span><kbd>B</kbd> Brace</span>}
+          {me?.special === "mend" && <span><kbd>H</kbd> Heal</span>}
           <span><kbd>1</kbd>–<kbd>9</kbd> use item</span>
           <span><kbd>E</kbd> end turn</span>
           <span><kbd>V</kbd> revive a downed ally</span>
@@ -629,14 +621,13 @@ function CrawlerRoom({
         </div>
       )}
 
-      {/* compact view splits the play area: the left party rail, then the board on the right */}
-      <div className={`cr-play-area${compact ? " compact" : ""}`}>
-        {compact && (railOpen ? (
+      {/* the play area: the left party rail, then the board on the right */}
+      <div className="cr-play-area compact">
+        {railOpen ? (
           <aside className="cr-rail panel">
             <div className="cr-rail-head">
               <strong>Party</strong>
               <div className="cr-rail-toggles" role="group" aria-label="view controls">
-                <button className={`cr-rail-tog on`} onClick={toggleCompact} title="Leave compact view" aria-label="Leave compact view">📱</button>
                 <button className={`cr-rail-tog${charOv ? " on" : ""}`} onClick={toggleChar} title="Character overlay on your hero" aria-pressed={charOv}>🧍</button>
                 <button className={`cr-rail-tog${enemyOv ? " on" : ""}`} onClick={toggleEnemies} title="Enemy overlay: tap a monster to show its ⚔" aria-pressed={enemyOv}>⚔</button>
                 {charOv && <button className={`cr-rail-tog${moveBtns ? " on" : ""}`} onClick={toggleMove} title="Move d-pad around your hero" aria-pressed={moveBtns}>✛</button>}
@@ -650,7 +641,7 @@ function CrawlerRoom({
                 layNode={actionPanel}
                 onPortalCenter={onPortalCenter} portalDests={portalDests} portalNo={portalNo}
                 lucky={lucky} onArmLucky={armLucky} onPickLucky={pickLucky} onReroll={rerollDie}
-                carry={carryValid ? carryAlly : null}
+                carry={carryValid ? carryAlly : null} onHoverTarget={setHlMon}
               />
             ) : (
               <HeroCard h={me} you={v.you} turn={v.turn} />
@@ -664,18 +655,11 @@ function CrawlerRoom({
           </aside>
         ) : (
           <button className="cr-rail-expand" onClick={toggleRail} title="Show the party bar" aria-label="Show the party bar">»</button>
-        ))}
-      {/* the board, with the shop as an overlay callout when you stand on a shop tile */}
-      <div className={`cr-board-wrap${compact ? " compact" : ""}`} ref={boardRef}>
-        {/* classic view: a single emoji to enter compact (the rest of the toggles live in the
-            compact rail header). In compact, tapping your avatar re-toggles the hero overlay. */}
-        {!compact && (
-          <div className="cr-view-toggles" role="group" aria-label="view controls">
-            <button className="cr-view-toggle emoji" onClick={toggleCompact} title="Compact (mobile) view" aria-label="Compact view">📱</button>
-          </div>
         )}
+      {/* the board, with the shop as an overlay callout when you stand on a shop tile */}
+      <div className="cr-board-wrap compact" ref={boardRef}>
         {/* character overlay: stays up during combat; it raises its own ⚔ over reachable enemies */}
-        {compact && charOv && myTurn && me && !me.downed && v.step === "spend" && !layActive && (
+        {charOv && myTurn && me && !me.downed && v.step === "spend" && !layActive && (
           <CrawlerOverlay v={v} me={me} showMove={moveBtns} boardRef={boardRef} onSend={(msg) => { g.send(msg); setSel(null); }} lucky={lucky} onArmLucky={armLucky} onPickLucky={pickLucky} onReroll={rerollDie} carry={carryValid ? carryAlly : null} onPortalCenter={onPortalCenter} portalDests={portalDests} portalNo={portalNo} onPortal={(id) => g.send({ t: "portal", tile: id })} />
         )}
         <CrawlerMap
@@ -698,6 +682,12 @@ function CrawlerRoom({
         {me && myTurn && !layActive && myTile?.kind === "shop" && shopDismissedTile !== myTile.id && (
           <CrawlerShopCallout me={me} shop={v.shopStock} onSend={(msg) => g.send(msg)} onClose={() => setShopDismissedTile(myTile.id)} />
         )}
+        {/* start-of-level title card: boss drawn, tile count, a shuffle animation. Keyed on the
+            level + boss + tile-count so a new level (or a retry of the same one) re-triggers it. */}
+        {v.ph === "playing" && <CrawlerLevelCard key={`lc-${v.level}-${v.bossName}-${v.levelTiles}`} v={v} />}
+        {/* start-of-moving-round warning (tiles running out / collapse countdown): mounts once per
+            turn's spend step, keyed on the turn + grace so each new round re-triggers it */}
+        {v.ph === "playing" && v.step === "spend" && <CrawlerRoundWarning key={`rw-${v.turn}-${v.grace}`} v={v} />}
         {v.lootRoll && <CrawlerLootRoll key={`lr-${v.lootRoll.roll}-${v.lootRoll.chance}-${v.lootRoll.killer ?? ""}`} roll={v.lootRoll} />}
         {v.statusRoll && <CrawlerStatusRoll key={`sr-${v.statusRoll.roll}-${v.statusRoll.status}-${v.statusRoll.target ?? ""}`} roll={v.statusRoll} />}
         </div>

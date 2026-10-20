@@ -31,6 +31,56 @@ export function CrawlerLootRoll({ roll }: { roll: NonNullable<CrView["lootRoll"]
   );
 }
 
+// CrawlerLevelCard is the start-of-level title card: which biome/level, the boss that was
+// drawn, the total tile count, and a row of tiles "shuffling" at the bottom. Mounted keyed on
+// the level (and boss/tile-count, so a retry re-triggers it) and auto-hides after a few seconds.
+export function CrawlerLevelCard({ v }: { v: CrView }) {
+  if (!useAutoHide(4200)) return null;
+  return (
+    <div className="cr-levelcard" role="status">
+      <div className="cr-levelcard-inner">
+        <div className="cr-levelcard-level">Level {v.level}/6</div>
+        <div className="cr-levelcard-biome">{v.biome}</div>
+        <div className="cr-levelcard-boss">👑 Boss: <strong>{v.bossName || "???"}</strong></div>
+        <div className="cr-levelcard-tiles">🂠 {v.levelTiles} tiles to explore</div>
+        <div className="cr-levelcard-shuffle" aria-hidden="true">
+          {Array.from({ length: 7 }, (_, i) => (
+            <span key={i} className="cr-shuffle-tile" style={{ animationDelay: `${i * 90}ms` }}>🂠</span>
+          ))}
+        </div>
+        <div className="cr-levelcard-shuffle-label">shuffling the stack…</div>
+      </div>
+    </div>
+  );
+}
+
+// CrawlerRoundWarning is the big start-of-round visibility banner. Mounted keyed on the turn so
+// it fires once at the start of each moving round (after tile-laying): while tiles remain it
+// warns when the stack is nearly out ("X tiles left! Boss near"); once the stack is empty it
+// shows the collapse countdown ("N turns left before collapse"). Auto-hides after a few seconds.
+export function CrawlerRoundWarning({ v }: { v: CrView }) {
+  const shown = useAutoHide(3000);
+  const showGrace = v.grace >= 0; // stack empty: collapse countdown
+  const tilesLeft = v.deckLeft;
+  const showTiles = !showGrace && tilesLeft > 0 && tilesLeft <= 10; // last 10 tiles
+  if (!shown || (!showGrace && !showTiles)) return null;
+  return (
+    <div className={`cr-round-warn${showGrace ? " collapse" : ""}`} role="status">
+      {showGrace ? (
+        <>
+          <span className="cr-round-warn-ico">⚠</span>
+          <span className="cr-round-warn-txt">{v.grace} turn{v.grace === 1 ? "" : "s"} left before the dungeon collapses!</span>
+        </>
+      ) : (
+        <>
+          <span className="cr-round-warn-ico">🂠</span>
+          <span className="cr-round-warn-txt">{tilesLeft} tile{tilesLeft === 1 ? "" : "s"} left!{v.bossNear ? " Boss near." : ""}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 // CrawlerStatusRoll is the visible status die: when a robot's sting rolls for a status, it
 // shows the d6 result against the needed face and whether the status landed.
 export function CrawlerStatusRoll({ roll }: { roll: NonNullable<CrView["statusRoll"]> }) {

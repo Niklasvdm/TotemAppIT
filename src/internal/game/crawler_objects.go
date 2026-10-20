@@ -102,10 +102,10 @@ func shopWeight(o *crObjectDef) int {
 const (
 	crDropWeightUncommon = 5
 	crDropWeightRare     = 2
-	crDropWeightEpic     = 1
+	crDropWeightEpic     = 2 // bumped from 1: Epic (Spare Die, Whetstone) was too scarce in practice
 	crShopWeightUncommon = 4
 	crShopWeightRare     = 2
-	crShopWeightEpic     = 1
+	crShopWeightEpic     = 2
 	crShopPerms          = 4 // of crShopSize, how many slots are permanents (the majority)
 )
 
