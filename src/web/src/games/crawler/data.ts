@@ -72,26 +72,29 @@ export function specialLabel(s: string): string {
 // Objects/loot (mirrors the design note + crawler_objects.go). Each has an icon under
 // sprites/crawler/objects/<slug>.png with an emoji fallback; `target` marks consumables
 // whose use needs a monster target (Grenade). Permanents are passive (no Use button).
-export const OBJECTS: Record<string, { name: string; emoji: string; perm: boolean; effect: string; target?: boolean }> = {
-  "spare-die": { name: "Spare Die", emoji: "🎲", perm: true, effect: "adds a High attack die to your pool" },
-  whetstone: { name: "Whetstone", emoji: "🔪", perm: true, effect: "your 6s count as two hits" },
-  "lucky-charm": { name: "Lucky Charm", emoji: "🍀", perm: true, effect: "once a turn, nudge one die +1" },
-  "gamblers-glove": { name: "Gambler's Glove", emoji: "🧤", perm: true, effect: "one free reroll each turn" },
-  scope: { name: "Scope", emoji: "🎯", perm: true, effect: "your attacks reach an adjacent tile" },
-  plating: { name: "Plating", emoji: "🛡️", perm: true, effect: "start each turn with Shields topped to 2" },
-  harness: { name: "Harness", emoji: "🎒", perm: true, effect: "carry an ally when you move" },
-  "grounding-boots": { name: "Grounding Boots", emoji: "🥾", perm: true, effect: "immune to shock statuses" },
-  medkit: { name: "Medkit", emoji: "🩹", perm: false, effect: "heal 3" },
-  grenade: { name: "Grenade", emoji: "💣", perm: false, effect: "auto-kill a Health-1 robot on your tile", target: true },
-  "recall-whistle": { name: "Recall Whistle", emoji: "↩️", perm: false, effect: "teleport to the start or a transporter" },
-  battery: { name: "Battery", emoji: "🔋", perm: false, effect: "+2 Courage" },
-  torch: { name: "Torch", emoji: "🔦", perm: false, effect: "clears the hazards on your tile" },
-  "courage-horn": { name: "Courage Horn", emoji: "📯", perm: false, effect: "+1 Courage to every ally on your tile" },
-  beacon: { name: "Beacon", emoji: "📍", perm: false, effect: "place a transporter tile next to you" },
-  "sap-seed": { name: "Sap Seed", emoji: "🌱", perm: false, effect: "place a healing tile next to you" },
+// rarity mirrors crawler_objects.go: consumables are common, permanents split uncommon/rare/epic.
+export type CrRarity = "common" | "uncommon" | "rare" | "epic";
+export const OBJECTS: Record<string, { name: string; emoji: string; perm: boolean; effect: string; target?: boolean; rarity: CrRarity }> = {
+  "spare-die": { name: "Spare Die", emoji: "🎲", perm: true, effect: "adds a High attack die to your pool", rarity: "epic" },
+  whetstone: { name: "Whetstone", emoji: "🔪", perm: true, effect: "your 6s count as two hits", rarity: "epic" },
+  "lucky-charm": { name: "Lucky Charm", emoji: "🍀", perm: true, effect: "once a turn, nudge one die +1", rarity: "rare" },
+  "gamblers-glove": { name: "Gambler's Glove", emoji: "🧤", perm: true, effect: "one free reroll each turn", rarity: "rare" },
+  scope: { name: "Scope", emoji: "🎯", perm: true, effect: "your attacks reach an adjacent tile", rarity: "rare" },
+  plating: { name: "Plating", emoji: "🛡️", perm: true, effect: "start each turn with Shields topped to 2", rarity: "uncommon" },
+  harness: { name: "Harness", emoji: "🎒", perm: true, effect: "carry an ally when you move", rarity: "uncommon" },
+  "grounding-boots": { name: "Grounding Boots", emoji: "🥾", perm: true, effect: "immune to shock statuses", rarity: "uncommon" },
+  medkit: { name: "Medkit", emoji: "🩹", perm: false, effect: "heal 3", rarity: "common" },
+  grenade: { name: "Grenade", emoji: "💣", perm: false, effect: "auto-kill a Health-1 robot on your tile", target: true, rarity: "common" },
+  "recall-whistle": { name: "Recall Whistle", emoji: "↩️", perm: false, effect: "teleport to the start or a transporter", rarity: "common" },
+  battery: { name: "Battery", emoji: "🔋", perm: false, effect: "+2 Courage", rarity: "common" },
+  torch: { name: "Torch", emoji: "🔦", perm: false, effect: "clears the hazards on your tile", rarity: "common" },
+  "courage-horn": { name: "Courage Horn", emoji: "📯", perm: false, effect: "+1 Courage to every ally on your tile", rarity: "common" },
+  beacon: { name: "Beacon", emoji: "📍", perm: false, effect: "place a transporter tile next to you", rarity: "common" },
+  "sap-seed": { name: "Sap Seed", emoji: "🌱", perm: false, effect: "place a healing tile next to you", rarity: "common" },
 };
+export const RARITY_LABEL: Record<CrRarity, string> = { common: "Common", uncommon: "Uncommon", rare: "Rare", epic: "Epic" };
 export function objInfo(slug: string) {
-  return OBJECTS[slug] ?? { name: slug, emoji: "📦", perm: false, effect: "" };
+  return OBJECTS[slug] ?? { name: slug, emoji: "📦", perm: false, effect: "", rarity: "common" as CrRarity };
 }
 
 // Status metadata: an icon + one-line meaning, keyed by the server's status slug.

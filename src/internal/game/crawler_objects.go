@@ -24,37 +24,136 @@ func heroSlots(h *crawlerHero) int {
 	return n
 }
 
+// Rarity tiers. Consumables are all common; permanents split across the three higher tiers.
+// Rarity drives how often an object drops from a kill and how it is weighted in the shop.
+const (
+	rarCommon   = "common"
+	rarUncommon = "uncommon"
+	rarRare     = "rare"
+	rarEpic     = "epic"
+)
+
 type crObjectDef struct {
 	slug   string
 	name   string
 	emoji  string
 	cost   int    // Courage to buy
 	perm   bool   // permanent gear (passive); else a one-use consumable
-	weight int    // drop-table weight (consumables only; 0 = never drops)
+	weight int    // consumable drop-table weight (common tier); permanents drop by rarity
 	effect string // one-line effect, for tooltips/docs
+	rarity string // rar* tier (common for every consumable)
 }
 
 // crObjects is the full catalogue, keyed by slug. Order within perm/consumable groups
 // follows the note.
 var crObjects = []crObjectDef{
-	// Permanent gear (shop; the boss can drop one).
-	{"spare-die", "Spare Die", "🎲", 5, true, 0, "add a High attack die to your pool"},
-	{"whetstone", "Whetstone", "🔪", 4, true, 0, "your 6s count as two hits"},
-	{"lucky-charm", "Lucky Charm", "🍀", 4, true, 0, "once a turn, nudge one die +1"},
-	{"gamblers-glove", "Gambler's Glove", "🧤", 4, true, 0, "one free reroll each turn"},
-	{"scope", "Scope", "🎯", 3, true, 0, "your attacks reach an adjacent tile"},
-	{"plating", "Plating", "🛡️", 3, true, 0, "start each turn with Shields topped to 2"},
-	{"harness", "Harness", "🎒", 3, true, 0, "carry an ally when you move"},
-	{"grounding-boots", "Grounding Boots", "🥾", 3, true, 0, "immune to Electrocuted/Electrified"},
-	// Consumables (shop or found, one-use).
-	{"medkit", "Medkit", "🩹", 2, false, 20, "heal 3"},
-	{"grenade", "Grenade", "💣", 2, false, 18, "auto-kill one Health-1 robot on your tile"},
-	{"recall-whistle", "Recall Whistle", "↩️", 2, false, 12, "teleport yourself to the start or a transporter"},
-	{"battery", "Battery", "🔋", 3, false, 14, "+2 Courage"},
-	{"torch", "Torch", "🔦", 3, false, 12, "clears a hazard"},
-	{"courage-horn", "Courage Horn", "📯", 3, false, 10, "every ally on your tile gains +1 Courage"},
-	{"beacon", "Beacon", "📍", 4, false, 8, "place a transporter tile next to you"},
-	{"sap-seed", "Sap Seed", "🌱", 5, false, 6, "place a healing tile next to you"},
+	// Permanent gear (shop majority; a kill can drop one by rarity, the boss still guarantees one).
+	{"spare-die", "Spare Die", "🎲", 5, true, 0, "add a High attack die to your pool", rarEpic},
+	{"whetstone", "Whetstone", "🔪", 4, true, 0, "your 6s count as two hits", rarEpic},
+	{"lucky-charm", "Lucky Charm", "🍀", 4, true, 0, "once a turn, nudge one die +1", rarRare},
+	{"gamblers-glove", "Gambler's Glove", "🧤", 4, true, 0, "one free reroll each turn", rarRare},
+	{"scope", "Scope", "🎯", 3, true, 0, "your attacks reach an adjacent tile", rarRare},
+	{"plating", "Plating", "🛡️", 3, true, 0, "start each turn with Shields topped to 2", rarUncommon},
+	{"harness", "Harness", "🎒", 3, true, 0, "carry an ally when you move", rarUncommon},
+	{"grounding-boots", "Grounding Boots", "🥾", 3, true, 0, "immune to Electrocuted/Electrified", rarUncommon},
+	// Consumables (shop or found, one-use). All common.
+	{"medkit", "Medkit", "🩹", 2, false, 20, "heal 3", rarCommon},
+	{"grenade", "Grenade", "💣", 2, false, 18, "auto-kill one Health-1 robot on your tile", rarCommon},
+	{"recall-whistle", "Recall Whistle", "↩️", 2, false, 12, "teleport yourself to the start or a transporter", rarCommon},
+	{"battery", "Battery", "🔋", 3, false, 14, "+2 Courage", rarCommon},
+	{"torch", "Torch", "🔦", 3, false, 12, "clears a hazard", rarCommon},
+	{"courage-horn", "Courage Horn", "📯", 3, false, 10, "every ally on your tile gains +1 Courage", rarCommon},
+	{"beacon", "Beacon", "📍", 4, false, 8, "place a transporter tile next to you", rarCommon},
+	{"sap-seed", "Sap Seed", "🌱", 5, false, 6, "place a healing tile next to you", rarCommon},
+}
+
+// dropWeight is an object's weight in the unified KILL-drop pool (enemies can drop both
+// consumables and permanents). Consumables use their table weight; permanents drop by rarity,
+// rarer tiers much less often, so most kill drops are still consumables.
+func dropWeight(o *crObjectDef) int {
+	switch o.rarity {
+	case rarUncommon:
+		return crDropWeightUncommon
+	case rarRare:
+		return crDropWeightRare
+	case rarEpic:
+		return crDropWeightEpic
+	default: // common (consumables)
+		return o.weight
+	}
+}
+
+// shopWeight is an object's weight when stocking the shop. Permanents are rarity-weighted
+// (uncommon common-est, epic rarest); consumables are uniform in their slots.
+func shopWeight(o *crObjectDef) int {
+	if !o.perm {
+		return 1
+	}
+	switch o.rarity {
+	case rarUncommon:
+		return crShopWeightUncommon
+	case rarRare:
+		return crShopWeightRare
+	default: // epic
+		return crShopWeightEpic
+	}
+}
+
+const (
+	crDropWeightUncommon = 5
+	crDropWeightRare     = 2
+	crDropWeightEpic     = 1
+	crShopWeightUncommon = 4
+	crShopWeightRare     = 2
+	crShopWeightEpic     = 1
+	crShopPerms          = 4 // of crShopSize, how many slots are permanents (the majority)
+)
+
+// rollDrop picks one object from the whole catalogue weighted by dropWeight (a kill drop:
+// mostly consumables, occasionally a permanent by rarity).
+func (g *crawlerGame) rollDrop() string {
+	return g.rollPool(func(o *crObjectDef) int { return dropWeight(o) })
+}
+
+// rollPermanentDrop picks one permanent weighted by rarity (the boss's guaranteed drop).
+func (g *crawlerGame) rollPermanentDrop() string {
+	return g.rollPool(func(o *crObjectDef) int {
+		if !o.perm {
+			return 0
+		}
+		return shopWeight(o)
+	})
+}
+
+// rollPool picks a slug from crObjects by an arbitrary weight function.
+func (g *crawlerGame) rollPool(w func(*crObjectDef) int) string {
+	total := 0
+	for i := range crObjects {
+		total += w(&crObjects[i])
+	}
+	if total <= 0 {
+		return "" // nothing matches the weight function (e.g. the shop ran out of this kind)
+	}
+	r := g.rng.IntN(total)
+	for i := range crObjects {
+		x := w(&crObjects[i])
+		if r < x {
+			return crObjects[i].slug
+		}
+		r -= x
+	}
+	return crObjects[len(crObjects)-1].slug
+}
+
+// pickShop picks a distinct in-/out-of-stock object of the requested kind (perm or not),
+// weighted by shopWeight, excluding what is already stocked. Returns "" if none remain.
+func (g *crawlerGame) pickShop(perm bool, inStock map[string]bool) string {
+	return g.rollPool(func(o *crObjectDef) int {
+		if o.perm != perm || inStock[o.slug] {
+			return 0
+		}
+		return shopWeight(o)
+	})
 }
 
 func objBySlug(slug string) *crObjectDef {
@@ -105,42 +204,87 @@ func objName(slug string) string {
 
 const crShopSize = 5 // objects on offer at once; a bought slot refills with a random object
 
-// rollShop fills the shop with crShopSize distinct random objects (any gear or
-// consumable). Rolled fresh each level; a purchase refills the gap (see buyObject).
-func (g *crawlerGame) rollShop() {
-	all := make([]string, 0, len(crObjects))
-	for _, o := range crObjects {
-		all = append(all, o.slug)
-	}
-	g.rng.Shuffle(len(all), func(i, j int) { all[i], all[j] = all[j], all[i] })
-	n := crShopSize
-	if n > len(all) {
-		n = len(all)
-	}
-	g.shopStock = append([]string{}, all[:n]...)
-}
-
-// refillShop tops the shop back up to crShopSize with a random object not already on
-// offer (so a purchase is immediately replaced). No-op once every object is in stock.
-func (g *crawlerGame) refillShop() {
+// shopInStock returns the set of slugs currently on offer and the number of permanents.
+func (g *crawlerGame) shopInStock() (map[string]bool, int) {
 	inStock := map[string]bool{}
+	perms := 0
 	for _, s := range g.shopStock {
 		inStock[s] = true
+		if d := objBySlug(s); d != nil && d.perm {
+			perms++
+		}
 	}
-	for len(g.shopStock) < crShopSize {
-		var pool []string
-		for _, o := range crObjects {
-			if !inStock[o.slug] {
-				pool = append(pool, o.slug)
-			}
+	return inStock, perms
+}
+
+// rollShop stocks the shop: a MAJORITY of permanents (crShopPerms, rarity-weighted) plus
+// consumables for the rest. Rolled fresh each level; a purchase refills the gap (buyObject).
+func (g *crawlerGame) rollShop() {
+	g.shopStock = g.shopStock[:0]
+	inStock := map[string]bool{}
+	for len(g.shopStock) < crShopPerms {
+		pick := g.pickShop(true, inStock)
+		if pick == "" {
+			break
 		}
-		if len(pool) == 0 {
-			return
-		}
-		pick := pool[g.rng.IntN(len(pool))]
 		g.shopStock = append(g.shopStock, pick)
 		inStock[pick] = true
 	}
+	for len(g.shopStock) < crShopSize {
+		pick := g.pickShop(false, inStock)
+		if pick == "" {
+			break
+		}
+		g.shopStock = append(g.shopStock, pick)
+		inStock[pick] = true
+	}
+}
+
+// refillShop tops the shop back up to crShopSize, keeping the permanent majority: it refills
+// a bought permanent with another permanent (and a consumable with a consumable), falling back
+// to the other kind only when one is exhausted. No-op once nothing new can be stocked.
+func (g *crawlerGame) refillShop() {
+	for len(g.shopStock) < crShopSize {
+		inStock, perms := g.shopInStock()
+		wantPerm := perms < crShopPerms
+		pick := g.pickShop(wantPerm, inStock)
+		if pick == "" {
+			pick = g.pickShop(!wantPerm, inStock)
+		}
+		if pick == "" {
+			return
+		}
+		g.shopStock = append(g.shopStock, pick)
+	}
+}
+
+// sellObject lets a hero on a shop tile sell one object back for a flat +1 Courage. Blocked
+// when already at the Courage cap (the sale would be wasted), off a shop tile, or not carrying
+// the object. Consumables and permanents sell alike (1 Courage), so a mis-bought permanent can
+// be offloaded without being a profitable dump.
+func (g *crawlerGame) sellObject(seat int, slug string) {
+	if g.phase != crPlaying || g.step != crStepSpend || seat != g.turn {
+		return
+	}
+	h := g.players[seat]
+	t := g.tiles[h.tileID]
+	if t == nil || t.kind != crKindShop || h.courage >= crCourageCap {
+		return
+	}
+	d := objBySlug(slug)
+	idx := -1
+	for i, s := range h.objects {
+		if s == slug {
+			idx = i
+			break
+		}
+	}
+	if d == nil || idx < 0 {
+		return
+	}
+	h.objects = append(h.objects[:idx], h.objects[idx+1:]...)
+	h.courage++ // flat 1, already gated below the cap
+	g.log = append(g.log, h.name+" sells "+d.name+" for 1 Courage.")
 }
 
 // buyObject lets a hero on a shop tile spend Courage on a stocked object. It fails
@@ -216,13 +360,7 @@ func (g *crawlerGame) dropFrom(t *crawlerTile, m *crawlerMonster, killer *crawle
 	var drops []string
 	if m.isBoss {
 		drops = append(drops, g.rollConsumableDrop(), g.rollConsumableDrop())
-		var perms []string
-		for _, o := range crObjects {
-			if o.perm {
-				perms = append(perms, o.slug)
-			}
-		}
-		drops = append(drops, perms[g.rng.IntN(len(perms))])
+		drops = append(drops, g.rollPermanentDrop()) // the boss still guarantees a permanent (rarity-weighted)
 		g.log = append(g.log, m.bossName+" drops salvage.")
 	} else {
 		chance := robotDropChance(m.kind)
@@ -230,7 +368,7 @@ func (g *crawlerGame) dropFrom(t *crawlerTile, m *crawlerMonster, killer *crawle
 		hit := roll <= chance
 		name := ""
 		if hit {
-			slug := g.rollConsumableDrop()
+			slug := g.rollDrop() // a kill can drop a consumable OR (rarely, by rarity) a permanent
 			drops = append(drops, slug)
 			name = objName(slug)
 		}
@@ -345,6 +483,7 @@ func (g *crawlerGame) dropGround(t *crawlerTile, square int, slug string) {
 //   - EXPLORATION lay (a hero stepping onto a fresh frontier): a flat 30%, ALWAYS, for at
 //     least one item (and ~40% of those a second piece).
 //   - proactive LAY-phase lay (where enemies spawn): a 1-in-6 chance of one item.
+//
 // Only base path tiles roll — service tiles (shop / healing / portal), the hazard rooms and
 // the boss lair get nothing; the Vault and fog room seed their own loot (populateVault /
 // populateFogRoom). Enemy kill drops (dropFrom) are separate.

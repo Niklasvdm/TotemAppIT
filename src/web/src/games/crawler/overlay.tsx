@@ -4,9 +4,8 @@
 // and items sit to the right; End turn is under the d-pad. The cluster re-anchors on the pawn
 // on every move so it tracks the character. Shown only on your own spend turn.
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
-import type { CrView, CrHero } from "./types";
+import type { CrView, CrHero, CrTile } from "./types";
 import { heroStatuses, STATUSES } from "./data";
-import type { CrTile } from "./types";
 import { TotemSprite } from "./sprites";
 import { CrawlerDiceRow } from "./dicerow";
 import { CrawlerMovePad } from "./movepad";
@@ -30,9 +29,9 @@ export function CrawlerOverlay({ v, me, showMove, onSend, boardRef, lucky, onArm
 }) {
   const carried = carry != null ? v.heroes.find((h) => h.s === carry) : undefined;
   const myTile = v.tiles.find((t) => t.id === me.tile);
-  // Keep the cluster centred on YOUR pawn, re-measuring on every move, on the map's re-centre
-  // scroll, and on resize. Coordinates are relative to the board wrap. Falls back to viewport
-  // centre until the pawn is measured.
+  // Keep the cluster centred on YOUR pawn, re-measuring on move / the map's re-centre scroll /
+  // resize. (Enemy attack ⚔ live ON the board, not here, so they scroll natively and show
+  // whether or not this overlay is up.)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const rafRef = useRef(0);
   useLayoutEffect(() => {

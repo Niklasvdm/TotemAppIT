@@ -18,7 +18,7 @@
   --shadow-hover: 0 10px 0 rgba(0,0,0,.4), 0 18px 34px rgba(0,0,0,.5);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: var(--cream); color: var(--ink); font-family: "Nunito", sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { background: var(--cream); color: var(--ink); font-family: "Nunito", sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; overscroll-behavior-y: contain; }
 h1, h2, h3 { font-family: "Baloo 2", cursive; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 input { font-family: inherit; }
@@ -484,12 +484,14 @@ header {
 
 /* --- Totem Crawler ---------------------------------------------------- */
 .cr-room { display: flex; flex-direction: column; gap: .6rem; --cr-cell: 160px; }
-.cr-map-scroll { overflow: auto; max-height: 70vh; border-radius: 10px; background: var(--cream, #0000); cursor: grab; }
+/* padding on the scroll CONTAINER (not the grid child) so there is scroll room on every side,
+   bottom and right included (a child's padding-bottom/right is not reliably scrollable). */
+.cr-map-scroll { overflow: auto; overscroll-behavior: contain; max-height: 70vh; padding: 16vh 8vw; box-sizing: border-box; border-radius: 10px; background: var(--cream, #0000); cursor: grab; }
 .cr-map-scroll.dragging { cursor: grabbing; }
 /* Vertical/horizontal padding gives scroll room past the edge tiles, so the focus tile can
    always be centred and the on-tile buttons (an enemy's ⚔, the dice above your pawn) are never
    clipped at the viewport edge. */
-.cr-map { display: grid; gap: 5px; justify-content: center; margin: .3rem auto; width: max-content; padding: 16vh 8vw; }
+.cr-map { display: grid; gap: 5px; justify-content: center; margin: .3rem auto; width: max-content; }
 .cr-cell { width: var(--cr-cell); height: var(--cr-cell); box-sizing: border-box; }
 @media (max-width: 640px) {
   .cr-room { --cr-cell: 118px; }
@@ -921,6 +923,10 @@ button.gcard:disabled { cursor: default; opacity: .9; }
    so the hearts fit just under the up arrow */
 .cr-dpad { display: grid; grid-template-columns: repeat(3, 2.5rem); grid-template-rows: repeat(3, 2.5rem); gap: .25rem; }
 .cr-overlay .cr-dpad { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); gap: .9rem; pointer-events: none; }
+/* on the pawn overlay the arrows are bare, wide glyphs (no box), still a full-cell tap target */
+.cr-overlay .cr-arrow { background: transparent; border: none; box-shadow: none; color: #fff; font-size: 2.1rem; font-weight: 700; text-shadow: 0 1px 3px #000, 0 0 8px rgba(0,0,0,.75); }
+.cr-overlay .cr-arrow:hover:not(:disabled) { background: transparent; color: var(--gold, #c9a227); }
+.cr-overlay .cr-arrow:disabled { opacity: .3; }
 .cr-arrow { pointer-events: auto; font-size: 1.3rem; line-height: 1; border: 2px solid rgba(201,162,39,.8); background: rgba(20,15,9,.82); color: #fdf6e8; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .cr-arrow:hover:not(:disabled) { background: rgba(201,162,39,.35); }
 .cr-arrow:disabled { opacity: .3; cursor: default; }
@@ -952,8 +958,9 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-carry-note { display: flex; align-items: center; gap: .4rem; padding: .3rem; border: 1px solid var(--gold, #c9a227); border-radius: 8px; background: rgba(201,162,39,.12); }
 
 /* portal arrows around the hero, pointing at the true angle to each other portal */
-.cr-ov-portal { position: absolute; left: 0; top: 0; pointer-events: auto; display: inline-flex; flex-direction: column; align-items: center; gap: 0; width: 1.9rem; height: 1.9rem; justify-content: center; border-radius: 50%; border: 2px solid #7fd1ff; background: rgba(20,15,9,.85); color: #cdefff; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.cr-ov-portal { position: absolute; left: 0; top: 0; z-index: 40; pointer-events: auto; display: inline-flex; flex-direction: column; align-items: center; gap: 0; width: 1.9rem; height: 1.9rem; justify-content: center; border-radius: 50%; border: 2px solid #7fd1ff; background: rgba(20,15,9,.92); color: #cdefff; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .cr-ov-portal:hover { background: rgba(127,209,255,.3); }
+/* raised ⚔ over a reachable enemy (positioned in board coords), above every overlay control */
 .cr-ov-portal-arrow { font-size: .85rem; line-height: 1; }
 .cr-ov-portal-no { font-size: .6rem; font-weight: 800; line-height: 1; }
 
@@ -1037,7 +1044,8 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 /* compact-view tap-to-attack: a selected monster glows and shows the ⚔ button */
 .cr-mon.selectable { cursor: pointer; }
 .cr-mon.selected > .cr-sprite, .cr-mon.selected .cr-sprite { filter: drop-shadow(0 0 3px #e74c3c) drop-shadow(0 0 6px #e74c3c); }
-.cr-mon-attack { position: absolute; z-index: 6; left: 50%; top: -0.4rem; transform: translate(-50%, -100%); font-size: 1.1rem; line-height: 1; padding: .25rem .4rem; background: #c0392b; color: #fff; border: 2px solid #fff; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+/* the ⚔ sits ABOVE the enemy sprite (clear of its face), over every reachable enemy */
+.cr-mon-attack { position: absolute; z-index: 6; left: 50%; top: 0; transform: translate(-50%, -88%); font-size: 1rem; line-height: 1; padding: .15rem .3rem; background: #c0392b; color: #fff; border: 2px solid #fff; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
 .cr-mon-attack:hover:not(:disabled) { background: #e74c3c; }
 .cr-mon-attack:disabled { opacity: .4; cursor: default; }
 .cr-pawn.avatar-btn { cursor: pointer; }
@@ -1052,6 +1060,15 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-shop-close:hover { background: rgba(201,162,39,.2); }
 .cr-tile.reopen-shop { cursor: pointer; }
 .cr-shop-note { font-size: .78rem; color: #e1a; margin-bottom: .35rem; }
+.cr-shop-tabs { display: flex; gap: .3rem; margin-bottom: .5rem; }
+.cr-shop-tab { flex: 1; background: transparent; border: 1px solid rgba(201,162,39,.5); color: #fdf6e8; border-radius: 7px; cursor: pointer; padding: .2rem; font-size: .82rem; }
+.cr-shop-tab.on { background: var(--gold, #c9a227); color: #140f09; border-color: var(--gold, #c9a227); font-weight: 700; }
+.cr-shop-tab:hover:not(.on) { border-color: var(--gold, #c9a227); }
+.cr-rarity { margin-left: .4rem; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: .02rem .3rem; border-radius: 999px; vertical-align: middle; }
+.cr-rarity-common { color: #cdd3d9; border: 1px solid #6b7480; }
+.cr-rarity-uncommon { color: #7fe39a; border: 1px solid #3fa05f; }
+.cr-rarity-rare { color: #7fb8ff; border: 1px solid #3f78d0; }
+.cr-rarity-epic { color: #d79bff; border: 1px solid #9a4fd0; }
 .cr-shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
 .cr-shop-item { display: flex; align-items: center; gap: .5rem; }
 .cr-shop-item-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.2; }

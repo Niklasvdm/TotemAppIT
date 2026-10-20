@@ -87,16 +87,18 @@ const (
 	crMsgEndTurn  = "endTurn"
 	crMsgEndLevel = "endLevel" // descend now, skipping the post-boss victory lap (current player only)
 	crMsgRestart  = "restart"
-	crMsgStep     = "step"   // {dir} one bonus step of a multi-square move (no die)
-	crMsgPortal   = "portal" // {tile} teleport from a portal tile to another portal tile (no die)
-	crMsgBuy      = "buy"    // {obj} buy an object from the shop you stand on (spends Courage)
-	crMsgUse      = "use"    // {obj, monster} use a consumable (free action)
-	crMsgLucky    = "lucky"  // {die} Lucky Charm: nudge a die +1 (free, once a turn)
-	crMsgPickup   = "pickup" // {square} take a ground object on your tile
-	crMsgDrop     = "drop"   // {obj} drop an object onto your square
-	crMsgTotem    = "totem"  // {totem} pick/change your animal while in the lobby
-	crMsgRevive   = "revive" // {ally} spend a die to revive a downed ally on your tile
-	crMsgHeal     = "heal"   // spend 2 Courage to heal 1 (always available on your turn)
+	crMsgRetry    = "retryLevel" // host, after a loss: replay the current level from scratch (objects lost)
+	crMsgStep     = "step"       // {dir} one bonus step of a multi-square move (no die)
+	crMsgPortal   = "portal"     // {tile} teleport from a portal tile to another portal tile (no die)
+	crMsgBuy      = "buy"        // {obj} buy an object from the shop you stand on (spends Courage)
+	crMsgSell     = "sell"       // {obj} sell an object back to the shop for +1 Courage
+	crMsgUse      = "use"        // {obj, monster} use a consumable (free action)
+	crMsgLucky    = "lucky"      // {die} Lucky Charm: nudge a die +1 (free, once a turn)
+	crMsgPickup   = "pickup"     // {square} take a ground object on your tile
+	crMsgDrop     = "drop"       // {obj} drop an object onto your square
+	crMsgTotem    = "totem"      // {totem} pick/change your animal while in the lobby
+	crMsgRevive   = "revive"     // {ally} spend a die to revive a downed ally on your tile
+	crMsgHeal     = "heal"       // spend 2 Courage to heal 1 (always available on your turn)
 )
 
 // Special (non-combat) tile kinds placed into the deck. They carry no monster; their
@@ -535,6 +537,8 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 		g.nudgeDie(seat, c.Die)
 	case crMsgBuy:
 		g.buyObject(seat, c.Obj)
+	case crMsgSell:
+		g.sellObject(seat, c.Obj)
 	case crMsgUse:
 		g.useObject(seat, c.Obj, c.Monster)
 	case crMsgPickup:
@@ -573,6 +577,17 @@ func (g *crawlerGame) Command(seat int, isHost bool, raw []byte) {
 			return
 		}
 		g.resetToLobby()
+	case crMsgRetry:
+		// Replay the current level from scratch after a loss: objects are lost and the party
+		// starts the level fresh (startLevel refills health, resets Courage and rebuilds the map).
+		if !isHost || g.phase != crLost {
+			return
+		}
+		for _, s := range g.order {
+			g.players[s].objects = nil
+		}
+		g.log = append(g.log, "The party tries Level "+strconv.Itoa(g.level)+" again, empty-handed.")
+		g.startLevel(g.level)
 	default:
 		return
 	}
@@ -1033,11 +1048,9 @@ func (g *crawlerGame) beginTurn(seat int) {
 			extra++
 		}
 	}
-	// Rusted (status): one fewer die until cleared (floor of 1 so a turn is never empty).
-	n := h.sheet.diceN + extra
-	if h.rusted && n > 1 {
-		n--
-	}
+	// The pool is diceN base dice (the sheet's type) + attackDiceN innate High attack dice +
+	// one High die per Spare Die; everything past diceN is a Bonus (distinct-colour) High die.
+	n := h.sheet.diceN + h.sheet.attackDiceN + extra
 	g.dice = make([]crawlerDie, n)
 	for i := range g.dice {
 		// Electrocuted (status): -1 to every die value (floored at 1), applied via electro
@@ -1045,9 +1058,15 @@ func (g *crawlerGame) beginTurn(seat int) {
 		if i < h.sheet.diceN {
 			g.dice[i] = crawlerDie{Value: electro(h, g.rollFace(h.sheet))}
 		} else {
-			// Spare Die(s): acquired High attack dice, flagged Bonus so the client colours them.
+			// Spare Die(s) / innate attack die: High, flagged Bonus so the client colours them.
 			g.dice[i] = crawlerDie{Value: electro(h, diceHigh[g.rng.IntN(len(diceHigh))]), Bonus: true}
 		}
+	}
+	// Rusted (status): lose one RANDOM die until cleared (floor of 1 so a turn is never empty),
+	// rather than always dropping the last (which was the hero's High attack die).
+	if h.rusted && len(g.dice) > 1 {
+		i := g.rng.IntN(len(g.dice))
+		g.dice = append(g.dice[:i], g.dice[i+1:]...)
 	}
 }
 
@@ -1319,8 +1338,11 @@ func (g *crawlerGame) tryMove(seat, dir int) bool {
 	}
 	// Locked in the boss lair: once you are on the boss's tile you cannot leave it while the
 	// boss lives — you fight it out from here (moving between the side squares is still fine).
-	// Leaving opens up again once the boss falls (the post-boss victory lap).
-	if t.isBoss && g.bossAliveOn(t) {
+	// Leaving opens up again once the boss falls (the post-boss victory lap). Exception: Hauler
+	// (Hardened Core) is immune while its weak-point still stands elsewhere, so it must NOT lock
+	// you in then (you would be unable to fight it AND unable to leave to destroy the weak-point);
+	// the lock-in applies once the weak-point is gone and it can actually be fought.
+	if t.isBoss && g.bossLocksHeroes(t) {
 		return false
 	}
 	// Crossing the tile edge: must be at that side's doorway and the edge open.
@@ -1361,6 +1383,21 @@ func bossOnSquare(t *crawlerTile, sq int) bool {
 func (g *crawlerGame) bossAliveOn(t *crawlerTile) bool {
 	for _, m := range t.monsters {
 		if m.alive && m.isBoss {
+			return true
+		}
+	}
+	return false
+}
+
+// bossLocksHeroes reports whether tile t's living boss currently traps heroes on it. True for a
+// normal boss; FALSE for Hauler (Hardened Core) while its weak-point still stands, since it is
+// immune then and the party must be free to leave and destroy the weak-point first.
+func (g *crawlerGame) bossLocksHeroes(t *crawlerTile) bool {
+	for _, m := range t.monsters {
+		if m.alive && m.isBoss {
+			if hasSpecial(m, bsHardcore) && g.weakPointAlive() {
+				return false
+			}
 			return true
 		}
 	}

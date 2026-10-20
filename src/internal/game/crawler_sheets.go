@@ -26,6 +26,7 @@ type crawlerSheet struct {
 	role        string // archetype (see the role* constants); specials key on this, not totem
 	maxHP       int
 	diceN       int
+	attackDiceN int   // innate High "attack" dice rolled on top of diceN (distinct colour); e.g. the Healer gets 1
 	faces       []int // the die's weighted faces (the three types below); roll picks one
 	menu        []crawlerMenuEntry
 	special     string // the inherent special action's name (brace/mend/carry/guard), or "" for none
@@ -72,11 +73,12 @@ func rangedSheet(totem string) crawlerSheet {
 	}
 }
 
-// Healer / support: staying power, Low dice that become frequent Mends. Spores + Bloom.
-// Animals: Treefrog, Fringed turtle.
+// Healer / support: staying power, 4 Low dice that become frequent Mends, plus 1 innate High
+// "attack" die (distinct colour) so a support totem can still chip kills and earn Courage.
+// Spores + Bloom. Animals: Treefrog, Fringed turtle.
 func healerSheet(totem string) crawlerSheet {
 	return crawlerSheet{
-		totem: totem, role: roleHealer, maxHP: 6, diceN: 5, faces: diceLow, moveRange: 1, objectSlots: 3,
+		totem: totem, role: roleHealer, maxHP: 6, diceN: 4, attackDiceN: 1, faces: diceLow, moveRange: 1, objectSlots: 3,
 		menu: baseMenu(actMend), special: actMend, unlock0: "Spores", unlock1: "Bloom",
 	}
 }

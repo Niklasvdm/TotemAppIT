@@ -10,6 +10,19 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.23.0 — 2026-10-20
+- `[FEATURE]` **Crawler: sell loot back to the shop.** The kangaroo's stall has a Sell tab: any object sells for a flat +1 Courage (blocked at the Courage cap, since it would be wasted). A Courage faucet for the combat-light totems. `TestCrawlerShopSellGivesCourage`.
+- `[FEATURE]` **Crawler: object rarity and a unified kill-drop pool.** Permanents carry a rarity (Uncommon / Rare / Epic; consumables are Common). A kill now drops from one rarity-weighted pool, so an enemy can drop a permanent (rarely), not just consumables; the boss still guarantees its permanent (now rarity-weighted). The shop stocks a majority of permanents (4 of 5, rarity-weighted), the tier shown as a coloured badge. `TestCrawlerShopStocksMajorityPermanents`, `TestCrawlerKillDropPoolHasBothRarities`.
+- `[FEATURE]` **Crawler: the Healer rolls an innate attack die.** The support sheet is now 4 Low dice plus 1 High "attack" die (distinct colour), so a healer can chip kills and earn Courage without losing its identity. `TestCrawlerHealerHasInnateAttackDie`.
+- `[FEATURE]` **Crawler: a mobile/sidebar UI pass.** A collapsible left party rail (the new default view) with the hero's expanded controls, an on-pawn touch overlay (dice, move d-pad, action bars, courage with unlock ticks, items, tap-to-attack), board drag-to-pan, and the sell/rarity shop UI.
+
+### 0.23.1 — 2026-10-20
+- `[BUG]` **Crawler: Hauler's weak-point spawns near the boss, and Hauler no longer traps you while immune.** The Hardened-Core weak-point now lands on the nearest valid hazard room to the lair (it could land anywhere on the map before), and Hauler does not lock heroes into its tile while its weak-point still stands (you can leave to go destroy it, since the boss is immune); the lock-in returns once the weak-point is gone. `TestCrawlerWeakPointSpawnsNearBoss`, `TestCrawlerHaulerDoesNotLockInWhileImmune`.
+- `[BUG]` **Crawler (mobile): the enemy ⚔ is on the board, above the sprite, and tappable whether or not the on-pawn overlay is up.** A ⚔ shows over every reachable enemy (your tile, or a ranged/Scope-reachable adjacent tile) and attacks it on tap; it no longer rides on the overlay, which also removed the per-scroll re-measuring that made the map janky.
+- `[BUG]` **Crawler (mobile): the map no longer randomly refreshes, and has scroll room on every side.** `overscroll-behavior: contain` stops the browser's pull-to-refresh firing on a board drag, and the scroll padding moved onto the scroll container so you can scroll past the edge tiles on all four sides (it was top-only, a child-padding-bottom quirk).
+- `[CHANGE]` **Crawler: Rusted now drops a RANDOM die**, not always the hero's High attack die.
+- `[FEATURE]` **Crawler: "Try level again" on a loss.** The defeat screen now offers, beside New run, a retry that replays the current level from scratch (a fresh map and party, with all objects lost). `TestCrawlerRetryLevelReplaysWithoutObjects`.
+
 ### 0.22.1 — 2026-10-20
 - `[BUG]` **Crawler: board sprites no longer paint onto the neighbouring tile.** `.cr-tile` had no `overflow` clip, so a sprite on an edge square (a hero on a boss-lair doorway square, or a dead robot on the top row of the Vespex lair) spilled past the tile border onto the next tile, so your hero could appear on the wrong tile. Tiles now clip their contents (`overflow: hidden`), so every sprite stays inside its own tile. The boss-tile arena layout (the oversized boss can still cover the pawn) stays open.
 

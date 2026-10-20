@@ -188,7 +188,6 @@ function CrawlerRoom({
   const spriteFor = useHeroSprites(g.view); // walk/facing animation for the board pawns
   const [sel, setSel] = useState<number | null>(null); // selected die index
   const [hlMon, setHlMon] = useState<string | null>(null); // "tileId-monsterId" of the attack button under the cursor, glowed on the board
-  const [selMon, setSelMon] = useState<string | null>(null); // "tileId-monsterId" tapped on the board in compact view (shows the ⚔ attack button)
   const [lucky, setLucky] = useState(false); // Lucky Charm armed: the next die clicked gets +1
   const [carryAlly, setCarryAlly] = useState<number | null>(null); // Carry armed: the arrows move this ally
   const armLucky = () => setLucky((x) => !x);
@@ -214,12 +213,11 @@ function CrawlerRoom({
   const toggleCompact = () => setCompact((c) => { localStorage.setItem("totem-crawler-compact", c ? "0" : "1"); return !c; });
   const toggleMove = () => setMoveBtns((m) => { localStorage.setItem("totem-crawler-movebtns", m ? "0" : "1"); return !m; });
   const toggleChar = () => setCharOv((c) => { localStorage.setItem("totem-crawler-charov", c ? "0" : "1"); return !c; });
-  const toggleEnemies = () => setEnemyOv((e) => { localStorage.setItem("totem-crawler-enemyov", e ? "0" : "1"); if (e) setSelMon(null); return !e; });
+  const toggleEnemies = () => setEnemyOv((e) => { localStorage.setItem("totem-crawler-enemyov", e ? "0" : "1"); return !e; });
   // The left party bar (compact view): collapsible with « / ».
   const [railOpen, setRailOpen] = useState(() => localStorage.getItem("totem-crawler-rail") !== "0");
   const toggleRail = () => setRailOpen((o) => { localStorage.setItem("totem-crawler-rail", o ? "0" : "1"); return !o; });
   const avatarToggleChar = () => { // tap avatar: toggle the character overlay (enabling compact first)
-    setSelMon(null);
     if (!compact) {
       setCompact(true); localStorage.setItem("totem-crawler-compact", "1");
       setCharOv(true); localStorage.setItem("totem-crawler-charov", "1");
@@ -381,25 +379,14 @@ function CrawlerRoom({
     const lo = lowestDie(v.dice, 1, (val) => val >= effArmour(m));
     if (lo < 0) return;
     g.send({ t: "spend", die: lo, action: "attack", monster: m.id, tile: tileId });
-    // keep the monster selected so the ⚔ stays up for repeat hits; it auto-clears when it dies
-    // (selMonValid) — so you fight the same enemy until it drops.
     setSel(null);
   };
-  // Only keep a selection that still points at a living monster (it dies, you deselect it).
-  const selMonValid = !!selMon && v.tiles.some((ti) => ti.monsters.some((m) => m.alive && `${ti.id}-${m.id}` === selMon));
+  // Tap-to-attack lives on the board: a ⚔ above each reachable enemy (their tile + ranged-
+  // adjacent), active whenever the Enemies toggle is on and it is your spend turn, independent
+  // of the character overlay (so you can fight whether or not the arrows are up).
   const touchCombat = compact && enemyOv && myTurn && v.step === "spend" && !!me && !me.downed;
-  // Enemies the active hero can actually reach this turn (their tile + ranged-adjacent),
-  // keyed "tileId-monsterId" — the board only lets you tap these, not a monster across the map.
   const reachableMon = me ? new Set(attackTargets(v, me).map(({ tileId, m }) => `${tileId}-${m.id}`)) : new Set<string>();
-  const combat = touchCombat
-    ? {
-        sel: selMonValid ? selMon : null,
-        onSelect: (key: string) => setSelMon((k) => (k === key ? null : key)),
-        onAttack: attackMon,
-        canHit: canHitMon,
-        reachable: reachableMon,
-      }
-    : null;
+  const combat = touchCombat ? { reachable: reachableMon, onAttack: attackMon, canHit: canHitMon } : null;
 
   // Tap an ally pawn on your tile: revive a downed ally, Brace/Mend a standing one, or begin a
   // Carry (then the arrows move them). Mirrors the enemy tap-to-attack.
@@ -620,6 +607,7 @@ function CrawlerRoom({
       {(v.ph === "won" || v.ph === "lost") && (
         <div className="mind-controls panel mind-over">
           <strong>{v.ph === "won" ? "The boss falls. You win! 🎉" : "The dungeon claims you. 💀"}</strong>
+          {isHost && v.ph === "lost" && <button className="game-btn" onClick={() => g.send({ t: "retryLevel" })}>Try level {v.level} again</button>}
           {isHost && <button className="game-btn" onClick={() => g.send({ t: "restart" })}>New run</button>}
         </div>
       )}
@@ -686,8 +674,8 @@ function CrawlerRoom({
             <button className="cr-view-toggle emoji" onClick={toggleCompact} title="Compact (mobile) view" aria-label="Compact view">📱</button>
           </div>
         )}
-        {/* character overlay: steps aside while an enemy is selected so its ⚔ is never covered */}
-        {compact && charOv && !selMonValid && myTurn && me && !me.downed && v.step === "spend" && !layActive && (
+        {/* character overlay: stays up during combat; it raises its own ⚔ over reachable enemies */}
+        {compact && charOv && myTurn && me && !me.downed && v.step === "spend" && !layActive && (
           <CrawlerOverlay v={v} me={me} showMove={moveBtns} boardRef={boardRef} onSend={(msg) => { g.send(msg); setSel(null); }} lucky={lucky} onArmLucky={armLucky} onPickLucky={pickLucky} onReroll={rerollDie} carry={carryValid ? carryAlly : null} onPortalCenter={onPortalCenter} portalDests={portalDests} portalNo={portalNo} onPortal={(id) => g.send({ t: "portal", tile: id })} />
         )}
         <CrawlerMap

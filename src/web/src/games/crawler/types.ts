@@ -131,12 +131,13 @@ export type SpriteFor = (seat: number) => { pose: CrPose; frame: number; flip: b
 
 // CrCombat drives the compact-view tap-to-attack: tapping a monster selects it (`sel` is its
 // "tileId-monsterId" key), and the ⚔ button it shows calls onAttack; canHit gates the sword.
+// CrCombat drives the on-board attack ⚔: a reachable enemy shows a ⚔ above its sprite that
+// attacks it on tap (canHit gates the button). It lives on the board (not the overlay), so it
+// is clickable and viewable whether or not the on-pawn overlay is up.
 export type CrCombat = {
-  sel: string | null;
-  onSelect: (key: string) => void;
+  reachable: Set<string>; // "tileId-monsterId" keys the active hero may attack (own tile / ranged-reachable)
   onAttack: (tileId: number, m: CrMonster) => void;
   canHit: (m: CrMonster) => boolean;
-  reachable: Set<string>; // "tileId-monsterId" keys the active hero may attack (on/adjacent-reachable)
 };
 
 // CrAllyAct drives tapping an ally pawn: `act(h)` returns what a tap does (revive a downed ally,

@@ -238,7 +238,14 @@ func hazardForWeakPoint(t *crawlerTile) bool {
 	return false
 }
 
-// placeWeakPoint hides Hauler's Hardened-Core weak-point on a HAZARD ROOM elsewhere on the
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+// placeWeakPoint hides Hauler's Hardened-Core weak-point on a HAZARD ROOM near the boss on the
 // map (rust/trap preferred, else any hazard room), so the party must brave the hazard to
 // destroy it before the boss can be hurt. The tile is highlighted for the client. Falls
 // back to any other placed tile, then the boss tile, if no hazard room is available.
@@ -274,7 +281,20 @@ func (g *crawlerGame) placeWeakPoint(bossTileID int) {
 	wp := newWeakPoint()
 	t := g.tiles[bossTileID]
 	if len(pool) > 0 {
-		t = pool[g.rng.IntN(len(pool))]
+		// Spawn it NEAR the boss: pick the nearest tile in the pool (Manhattan distance),
+		// breaking ties at random, so the weak-point is close by, never across the whole map.
+		bt := g.tiles[bossTileID]
+		best := 1 << 30
+		var near []*crawlerTile
+		for _, c := range pool {
+			d := abs(c.x-bt.x) + abs(c.y-bt.y)
+			if d < best {
+				best, near = d, append(near[:0], c)
+			} else if d == best {
+				near = append(near, c)
+			}
+		}
+		t = near[g.rng.IntN(len(near))]
 	}
 	if sq := g.freeWalkable(t); sq >= 0 {
 		wp.square = sq

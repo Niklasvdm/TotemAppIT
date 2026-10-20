@@ -86,17 +86,15 @@ export function CrawlerTileCell({ tile, v, focus, debug, spriteFor, highlight, c
                 // Only enemies the active hero can actually reach (own tile / a legally
                 // attackable square — the same set the desktop Attack list uses) are
                 // tappable; a monster across the map must not respond to taps.
-                const selectable = !!combat && monster.alive && combat.reachable.has(monKey);
-                const selected = !!combat && combat.sel === monKey;
+                const reachable = !!combat && monster.alive && combat.reachable.has(monKey); // attackable: glows + ⚔
                 return (
                 <span
                   key={`mon-${monster.id}`}
-                  className={`cr-mon${selectable ? " selectable" : ""}${selected ? " selected" : ""}${badgeSide !== "right" ? ` badge-${badgeSide}` : ""}`}
+                  data-mon={monKey}
+                  className={`cr-mon${reachable ? " selectable" : ""}${badgeSide !== "right" ? ` badge-${badgeSide}` : ""}`}
                   style={mi ? { transform: `translate(${mi * 9}px, ${mi * 9}px)` } : undefined}
-                  role={selectable ? "button" : undefined}
-                  onClick={selectable ? (e) => { e.stopPropagation(); combat!.onSelect(monKey); } : undefined}
                 >
-                  {selected && (
+                  {reachable && (
                     <button
                       className="cr-mon-attack"
                       disabled={!combat!.canHit(monster)}

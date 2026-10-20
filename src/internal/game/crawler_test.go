@@ -113,21 +113,22 @@ func TestCrawlerMenuMinValues(t *testing.T) {
 func TestCrawlerWeightedDicePerCharacter(t *testing.T) {
 	// Each designed totem rolls its own weighted die faces, not a plain d6.
 	for _, tc := range []struct {
-		totem string
-		faces []int
-		hp    int
-		diceN int
+		totem   string
+		faces   []int
+		hp      int
+		diceN   int
+		attackN int // innate High attack dice on top of diceN (the Healer gets 1)
 	}{
-		{"bever", diceLow, 7, 4},
-		{"pijlinktvis", diceHigh, 4, 3},
-		{"boomkikker", diceLow, 6, 5},
-		{"wasbeer", diceBalanced, 5, 5},
-		{"comorenwever", diceLow, 5, 5},
-		{"wolf", diceHigh, 5, 4},
+		{"bever", diceLow, 7, 4, 0},
+		{"pijlinktvis", diceHigh, 4, 3, 0},
+		{"boomkikker", diceLow, 6, 4, 1}, // 4 Low + 1 attack die = 5 rolled
+		{"wasbeer", diceBalanced, 5, 5, 0},
+		{"comorenwever", diceLow, 5, 5, 0},
+		{"wolf", diceHigh, 5, 4, 0},
 	} {
 		s := sheetFor(tc.totem)
-		if s.maxHP != tc.hp || s.diceN != tc.diceN {
-			t.Fatalf("%s: hp=%d diceN=%d, want %d/%d", tc.totem, s.maxHP, s.diceN, tc.hp, tc.diceN)
+		if s.maxHP != tc.hp || s.diceN != tc.diceN || s.attackDiceN != tc.attackN {
+			t.Fatalf("%s: hp=%d diceN=%d attackN=%d, want %d/%d/%d", tc.totem, s.maxHP, s.diceN, s.attackDiceN, tc.hp, tc.diceN, tc.attackN)
 		}
 		if len(s.faces) != len(tc.faces) {
 			t.Fatalf("%s: faces=%v want %v", tc.totem, s.faces, tc.faces)
@@ -1227,6 +1228,156 @@ func TestCrawlerShopBuySpendsCourage(t *testing.T) {
 	crCmd(t, g, 0, false, map[string]any{"t": crMsgBuy, "obj": "medkit"})
 	if heroHas(h, "medkit") {
 		t.Fatal("buying away from a shop must be refused")
+	}
+}
+
+func TestCrawlerShopSellGivesCourage(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	shop := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, crKindShop, false, nil)
+	h := g.players[0]
+	h.tileID = shop.id
+	h.square = 4
+	h.courage = 4
+	h.objects = []string{"medkit", "scope"}
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSell, "obj": "medkit"})
+	if h.courage != 5 || heroHas(h, "medkit") {
+		t.Fatalf("selling should give +1 Courage and drop the item: courage=%d objs=%v", h.courage, h.objects)
+	}
+	// At the Courage cap, selling is refused (it would be wasted).
+	h.courage = crCourageCap
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSell, "obj": "scope"})
+	if h.courage != crCourageCap || !heroHas(h, "scope") {
+		t.Fatalf("selling at the cap must be refused: courage=%d objs=%v", h.courage, h.objects)
+	}
+	// Off a shop tile, selling is refused.
+	h.courage = 4
+	h.tileID = g.placeTile(6, 6, [4]bool{true, true, true, true}, 0, "cross", false, nil).id
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgSell, "obj": "scope"})
+	if h.courage != 4 || !heroHas(h, "scope") {
+		t.Fatal("selling away from a shop must be refused")
+	}
+}
+
+func TestCrawlerShopStocksMajorityPermanents(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.rollShop()
+	if len(g.shopStock) != crShopSize {
+		t.Fatalf("shop should hold %d objects: %v", crShopSize, g.shopStock)
+	}
+	perms := 0
+	for _, s := range g.shopStock {
+		if d := objBySlug(s); d != nil && d.perm {
+			perms++
+		}
+	}
+	if perms < crShopPerms {
+		t.Fatalf("shop should stock a majority (>=%d) permanents, got %d: %v", crShopPerms, perms, g.shopStock)
+	}
+}
+
+func TestCrawlerKillDropPoolHasBothRarities(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	sawPerm, sawConsumable := false, false
+	for i := 0; i < 3000; i++ {
+		d := objBySlug(g.rollDrop())
+		if d == nil {
+			t.Fatal("rollDrop returned an unknown slug")
+		}
+		if d.perm {
+			sawPerm = true
+		} else {
+			sawConsumable = true
+		}
+	}
+	if !sawPerm || !sawConsumable {
+		t.Fatalf("kill drops should include both permanents and consumables over many rolls: perm=%v consumable=%v", sawPerm, sawConsumable)
+	}
+}
+
+func TestCrawlerHealerHasInnateAttackDie(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.players[0].sheet = healerSheet("boomkikker")
+	g.beginTurn(0)
+	if len(g.dice) != 5 {
+		t.Fatalf("healer should roll 4 Low + 1 attack die = 5 dice: got %d", len(g.dice))
+	}
+	bonus := 0
+	for _, d := range g.dice {
+		if d.Bonus {
+			bonus++
+		}
+	}
+	if bonus != 1 {
+		t.Fatalf("healer should have exactly 1 Bonus (attack) die: got %d", bonus)
+	}
+}
+
+func TestCrawlerWeakPointSpawnsNearBoss(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	boss := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, nil)
+	near := g.placeTile(5, 6, [4]bool{true, true, true, true}, 0, crKindRust, false, nil)
+	g.placeTile(5, 12, [4]bool{true, true, true, true}, 0, crKindRust, false, nil) // far
+	g.placeWeakPoint(boss.id)
+	wpTile := -1
+	for id, ti := range g.tiles {
+		for _, m := range ti.monsters {
+			if m.weakPoint {
+				wpTile = id
+			}
+		}
+	}
+	if wpTile != near.id {
+		t.Fatalf("weak-point should land on the NEAR hazard tile (%d), got %d", near.id, wpTile)
+	}
+}
+
+func TestCrawlerHaulerDoesNotLockInWhileImmune(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	boss := &crawlerMonster{armour: 5, health: 6, maxHealth: 6, damage: 4, kind: "hauler", isBoss: true, alive: true, square: 4, specials: []string{bsHardcore}}
+	lair := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, []*crawlerMonster{boss})
+	g.placeTile(5, 4, [4]bool{true, true, true, true}, 0, "cross", false, nil) // a tile to the North to leave onto
+	wpTile := g.placeTile(5, 6, [4]bool{true, true, true, true}, 0, crKindRust, false, nil)
+	wp := newWeakPoint()
+	wpTile.monsters = append(wpTile.monsters, wp)
+	h := g.players[0]
+	h.tileID, h.square = lair.id, crawlerDoor[0] // on the North doorway of the lair
+	if !g.tryMove(0, 0) {
+		t.Fatal("Hauler must not lock heroes in while its weak-point still stands")
+	}
+	// weak-point destroyed: now it locks in like any boss
+	wp.alive = false
+	h.tileID, h.square = lair.id, crawlerDoor[0]
+	if g.tryMove(0, 0) {
+		t.Fatal("once the weak-point is gone, Hauler locks heroes in like any boss")
+	}
+}
+
+func TestCrawlerRetryLevelReplaysWithoutObjects(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	g.startLevel(3)
+	h := g.players[0]
+	h.objects = []string{"medkit", "scope"}
+	h.health = 1
+	h.courage = 5
+	g.phase = crLost
+	crCmd(t, g, 0, true, map[string]any{"t": crMsgRetry})
+	if g.phase != crPlaying {
+		t.Fatalf("retry should resume play: phase=%q", g.phase)
+	}
+	if g.level != 3 {
+		t.Fatalf("retry should stay on the same level: %d", g.level)
+	}
+	if len(h.objects) != 0 {
+		t.Fatalf("retry should empty the pack: %v", h.objects)
+	}
+	if h.health != h.sheet.maxHP {
+		t.Fatalf("retry should refill health: %d/%d", h.health, h.sheet.maxHP)
+	}
+	// A non-host, or outside a loss, is refused.
+	g.phase = crLost
+	crCmd(t, g, 0, false, map[string]any{"t": crMsgRetry})
+	if g.phase != crLost {
+		t.Fatal("a non-host retry must be refused")
 	}
 }
 
