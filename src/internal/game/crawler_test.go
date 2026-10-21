@@ -3318,3 +3318,69 @@ func TestCrawlerBuySpareDieEnablesItNow(t *testing.T) {
 		t.Fatalf("the added die should be a High Bonus die: bonus=%v value=%d", last.Bonus, last.Value)
 	}
 }
+
+// TestCrawlerSpawnAvoidsCorpseSquares guards that a summoned robot takes a fresh square rather
+// than piling on top of a corpse: a dead monster still occupies its square, so new spawns spread
+// to the remaining squares and stack onto a hero or boss only never (extras are dropped).
+func TestCrawlerSpawnAvoidsCorpseSquares(t *testing.T) {
+	g, _ := startedCrawler(t, 1)
+	tile := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "cross", false, nil)
+	// A cross tile's robot squares are the four corners {0,2,6,8}. Lay a corpse on square 0.
+	corpse := &crawlerMonster{square: 0, kind: "scrapling", alive: false}
+	tile.monsters = append(tile.monsters, corpse)
+	if free := g.freeRobotSquares(tile); contains(free, 0) {
+		t.Fatalf("freeRobotSquares still offers the corpse's square 0: %v", free)
+	}
+	adds := []*crawlerMonster{makeAdd("scrapling"), makeAdd("scrapling"), makeAdd("scrapling"), makeAdd("scrapling")}
+	g.spawnMonsters(tile, adds)
+	seen := map[int]int{}
+	for _, m := range tile.monsters {
+		seen[m.square]++
+	}
+	if seen[0] != 1 {
+		t.Errorf("square 0 should hold only the corpse, holds %d", seen[0])
+	}
+	for sq, n := range seen {
+		if n > 1 {
+			t.Errorf("square %d holds %d monsters: spawns stacked instead of spreading", sq, n)
+		}
+	}
+}
+
+// TestCrawlerWeakPointRangeAndPriority guards the weak-point placement: within 5 tiles of the
+// boss, a hazard room wins; failing that the tile with the most alive enemies; an out-of-range
+// hazard is ignored.
+func TestCrawlerWeakPointRangeAndPriority(t *testing.T) {
+	wpTileOf := func(g *crawlerGame) *crawlerTile {
+		for _, ti := range g.tiles {
+			for _, m := range ti.monsters {
+				if m.weakPoint {
+					return ti
+				}
+			}
+		}
+		return nil
+	}
+	mob := func(sq int) *crawlerMonster { return &crawlerMonster{square: sq, kind: "hulk", alive: true} }
+
+	// (a) an in-range hazard beats an enemy-packed tile, and an out-of-range hazard is ignored.
+	g, _ := startedCrawler(t, 1)
+	boss := g.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, nil)
+	haz := g.placeTile(5, 9, [4]bool{true, true, true, true}, 0, crKindRust, false, nil) // dist 4
+	enemies := g.placeTile(5, 6, [4]bool{true, true, true, true}, 0, "cross", false, []*crawlerMonster{mob(0), mob(2)})
+	g.placeTile(5, 13, [4]bool{true, true, true, true}, 0, crKindRust, false, nil) // dist 8, out of range
+	g.placeWeakPoint(boss.id)
+	if wp := wpTileOf(g); wp == nil || wp.id != haz.id {
+		t.Fatalf("(a) expected the in-range hazard tile %d, got %v (enemy tile was %d)", haz.id, wp, enemies.id)
+	}
+
+	// (b) no hazard in range: the tile with the MOST alive enemies wins.
+	g2, _ := startedCrawler(t, 1)
+	boss2 := g2.placeTile(5, 5, [4]bool{true, true, true, true}, 0, "boss", true, nil)
+	g2.placeTile(5, 6, [4]bool{true, true, true, true}, 0, "cross", false, []*crawlerMonster{mob(0)})                         // 1 enemy
+	many := g2.placeTile(6, 5, [4]bool{true, true, true, true}, 0, "cross", false, []*crawlerMonster{mob(0), mob(2), mob(6)}) // 3 enemies
+	g2.placeWeakPoint(boss2.id)
+	if wp := wpTileOf(g2); wp == nil || wp.id != many.id {
+		t.Fatalf("(b) expected the enemy-packed tile %d, got %v", many.id, wp)
+	}
+}

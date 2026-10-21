@@ -10,8 +10,28 @@ relate to:
 
 Dated, semver-tagged history for Totem Finder (IT). The single source of truth for the current build is [`VERSION`](VERSION); the live [Issues & Roadmap](README.md#issues--roadmap) stays in the [README](README.md). Tags: `[FEATURE]` new capability, `[CHANGE]` behaviour change, `[BUG]`/`[FIX]` fix, `[ENHANCEMENT]` polish, `[DOCS]`, `[CHORE]`, `[SECURITY]`, `[TEST]`.
 
+### 0.24.7 — 2026-10-21
+- `[BUG]` **Crawler: Hauler's weak-point spawns at most 5 tiles from the boss.** It could still land ~7 tiles away (the old "nearest hazard room" had no cap). Placement is now capped to `crWeakPointRange` (5 tiles, Manhattan) and, within that radius, picks in order: the closest hazard room (rust/trap preferred), else the tile with the most alive enemies, else a random in-range tile. `TestCrawlerWeakPointRangeAndPriority`.
+
+### 0.24.6 — 2026-10-21
+- `[ENHANCEMENT]` **Crawler: the start-of-round warning banner can be dismissed.** The "X tiles left! Boss near" / "N turns left before the dungeon collapses" banner now has a ✕ to close it early (it still auto-hides, now after 6s).
+
+### 0.24.5 — 2026-10-21
+- `[ENHANCEMENT]` **Crawler (mobile): the item ⓘ explainer appears above the pawn.** Tapping an item's ⓘ in the on-pawn overlay used to open the generic tooltip off beside the dot (near the top of the map); it now shows one popover centred above your hero, with a ✕ to dismiss and a 7s auto-hide.
+
+### 0.24.4 — 2026-10-21
+- `[BUG]` **Crawler: enough scroll room on every side for an edge-tile pawn.** The board scroll padding was `8vw` left/right, which on a narrower viewport was smaller than the on-pawn overlay's ~12rem reach, so a hero on a rightmost tile could not scroll far enough to see their items / Courage / action bars. It is now `max(8vw, 13rem)` horizontally and `max(16vh, 9rem)` vertically, so the whole overlay is always reachable.
+
+### 0.24.3 — 2026-10-20
+- `[BUG]` **Crawler: summoned robots no longer pile on corpses (pushing the boss / hero off their square).** `freeRobotSquares` only treated LIVE monsters as occupying a square, so a boss's per-round summon landed on top of a dead robot and the stacked sprites spilled over the boss and heroes. A corpse now holds its square too, so each robot (dead or alive) gets its own square and extras are dropped once the room's robot squares are full, rather than stacking onto a hero or the boss. `TestCrawlerSpawnAvoidsCorpseSquares`.
+
+### 0.24.2 — 2026-10-20
+- `[ENHANCEMENT]` **Crawler (sidebar): hotkey keycaps on the action bars and item slots.** Each action bar (Move WASD, Special B/H, Attack F, Courage C, Patch up P) and each held item (1-9) now shows its keyboard shortcut as a keycap, so the hotkeys are discoverable. Sidebar only, not the on-pawn touch overlay.
+- `[FEATURE]` **Crawler: `P` patches up.** A keyboard shortcut for the always-available 2 Courage to 1 Health trade, to match the other action keys.
+
 ### 0.24.1 — 2026-10-20
-- `[BUG]` **Crawler: rerolling an attack die no longer downgrades it to Low.** A Bonus die (Spare Die, the Healer's innate die, Wolf Frenzy) is a High die, but a reroll re-rolled it on the hero's sheet faces (Low for a Beaver/Healer), so a rerolled attack die kept coming up low. It now re-rolls on the High face set. `TestCrawlerRerollKeepsBonusDieHigh`.
+- `[BUG]` **Crawler: rerolling an attack die no longer downgrades it to Low.** A Bonus die (Spare Die, the Healer's innate die, Wolf Frenzy) is a High die, but a reroll re-rolled it on the hero's sheet faces (Low for a Beaver/Healer), so a rerolled attack die kept coming up low. Fixed structurally: each die now carries its OWN face set (`crawlerDie.faces`), set by a single `rollDie` factory, so a reroll draws from the die's distribution and cannot downgrade it. `TestCrawlerRerollKeepsBonusDieHigh`.
+- `[BUG]` **Crawler: the Wolf's Frenzy free die now respects Electrocuted.** It was the one die roll that skipped the Electrocuted penalty; routing it through `rollDie` applies it uniformly.
 - `[CHANGE]` **Crawler: buying a Spare Die enables it immediately.** The purchased High attack die is added to the current turn's pool, already rolled, instead of only appearing next turn. `TestCrawlerBuySpareDieEnablesItNow`.
 - `[ENHANCEMENT]` **Crawler: the start-of-level title card shows the boss and its twist, and waits for you.** The card now draws the boss's sprite plus its signature special(s), and it no longer auto-hides: the stack shuffles for a beat, then a ✕ / Begin button appears so you dismiss it when ready. New view fields `bossSlug` / `bossTwist`.
 - `[ENHANCEMENT]` **Crawler: a reroll always animates.** The die face re-tumbles on every reroll, even when the same value comes up again (it used to look like nothing happened).

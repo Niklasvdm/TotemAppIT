@@ -292,6 +292,12 @@ function CrawlerRoom({
         if (lo >= 0) { g.send({ t: "spend", die: lo, action: "courage" }); setSel(null); }
         return;
       }
+      // Patch up: p (trade 2 Courage for 1 Health, no die).
+      if (key === "p") {
+        e.preventDefault();
+        if (me.courage >= 2 && me.health < me.maxHP) { g.send({ t: "heal" }); setSel(null); }
+        return;
+      }
       // Brace: b (shield totems). Spend the lowest usable die to shield yourself, same as the
       // Special bar's self-target.
       if (key === "b" && (me.special === "brace" || me.special === "guard")) {
@@ -613,6 +619,7 @@ function CrawlerRoom({
           <span><kbd>F</kbd> Fight</span>
           {(me?.special === "brace" || me?.special === "guard") && <span><kbd>B</kbd> Brace</span>}
           {me?.special === "mend" && <span><kbd>H</kbd> Heal</span>}
+          <span><kbd>P</kbd> Patch up</span>
           <span><kbd>1</kbd>–<kbd>9</kbd> use item</span>
           <span><kbd>E</kbd> end turn</span>
           <span><kbd>V</kbd> revive a downed ally</span>

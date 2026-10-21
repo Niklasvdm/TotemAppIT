@@ -245,56 +245,42 @@ func abs(x int) int {
 	return x
 }
 
-// placeWeakPoint hides Hauler's Hardened-Core weak-point on a HAZARD ROOM near the boss on the
-// map (rust/trap preferred, else any hazard room), so the party must brave the hazard to
-// destroy it before the boss can be hurt. The tile is highlighted for the client. Falls
-// back to any other placed tile, then the boss tile, if no hazard room is available.
+// crWeakPointRange caps how far from the boss chamber Hauler's weak-point may hide (tiles,
+// Manhattan): it must be a short detour, never across the map.
+const crWeakPointRange = 5
+
+// placeWeakPoint hides Hauler's Hardened-Core weak-point near the boss (within crWeakPointRange
+// tiles) so the party has a short, deliberate detour before the boss can be hurt. Among the
+// tiles in range it picks, in order: (1) the closest HAZARD room (rust/trap preferred on a tie),
+// (2) else the tile with the MOST alive enemies, (3) else a random tile in range. Only if no
+// tile is in range does it widen to the whole map (then the boss tile as a last resort). The
+// chosen tile is highlighted for the client.
 func (g *crawlerGame) placeWeakPoint(bossTileID int) {
+	bt := g.tiles[bossTileID]
 	ids := make([]int, 0, len(g.tiles)) // sort for determinism (map order is randomised)
 	for id := range g.tiles {
 		ids = append(ids, id)
 	}
 	sort.Ints(ids)
-	var prime, hazard, anyTile []*crawlerTile // prime = rust/trap; hazard = other hazard rooms
+	var inRange, anyTile []*crawlerTile
 	for _, id := range ids {
 		t := g.tiles[id]
 		if id == bossTileID || t.isBoss || g.freeWalkable(t) < 0 {
 			continue
 		}
 		anyTile = append(anyTile, t)
-		if !hazardForWeakPoint(t) {
-			continue
-		}
-		if t.kind == crKindRust || t.kind == crKindTrap {
-			prime = append(prime, t)
-		} else {
-			hazard = append(hazard, t)
+		if abs(t.x-bt.x)+abs(t.y-bt.y) <= crWeakPointRange {
+			inRange = append(inRange, t)
 		}
 	}
-	pool := prime
+	pool := inRange
 	if len(pool) == 0 {
-		pool = hazard
-	}
-	if len(pool) == 0 {
-		pool = anyTile
+		pool = anyTile // nothing in range (should not happen near a laid boss): widen to the map
 	}
 	wp := newWeakPoint()
-	t := g.tiles[bossTileID]
-	if len(pool) > 0 {
-		// Spawn it NEAR the boss: pick the nearest tile in the pool (Manhattan distance),
-		// breaking ties at random, so the weak-point is close by, never across the whole map.
-		bt := g.tiles[bossTileID]
-		best := 1 << 30
-		var near []*crawlerTile
-		for _, c := range pool {
-			d := abs(c.x-bt.x) + abs(c.y-bt.y)
-			if d < best {
-				best, near = d, append(near[:0], c)
-			} else if d == best {
-				near = append(near, c)
-			}
-		}
-		t = near[g.rng.IntN(len(near))]
+	t := bt // last resort: the boss tile itself, if there is nowhere else
+	if dest := g.pickWeakPointTile(bt, pool); dest != nil {
+		t = dest
 	}
 	if sq := g.freeWalkable(t); sq >= 0 {
 		wp.square = sq
@@ -302,7 +288,75 @@ func (g *crawlerGame) placeWeakPoint(bossTileID int) {
 		wp.square = 4
 	}
 	t.monsters = append(t.monsters, wp)
-	g.log = append(g.log, bossNameOnTile(g, bossTileID)+"'s weak-point is exposed in a hazard room (marked on the map). Destroy it before the boss can be harmed.")
+	g.log = append(g.log, bossNameOnTile(g, bossTileID)+"'s weak-point is exposed nearby (marked on the map). Destroy it before the boss can be harmed.")
+}
+
+// pickWeakPointTile chooses the weak-point's tile from `pool` by placeWeakPoint's priority:
+// (1) the closest hazard room (rust/trap preferred on a distance tie), (2) else the tile with
+// the most alive enemies (closest on a tie), (3) else a random tile. nil only for an empty pool.
+func (g *crawlerGame) pickWeakPointTile(bt *crawlerTile, pool []*crawlerTile) *crawlerTile {
+	if len(pool) == 0 {
+		return nil
+	}
+	var haz []*crawlerTile
+	for _, t := range pool {
+		if hazardForWeakPoint(t) {
+			haz = append(haz, t)
+		}
+	}
+	if near := nearestTiles(bt, haz); len(near) > 0 {
+		var prime []*crawlerTile
+		for _, t := range near {
+			if t.kind == crKindRust || t.kind == crKindTrap {
+				prime = append(prime, t)
+			}
+		}
+		if len(prime) > 0 {
+			return prime[g.rng.IntN(len(prime))]
+		}
+		return near[g.rng.IntN(len(near))]
+	}
+	best := 0
+	var top []*crawlerTile
+	for _, t := range pool {
+		if n := aliveMonsters(t); n > best {
+			best, top = n, append(top[:0], t)
+		} else if n == best && n > 0 {
+			top = append(top, t)
+		}
+	}
+	if best > 0 {
+		if near := nearestTiles(bt, top); len(near) > 0 {
+			return near[g.rng.IntN(len(near))]
+		}
+	}
+	return pool[g.rng.IntN(len(pool))]
+}
+
+// nearestTiles returns the subset of ts tied for the smallest Manhattan distance to bt.
+func nearestTiles(bt *crawlerTile, ts []*crawlerTile) []*crawlerTile {
+	best := 1 << 30
+	var out []*crawlerTile
+	for _, t := range ts {
+		d := abs(t.x-bt.x) + abs(t.y-bt.y)
+		if d < best {
+			best, out = d, append(out[:0], t)
+		} else if d == best {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// aliveMonsters counts the living monsters on a tile.
+func aliveMonsters(t *crawlerTile) int {
+	n := 0
+	for _, m := range t.monsters {
+		if m.alive {
+			n++
+		}
+	}
+	return n
 }
 
 // bossNameOnTile returns the boss's name for a log line, or a generic word.
@@ -399,14 +453,15 @@ func (g *crawlerGame) spawnMonsters(t *crawlerTile, adds []*crawlerMonster) {
 }
 
 // freeRobotSquares lists the hero-unreachable squares (corners / closed-edge midpoints) of
-// tile t not already held by a live monster: where a spawned robot may land.
+// tile t not already held by ANY monster, alive OR dead: where a spawned robot may land. A
+// corpse still occupies its square (it is still drawn there), so a new spawn must take a fresh
+// square rather than pile on top of a body; once every robot square holds something, extra
+// spawns are dropped instead of stacking onto a hero or the boss.
 func (g *crawlerGame) freeRobotSquares(t *crawlerTile) []int {
 	w := crawlerWalkable(t.edges)
 	taken := map[int]bool{}
 	for _, m := range t.monsters {
-		if m.alive {
-			taken[m.square] = true
-		}
+		taken[m.square] = true // dead or alive: a corpse still holds (and is drawn on) its square
 	}
 	var out []int
 	for _, s := range crawlerRobotSquareOrder {

@@ -486,7 +486,11 @@ header {
 .cr-room { display: flex; flex-direction: column; gap: .6rem; --cr-cell: 160px; }
 /* padding on the scroll CONTAINER (not the grid child) so there is scroll room on every side,
    bottom and right included (a child's padding-bottom/right is not reliably scrollable). */
-.cr-map-scroll { overflow: auto; overscroll-behavior: contain; max-height: 70vh; padding: 16vh 8vw; box-sizing: border-box; border-radius: 10px; background: var(--cream, #0000); cursor: grab; }
+/* Scroll room on every side so a pawn on an edge tile can still be centred and its on-pawn
+   overlay (dice above, the items/bars/courage panel ~12rem to the right, End turn below) fully
+   scrolled into view. The overlay's reach is in rem, so use max() to guarantee that room even on
+   a narrow viewport where a vh/vw-only padding fell short on the left/right. */
+.cr-map-scroll { overflow: auto; overscroll-behavior: contain; max-height: 70vh; padding: max(16vh, 9rem) max(8vw, 13rem); box-sizing: border-box; border-radius: 10px; background: var(--cream, #0000); cursor: grab; }
 .cr-map-scroll.dragging { cursor: grabbing; }
 /* Vertical/horizontal padding gives scroll room past the edge tiles, so the focus tile can
    always be centred and the on-tile buttons (an enemy's ⚔, the dice above your pawn) are never
@@ -840,6 +844,10 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 }
 .cr-round-warn.collapse { border-color: #ef4444; color: #ffd9d9; }
 .cr-round-warn-ico { font-size: 1.5rem; }
+/* dismiss ✕: the banner lets clicks pass through, only the ✕ captures them */
+.cr-round-warn { padding-right: 2.4rem; }
+.cr-round-warn-x { position: absolute; top: .35rem; right: .45rem; pointer-events: auto; background: transparent; border: none; color: inherit; opacity: .7; cursor: pointer; font-size: 1rem; line-height: 1; padding: .15rem .3rem; border-radius: 6px; }
+.cr-round-warn-x:hover { opacity: 1; background: rgba(255,255,255,.14); }
 @keyframes cr-round-warn-in { from { transform: translateX(-50%) scale(.85); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 @keyframes cr-round-warn-pulse { 0%, 100% { box-shadow: 0 6px 22px rgba(0,0,0,.7); } 50% { box-shadow: 0 6px 30px rgba(201,162,39,.65); } }
 .cr-round-warn.collapse { animation: cr-round-warn-in .35s ease-out, cr-round-warn-pulse-red 1.1s ease-in-out .35s 3; }
@@ -1021,6 +1029,25 @@ button.gcard:disabled { cursor: default; opacity: .9; }
 .cr-item.filled:hover .cr-item-use:not(:disabled) { background: rgba(201,162,39,.25); }
 .cr-item-drop { position: absolute; top: -.35rem; right: -.35rem; pointer-events: auto; width: 1.15rem; height: 1.15rem; font-size: .7rem; line-height: 1; border-radius: 50%; border: 1px solid rgba(201,162,39,.6); background: #140f09; color: #fdf6e8; cursor: pointer; padding: 0; }
 .cr-item-drop:hover { background: rgba(201,162,39,.35); border-color: var(--gold, #c9a227); }
+/* the ⓘ info button in a slot's top-left corner (mobile short-view); taps open the above-pawn popover */
+.cr-item-info-btn { position: absolute; top: -.3rem; left: -.3rem; pointer-events: auto; width: 1.1rem; height: 1.1rem; display: inline-flex; align-items: center; justify-content: center; font-size: .66rem; line-height: 1; border-radius: 50%; border: 1px solid rgba(201,162,39,.6); background: #140f09; color: var(--gold, #c9a227); cursor: pointer; padding: 0; }
+.cr-item-info-btn:hover { border-color: var(--gold, #c9a227); background: rgba(201,162,39,.25); }
+/* the item-info popover, centred above the hero pawn in the on-pawn overlay */
+.cr-ov-iteminfo {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, calc(-100% - 3.5rem)); z-index: 30;
+  pointer-events: auto; width: max-content; max-width: 14rem; text-align: left;
+  display: flex; flex-direction: column; gap: .2rem; padding: .5rem .7rem .55rem;
+  background: #140f09; color: #fdf6e8; border: 1px solid var(--gold, #c9a227); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.7); font-size: .78rem; font-weight: 600; line-height: 1.35;
+  animation: cr-levelcard-pop .2s ease-out;
+}
+.cr-ov-iteminfo strong { color: var(--gold, #c9a227); }
+.cr-ov-iteminfo-x { position: absolute; top: .15rem; right: .3rem; background: transparent; border: none; color: #fdf6e8; opacity: .7; cursor: pointer; font-size: .8rem; line-height: 1; padding: .1rem .2rem; }
+.cr-ov-iteminfo-x:hover { opacity: 1; }
+/* the 1-9 hotkey keycap in a slot's bottom-left corner (sidebar only) */
+.cr-item-key { position: absolute; bottom: -.3rem; left: -.3rem; pointer-events: none; min-width: 1.05rem; height: 1.05rem; display: inline-flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 800; line-height: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); border-bottom-width: 2px; background: #140f09; color: #fdf6e8; }
+/* the action-bar hotkey keycap, between the track and the cost (sidebar only) */
+.cr-bar2-key { flex: none; min-width: 1.2em; padding: .05em .35em; text-align: center; font: inherit; font-size: .7rem; font-weight: 800; line-height: 1.4; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); border-bottom-width: 2px; background: rgba(255,255,255,.08); color: #fdf6e8; }
 /* Snatch totems: an extra pink glow on every item */
 .cr-item.snatch.filled { border-color: #ff6fae; background: rgba(60,22,42,.7); box-shadow: 0 0 6px rgba(255,111,174,.7), 0 0 13px rgba(255,111,174,.4); }
 .cr-item.snatch.empty { border-color: rgba(255,111,174,.45); border-style: dashed; }

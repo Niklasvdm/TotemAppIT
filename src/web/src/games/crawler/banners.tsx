@@ -82,13 +82,15 @@ export function CrawlerLevelCard({ v }: { v: CrView }) {
 // warns when the stack is nearly out ("X tiles left! Boss near"); once the stack is empty it
 // shows the collapse countdown ("N turns left before collapse"). Auto-hides after a few seconds.
 export function CrawlerRoundWarning({ v }: { v: CrView }) {
-  const shown = useAutoHide(3000);
+  const shown = useAutoHide(6000);
+  const [closed, setClosed] = useState(false);
   const showGrace = v.grace >= 0; // stack empty: collapse countdown
   const tilesLeft = v.deckLeft;
   const showTiles = !showGrace && tilesLeft > 0 && tilesLeft <= 10; // last 10 tiles
-  if (!shown || (!showGrace && !showTiles)) return null;
+  if (closed || !shown || (!showGrace && !showTiles)) return null;
   return (
     <div className={`cr-round-warn${showGrace ? " collapse" : ""}`} role="status">
+      <button className="cr-round-warn-x" onClick={() => setClosed(true)} title="Dismiss" aria-label="Dismiss">✕</button>
       {showGrace ? (
         <>
           <span className="cr-round-warn-ico">⚠</span>

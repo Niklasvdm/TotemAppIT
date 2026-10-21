@@ -73,9 +73,9 @@ export function CrawlerHeroPanel({ v, me, lost, onSend, layNode, onPortalCenter,
           )}
 
           <CrawlerMovePad v={v} me={me} onSend={onSend} carry={carry} />
-          <CrawlerActionBars v={v} me={me} onSend={onSend} onHoverTarget={onHoverTarget} />
+          <CrawlerActionBars v={v} me={me} onSend={onSend} onHoverTarget={onHoverTarget} keys />
 
-          <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} />
+          <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} keys />
 
           {/* footer: portal, revive, End turn / End level */}
           <div className="cr-hp-footer">

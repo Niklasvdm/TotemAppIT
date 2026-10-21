@@ -3,9 +3,9 @@
 // hearts/shields sit above it; active statuses hang to the left (hoverable); the action bars
 // and items sit to the right; End turn is under the d-pad. The cluster re-anchors on the pawn
 // on every move so it tracks the character. Shown only on your own spend turn.
-import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { CrView, CrHero, CrTile } from "./types";
-import { heroStatuses, STATUSES } from "./data";
+import { heroStatuses, STATUSES, objInfo } from "./data";
 import { TotemSprite } from "./sprites";
 import { CrawlerDiceRow } from "./dicerow";
 import { CrawlerMovePad } from "./movepad";
@@ -29,6 +29,14 @@ export function CrawlerOverlay({ v, me, showMove, onSend, boardRef, lucky, onArm
 }) {
   const carried = carry != null ? v.heroes.find((h) => h.s === carry) : undefined;
   const myTile = v.tiles.find((t) => t.id === me.tile);
+  // Item info: tapping an item's ⓘ shows one small popover ABOVE the pawn (not off beside the
+  // dot), dismissible by its ✕ and auto-hiding after 7s.
+  const [infoSlug, setInfoSlug] = useState<string | null>(null);
+  useEffect(() => {
+    if (!infoSlug) return;
+    const t = setTimeout(() => setInfoSlug(null), 7000);
+    return () => clearTimeout(t);
+  }, [infoSlug]);
   // Keep the cluster centred on YOUR pawn, re-measuring on move / the map's re-centre scroll /
   // resize. (Enemy attack ⚔ live ON the board, not here, so they scroll natively and show
   // whether or not this overlay is up.)
@@ -64,6 +72,17 @@ export function CrawlerOverlay({ v, me, showMove, onSend, boardRef, lucky, onArm
   return (
     <div className="cr-overlay" aria-label="touch controls">
       <div className="cr-ov-anchor" style={anchorStyle}>
+        {/* item info: a single popover centred above the hero, with ✕ (also auto-hides) */}
+        {infoSlug && (() => {
+          const info = objInfo(infoSlug);
+          return (
+            <div className="cr-ov-iteminfo" role="status">
+              <button className="cr-ov-iteminfo-x" onClick={() => setInfoSlug(null)} title="Dismiss" aria-label="Dismiss">✕</button>
+              <strong>{info.emoji} {info.name}</strong>
+              <span>{info.effect}</span>
+            </div>
+          );
+        })()}
         {/* dice (or, while carrying, the carried ally's sprite) above the hero */}
         {carried ? (
           <div className="cr-ov-dice cr-ov-carry" title={`Carrying ${carried.n} — pick a direction (tap them again to stop)`}>
@@ -117,7 +136,7 @@ export function CrawlerOverlay({ v, me, showMove, onSend, boardRef, lucky, onArm
         {/* small (no-text) action bars + courage next to the arrows; items under the courage bar */}
         <div className="cr-ov-side">
           <CrawlerActionBars v={v} me={me} onSend={onSend} compact names={false} />
-          <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} info />
+          <CrawlerItemRow v={v} me={me} myTurn onSend={onSend} luckyArmed={lucky} onArmLucky={onArmLucky} info onInfo={setInfoSlug} />
         </div>
         {/* end turn, under the d-pad; End level appears under it during the post-boss lap */}
         <div className="cr-ov-end-col">
